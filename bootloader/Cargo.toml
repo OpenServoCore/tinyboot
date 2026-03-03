@@ -1,0 +1,19 @@
+[package]
+name = "ch32-iap-bootloader"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+ch32-metapac = { version = "0.0.6", default-features = false, features = ["pac", "rt", "memory-x"] }
+qingke-rt = "0.6.1"
+qingke = { version = "0.6.1", features = ["critical-section-impl"] }
+panic-halt = "1.0"
+
+ch32-iap-proto = { path = "../proto" }
+
+[features]
+# choose a default chip for dev
+default = ["ch32v003f4u6"]
+ch32v003f4u6 = ["ch32-metapac/ch32v003f4u6"]

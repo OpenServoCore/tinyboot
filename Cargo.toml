@@ -1,0 +1,14 @@
+[workspace]
+members = [
+    "bootloader",
+    "proto",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+repository = "https://github.com/OpenServoCore/ch32-iap-bootloader"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]

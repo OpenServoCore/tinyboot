@@ -1,0 +1,11 @@
+[package]
+name = "ch32-iap-proto"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+std = []
+
+[dependencies]
