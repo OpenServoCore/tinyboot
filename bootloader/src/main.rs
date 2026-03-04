@@ -16,10 +16,13 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-use ch32_iap_core::{determine_boot_mode, jump_to_application, BootMode};
+use ch32_iap_core::{BootMode, determine_boot_mode, jump_to_application};
 
 #[entry]
 fn main() -> ! {
+    #[cfg(feature = "log")]
+    defmt::info!("Bootloader started");
+
     match determine_boot_mode() {
         BootMode::Bootloader => {
             #[cfg(feature = "log")]

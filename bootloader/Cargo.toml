@@ -24,3 +24,6 @@ ch32v003f4p6 = ["ch32-metapac/ch32v003f4p6"]
 
 # debug features
 log = ["dep:defmt", "dep:defmt-rtt"]
+
+# boot behavior
+require-app = ["ch32-iap-core/require-app"]

@@ -9,9 +9,11 @@ fn main() {
         .unwrap()
         .write_all(include_bytes!("memory.x"))
         .unwrap();
-    // Provide an empty defmt.x so the linker flag from qingke-rt doesn't fail
-    // when the `log` feature (and defmt-rtt) is not enabled.
-    File::create(out.join("defmt.x")).unwrap();
+
+    if env::var_os("CARGO_FEATURE_LOG").is_none() {
+        // stub defmt.x to prevent linker errors when defmt is not used
+        File::create(out.join("defmt.x")).unwrap();
+    }
     println!("cargo:rustc-link-search={}", out.display());
     println!("cargo:rerun-if-changed=memory.x");
 }

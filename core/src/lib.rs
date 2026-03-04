@@ -48,7 +48,7 @@ struct Meta {
 const BOOTLOADER_MAGIC: u32 = 0xB00710AD;
 const NO_CHECKSUM: u32 = 0xFFFFFFFF;
 
-extern "C" {
+unsafe extern "C" {
     static __APP_ADDR: u8;
     static __APP_SIZE: u8;
     static __META_ADDR: u8;
