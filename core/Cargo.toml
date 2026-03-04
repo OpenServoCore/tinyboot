@@ -1,11 +1,12 @@
 [package]
-name = "ch32-iap-proto"
+name = "ch32-iap-core"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
-[features]
-std = []
-
 [dependencies]
+
+[features]
+default = []
+require-app = []

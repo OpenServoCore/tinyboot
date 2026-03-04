@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "bootloader",
-    "proto",
+    "core",
 ]
 resolver = "2"
 
@@ -12,3 +12,18 @@ repository = "https://github.com/OpenServoCore/ch32-iap-bootloader"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+defmt = { version = "1.0" }
+defmt-rtt = { version = "1.1" }
+
+[profile.dev]
+opt-level = "z"
+lto = true
+codegen-units = 1
+debug = 1
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

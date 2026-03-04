@@ -6,14 +6,21 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-ch32-metapac = { version = "0.0.6", default-features = false, features = ["pac", "rt", "memory-x"] }
+ch32-metapac = { version = "0.0.6", default-features = false, features = ["pac", "rt"] }
 qingke-rt = "0.6.1"
 qingke = { version = "0.6.1", features = ["critical-section-impl"] }
 panic-halt = "1.0"
 
-ch32-iap-proto = { path = "../proto" }
+defmt = { workspace = true, optional = true }
+defmt-rtt = { workspace = true, optional = true }
+
+ch32-iap-core = { path = "../core" }
 
 [features]
-# choose a default chip for dev
-default = ["ch32v003f4u6"]
-ch32v003f4u6 = ["ch32-metapac/ch32v003f4u6"]
+default = ["ch32v003f4p6"]
+
+# supported chip variants
+ch32v003f4p6 = ["ch32-metapac/ch32v003f4p6"]
+
+# debug features
+log = ["dep:defmt", "dep:defmt-rtt"]
