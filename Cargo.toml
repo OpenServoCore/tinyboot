@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "bootloader",
-    "core",
+    "core"
 ]
 resolver = "2"
 
@@ -19,7 +19,7 @@ defmt-rtt = { version = "1.1" }
 opt-level = "z"
 lto = true
 codegen-units = 1
-debug = 1
+debug = 2
 
 [profile.release]
 opt-level = "z"

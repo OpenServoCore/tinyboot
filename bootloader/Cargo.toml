@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-ch32-metapac = { version = "0.0.6", default-features = false, features = ["pac", "rt"] }
+ch32-metapac = { version = "0.0.6", default-features = false, features = ["pac", "rt", "metadata"] }
 qingke-rt = "0.6.1"
 qingke = { version = "0.6.1", features = ["critical-section-impl"] }
 panic-halt = "1.0"
@@ -15,6 +15,9 @@ defmt = { workspace = true, optional = true }
 defmt-rtt = { workspace = true, optional = true }
 
 ch32-iap-core = { path = "../core" }
+
+[build-dependencies]
+ch32-metapac = { version = "0.0.6", default-features = false, features = ["pac", "rt", "metadata"] }
 
 [features]
 default = ["ch32v003f4p6"]
