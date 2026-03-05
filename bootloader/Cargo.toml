@@ -13,6 +13,8 @@ panic-halt = "1.0"
 
 defmt = { workspace = true }
 defmt-rtt = { workspace = true }
+embedded-io = { workspace = true }
+embedded-storage = { workspace = true }
 
 ch32-iap-core = { path = "../core" }
 
