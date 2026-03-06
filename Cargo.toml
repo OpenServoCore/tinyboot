@@ -8,7 +8,7 @@ resolver = "2"
 [workspace.package]
 version = "0.0.1"
 edition = "2024"
-repository = "https://github.com/OpenServoCore/ch32-iap-bootloader"
+repository = "https://github.com/OpenServoCore/smol-boot"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]

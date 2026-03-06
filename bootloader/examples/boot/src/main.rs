@@ -3,7 +3,7 @@
 
 use panic_halt as _;
 
-use ch32_iap_bootloader::Bootloader;
+use smol_boot_ch32::Bootloader;
 use qingke_rt::entry;
 
 #[entry]

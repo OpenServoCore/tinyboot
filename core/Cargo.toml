@@ -1,5 +1,5 @@
 [package]
-name = "ch32-iap-core"
+name = "smol-boot"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

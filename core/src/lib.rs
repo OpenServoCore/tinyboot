@@ -6,26 +6,26 @@ mod boot;
 mod log;
 
 use boot::BootControl;
-use hal::{Abi, Flash, Hal, Registry, Uart};
+use hal::{Abi, Flash, Hal, Registry, Transport};
 
-pub struct Core<UART, FLASH, REG, ABI>
+pub struct Core<T, F, R, A>
 where
-    UART: Uart,
-    FLASH: Flash,
-    REG: Registry,
-    ABI: Abi,
+    T: Transport,
+    F: Flash,
+    R: Registry,
+    A: Abi,
 {
-    hal: Hal<UART, FLASH, REG, ABI>,
+    hal: Hal<T, F, R, A>,
 }
 
-impl<UART, FLASH, REG, ABI> Core<UART, FLASH, REG, ABI>
+impl<T, F, R, A> Core<T, F, R, A>
 where
-    UART: Uart,
-    FLASH: Flash,
-    REG: Registry,
-    ABI: Abi,
+    T: Transport,
+    F: Flash,
+    R: Registry,
+    A: Abi,
 {
-    pub fn new(hal: Hal<UART, FLASH, REG, ABI>) -> Self {
+    pub fn new(hal: Hal<T, F, R, A>) -> Self {
         Core { hal }
     }
 

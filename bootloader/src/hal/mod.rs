@@ -7,4 +7,4 @@ pub(crate) mod uart;
 pub(crate) use abi::Ch32Abi;
 pub(crate) use flash::Ch32Flash;
 pub(crate) use registry::Ch32Registry;
-pub(crate) use uart::Ch32Uart;
+pub(crate) use uart::Ch32Transport;

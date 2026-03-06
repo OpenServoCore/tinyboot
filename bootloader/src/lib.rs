@@ -2,11 +2,11 @@
 
 mod hal;
 
-use ch32_iap_core::{Core, hal::Hal};
+use smol_boot::{Core, hal::Hal};
 
-use hal::{Ch32Abi, Ch32Flash, Ch32Registry, Ch32Uart};
+use hal::{Ch32Abi, Ch32Flash, Ch32Registry, Ch32Transport};
 
-type Ch32Core = Core<Ch32Uart, Ch32Flash, Ch32Registry, Ch32Abi>;
+type Ch32Core = Core<Ch32Transport, Ch32Flash, Ch32Registry, Ch32Abi>;
 
 pub struct Bootloader {
     core: Ch32Core,
@@ -14,11 +14,11 @@ pub struct Bootloader {
 
 impl Default for Bootloader {
     fn default() -> Self {
-        let uart = Ch32Uart::new();
+        let transport = Ch32Transport::new();
         let flash = Ch32Flash::new();
         let abi = Ch32Abi::new();
         let reg = Ch32Registry::new();
-        let hal = Hal::new(uart, flash, reg, abi);
+        let hal = Hal::new(transport, flash, reg, abi);
         let core = Core::new(hal);
 
         Bootloader { core }

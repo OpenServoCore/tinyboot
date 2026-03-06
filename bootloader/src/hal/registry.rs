@@ -1,4 +1,4 @@
-use ch32_iap_core::hal::{Registry, RegistryKey};
+use smol_boot::hal::{Registry, RegistryKey};
 
 const OB_DATA0: *const u16 = 0x1FFFF804 as *const u16;
 

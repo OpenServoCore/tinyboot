@@ -1,4 +1,4 @@
-use ch32_iap_core::{hal::Abi, log_info};
+use smol_boot::{hal::Abi, log_info};
 
 use crate::hal::common::*;
 

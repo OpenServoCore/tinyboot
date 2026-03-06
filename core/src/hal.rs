@@ -1,8 +1,8 @@
 // Magic number. Used to verify the app's integrity before execution.
 pub const APP_MAGIC: u32 = 0xC0FF_EEEE;
 
-pub trait Uart: embedded_io::Read + embedded_io::Write {}
-impl<T> Uart for T where T: embedded_io::Read + embedded_io::Write {}
+pub trait Transport: embedded_io::Read + embedded_io::Write {}
+impl<T> Transport for T where T: embedded_io::Read + embedded_io::Write {}
 
 pub trait Flash: embedded_storage::nor_flash::NorFlash + embedded_storage::ReadStorage {}
 impl<T> Flash for T where T: embedded_storage::nor_flash::NorFlash + embedded_storage::ReadStorage {}
@@ -63,29 +63,29 @@ pub trait Registry {
     }
 }
 
-pub struct Hal<UART, FLASH, REG, ABI>
+pub struct Hal<T, F, R, A>
 where
-    UART: Uart,
-    FLASH: Flash,
-    REG: Registry,
-    ABI: Abi,
+    T: Transport,
+    F: Flash,
+    R: Registry,
+    A: Abi,
 {
-    pub uart: UART,
-    pub flash: FLASH,
-    pub reg: REG,
-    pub abi: ABI,
+    pub transport: T,
+    pub flash: F,
+    pub reg: R,
+    pub abi: A,
 }
 
-impl<UART, FLASH, REG, ABI> Hal<UART, FLASH, REG, ABI>
+impl<T, F, R, A> Hal<T, F, R, A>
 where
-    UART: Uart,
-    FLASH: Flash,
-    REG: Registry,
-    ABI: Abi,
+    T: Transport,
+    F: Flash,
+    R: Registry,
+    A: Abi,
 {
-    pub fn new(uart: UART, flash: FLASH, reg: REG, abi: ABI) -> Self {
+    pub fn new(transport: T, flash: F, reg: R, abi: A) -> Self {
         Self {
-            uart,
+            transport,
             flash,
             reg,
             abi,

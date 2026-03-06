@@ -2,25 +2,25 @@ use core::convert::Infallible;
 
 use embedded_io::ErrorType;
 
-pub(crate) struct Ch32Uart;
+pub(crate) struct Ch32Transport;
 
-impl Ch32Uart {
+impl Ch32Transport {
     pub fn new() -> Self {
-        Ch32Uart
+        Ch32Transport
     }
 }
 
-impl ErrorType for Ch32Uart {
+impl ErrorType for Ch32Transport {
     type Error = Infallible;
 }
 
-impl embedded_io::Read for Ch32Uart {
+impl embedded_io::Read for Ch32Transport {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         todo!()
     }
 }
 
-impl embedded_io::Write for Ch32Uart {
+impl embedded_io::Write for Ch32Transport {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         todo!()
     }

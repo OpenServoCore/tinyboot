@@ -13,8 +13,8 @@ qingke-rt = "0.6.1"
 qingke = { version = "0.6.1", features = ["critical-section-impl"] }
 panic-halt = "1.0"
 
-# ch32-iap-bootloader = { version = "0.0.1", features = ["ch32v003f4p6"] }
-ch32-iap-bootloader = { path = "../..", features = ["ch32v003f4p6"] }
+# smol-boot-ch32 = { version = "0.0.1", features = ["ch32v003f4p6"] }
+smol-boot-ch32 = { path = "../..", features = ["ch32v003f4p6"] }
 
 [profile.dev]
 opt-level = "z"
