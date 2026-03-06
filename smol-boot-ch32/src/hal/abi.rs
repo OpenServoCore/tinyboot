@@ -1,16 +1,16 @@
-use smol_boot::{hal::Abi, log_info};
+use smol_boot::{hal::Abi as SBAbi, log_info};
 
 use crate::hal::common::*;
 
-pub(crate) struct Ch32Abi;
+pub(crate) struct Abi;
 
-impl Ch32Abi {
+impl Abi {
     pub fn new() -> Self {
-        Ch32Abi {}
+        Abi {}
     }
 }
 
-impl Abi for Ch32Abi {
+impl SBAbi for Abi {
     fn app_magic(&self) -> u32 {
         unsafe { core::ptr::read_volatile(APP_PTR) }
     }

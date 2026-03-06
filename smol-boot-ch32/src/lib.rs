@@ -4,9 +4,10 @@ mod hal;
 
 use smol_boot::{Core, hal::Hal};
 
-use hal::{Ch32Abi, Ch32Flash, Ch32Registry, Ch32UartTransport};
+use hal::{Abi, Flash, Registry};
+use hal::transport::usart::Usart;
 
-type Ch32Core = Core<Ch32UartTransport, Ch32Flash, Ch32Registry, Ch32Abi>;
+type Ch32Core = Core<Usart, Flash, Registry, Abi>;
 
 pub struct Bootloader {
     core: Ch32Core,
@@ -14,10 +15,10 @@ pub struct Bootloader {
 
 impl Default for Bootloader {
     fn default() -> Self {
-        let transport = Ch32UartTransport::new();
-        let flash = Ch32Flash::new(ch32_metapac::FLASH);
-        let abi = Ch32Abi::new();
-        let reg = Ch32Registry::new();
+        let transport = Usart::new(ch32_metapac::USART1);
+        let flash = Flash::new(ch32_metapac::FLASH);
+        let abi = Abi::new();
+        let reg = Registry::new();
         let hal = Hal::new(transport, flash, reg, abi);
         let core = Core::new(hal);
 

@@ -1,6 +1,6 @@
 use core::sync::atomic::{Ordering, fence};
 
-use super::Ch32FlashError;
+use super::FlashError;
 use crate::hal::common::FLASH_WRITE_SIZE;
 
 const KEY1: u32 = 0x4567_0123;
@@ -33,11 +33,11 @@ fn wait_busy(regs: &ch32_metapac::flash::Flash) {
     while regs.statr().read().bsy() {}
 }
 
-fn check_error(regs: &ch32_metapac::flash::Flash) -> Result<(), Ch32FlashError> {
+fn check_error(regs: &ch32_metapac::flash::Flash) -> Result<(), FlashError> {
     let statr = regs.statr().read();
     if statr.wrprterr() {
         regs.statr().modify(|w| w.set_wrprterr(true));
-        return Err(Ch32FlashError::Protected);
+        return Err(FlashError::Protected);
     }
     if statr.eop() {
         regs.statr().modify(|w| w.set_eop(true));
@@ -48,7 +48,7 @@ fn check_error(regs: &ch32_metapac::flash::Flash) -> Result<(), Ch32FlashError> 
 pub(crate) fn erase_page(
     regs: &ch32_metapac::flash::Flash,
     addr: u32,
-) -> Result<(), Ch32FlashError> {
+) -> Result<(), FlashError> {
     regs.ctlr().modify(|w| w.set_page_er(true));
     fence(Ordering::SeqCst);
     regs.addr().write(|w| w.set_addr(FLASH_PROGRAM_BASE + addr));
@@ -69,7 +69,7 @@ pub(crate) fn write_page(
     regs: &ch32_metapac::flash::Flash,
     addr: u32,
     data: &[u8],
-) -> Result<(), Ch32FlashError> {
+) -> Result<(), FlashError> {
     debug_assert_eq!(data.len(), FLASH_WRITE_SIZE);
 
     let prog_addr = FLASH_PROGRAM_BASE + addr;

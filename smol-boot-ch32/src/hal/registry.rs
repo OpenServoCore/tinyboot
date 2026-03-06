@@ -1,23 +1,23 @@
-use smol_boot::hal::{Registry, RegistryKey};
+use smol_boot::hal::{Registry as SBRegistry, RegistryKey};
 
 const OB_DATA0: *const u16 = 0x1FFFF804 as *const u16;
 
 /// CH32 Bootloader Registry implementation using Optional User Bytes.
 /// This works on all CH32 devices
-pub(crate) struct Ch32Registry;
+pub(crate) struct Registry;
 
-impl Ch32Registry {
+impl Registry {
     pub fn new() -> Self {
-        Ch32Registry {}
+        Registry {}
     }
 }
 
-pub(crate) enum Ch32RegistryError {
+pub(crate) enum RegistryError {
     UnitializedValue,
 }
 
-impl Registry for Ch32Registry {
-    type Error = Ch32RegistryError;
+impl SBRegistry for Registry {
+    type Error = RegistryError;
 
     fn read(&mut self, key: RegistryKey) -> Result<u8, Self::Error> {
         match key {
@@ -30,13 +30,13 @@ impl Registry for Ch32Registry {
     }
 }
 
-fn read_ob(addr: *const u16) -> Result<u8, Ch32RegistryError> {
+fn read_ob(addr: *const u16) -> Result<u8, RegistryError> {
     let raw = unsafe { core::ptr::read_volatile(addr) };
     let inv = (raw >> 8) as u8;
     let data = raw as u8;
     if data == !inv {
         Ok(data)
     } else {
-        Err(Ch32RegistryError::UnitializedValue)
+        Err(RegistryError::UnitializedValue)
     }
 }

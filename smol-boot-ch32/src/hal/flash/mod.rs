@@ -8,23 +8,23 @@ use crate::hal::common::{APP_BASE, APP_PTR, APP_SIZE, FLASH_ERASE_SIZE, FLASH_WR
 mod family;
 
 #[derive(Debug)]
-pub enum Ch32FlashError {
+pub enum FlashError {
     NotAligned,
     OutOfBounds,
     Protected,
 }
 
-impl NorFlashError for Ch32FlashError {
+impl NorFlashError for FlashError {
     fn kind(&self) -> NorFlashErrorKind {
         match self {
-            Ch32FlashError::NotAligned => NorFlashErrorKind::NotAligned,
-            Ch32FlashError::OutOfBounds => NorFlashErrorKind::OutOfBounds,
-            Ch32FlashError::Protected => NorFlashErrorKind::Other,
+            FlashError::NotAligned => NorFlashErrorKind::NotAligned,
+            FlashError::OutOfBounds => NorFlashErrorKind::OutOfBounds,
+            FlashError::Protected => NorFlashErrorKind::Other,
         }
     }
 }
 
-pub(crate) struct Ch32Flash {
+pub(crate) struct Flash {
     regs: ch32_metapac::flash::Flash,
 }
 
@@ -38,9 +38,9 @@ impl Drop for FlashUnlocked<'_> {
     }
 }
 
-impl Ch32Flash {
+impl Flash {
     pub fn new(regs: ch32_metapac::flash::Flash) -> Self {
-        Ch32Flash { regs }
+        Flash { regs }
     }
 
     fn unlock(&self) -> FlashUnlocked<'_> {
@@ -49,20 +49,20 @@ impl Ch32Flash {
     }
 }
 
-impl ErrorType for Ch32Flash {
-    type Error = Ch32FlashError;
+impl ErrorType for Flash {
+    type Error = FlashError;
 }
 
-impl NorFlash for Ch32Flash {
+impl NorFlash for Flash {
     const WRITE_SIZE: usize = FLASH_WRITE_SIZE;
     const ERASE_SIZE: usize = FLASH_ERASE_SIZE;
 
     fn erase(&mut self, from: u32, to: u32) -> Result<(), Self::Error> {
         if from as usize % FLASH_ERASE_SIZE != 0 || to as usize % FLASH_ERASE_SIZE != 0 {
-            return Err(Ch32FlashError::NotAligned);
+            return Err(FlashError::NotAligned);
         }
         if to as usize > APP_SIZE {
-            return Err(Ch32FlashError::OutOfBounds);
+            return Err(FlashError::OutOfBounds);
         }
         let _guard = self.unlock();
         let mut addr = APP_BASE + from;
@@ -76,10 +76,10 @@ impl NorFlash for Ch32Flash {
 
     fn write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
         if offset as usize % FLASH_WRITE_SIZE != 0 || bytes.len() % FLASH_WRITE_SIZE != 0 {
-            return Err(Ch32FlashError::NotAligned);
+            return Err(FlashError::NotAligned);
         }
         if offset as usize + bytes.len() > APP_SIZE {
-            return Err(Ch32FlashError::OutOfBounds);
+            return Err(FlashError::OutOfBounds);
         }
         let _guard = self.unlock();
         let mut addr = APP_BASE + offset;
@@ -91,12 +91,12 @@ impl NorFlash for Ch32Flash {
     }
 }
 
-impl ReadNorFlash for Ch32Flash {
+impl ReadNorFlash for Flash {
     const READ_SIZE: usize = 1;
 
     fn read(&mut self, offset: u32, bytes: &mut [u8]) -> Result<(), Self::Error> {
         if offset as usize + bytes.len() > APP_SIZE {
-            return Err(Ch32FlashError::OutOfBounds);
+            return Err(FlashError::OutOfBounds);
         }
         let flash = unsafe { core::slice::from_raw_parts(APP_PTR as *const u8, APP_SIZE) };
         let offset = offset as usize;
