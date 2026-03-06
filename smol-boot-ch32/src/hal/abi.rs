@@ -12,13 +12,13 @@ impl Ch32Abi {
 
 impl Abi for Ch32Abi {
     fn app_magic(&self) -> u32 {
-        unsafe { core::ptr::read_volatile(app_flash_addr()) }
+        unsafe { core::ptr::read_volatile(APP_PTR) }
     }
 
     fn app_flash_region(&self) -> (u32, u32) {
         (
-            app_flash_start(),
-            app_flash_start() + app_flash_size() as u32,
+            APP_BASE,
+            APP_BASE + APP_SIZE as u32,
         )
     }
 
@@ -37,5 +37,5 @@ impl Abi for Ch32Abi {
 type EntryPoint = unsafe extern "C" fn() -> !;
 
 fn entry_point() -> EntryPoint {
-    unsafe { core::mem::transmute::<_, EntryPoint>(app_flash_addr().add(1)) }
+    unsafe { core::mem::transmute::<_, EntryPoint>(APP_PTR.add(1)) }
 }
