@@ -111,7 +111,10 @@ impl TBBootStateStore for BootStateStore {
         let current = self.read_byte();
         let trials = current & TRIAL_MASK;
         if trials != 0 {
-            // Clear the highest set bit: 1111→0111→0011→0001→0000
+            // Flash can only transition bits from 1→0 (without a page erase), so
+            // the trial counter uses one bit per trial: 1111 = 4 remaining, 0111 = 3,
+            // 0011 = 2, 0001 = 1, 0000 = exhausted.  Each call clears the highest
+            // remaining set bit, effectively consuming one trial.
             let highest_bit = 1 << (trials.count_ones() - 1);
             self.program_byte(current & !highest_bit);
         }

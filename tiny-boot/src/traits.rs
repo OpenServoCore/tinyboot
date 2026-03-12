@@ -23,6 +23,7 @@ pub trait BootCtl {
 
 /// Current stage in the firmware update lifecycle.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum BootState {
     /// No update in progress. Normal app boot.
     Idle,
@@ -71,31 +72,31 @@ pub trait BootStateStore {
     fn trials_remaining(&mut self) -> Result<u8, Self::Error>;
 }
 
-pub struct Platform<T, S, R, C>
+pub struct Platform<T, S, B, C>
 where
     T: Transport,
     S: Storage,
-    R: BootStateStore,
+    B: BootStateStore,
     C: BootCtl,
 {
     pub transport: T,
     pub storage: S,
-    pub reg: R,
+    pub boot_state: B,
     pub ctl: C,
 }
 
-impl<T, S, R, C> Platform<T, S, R, C>
+impl<T, S, B, C> Platform<T, S, B, C>
 where
     T: Transport,
     S: Storage,
-    R: BootStateStore,
+    B: BootStateStore,
     C: BootCtl,
 {
-    pub fn new(transport: T, storage: S, reg: R, ctl: C) -> Self {
+    pub fn new(transport: T, storage: S, boot_state: B, ctl: C) -> Self {
         Self {
             transport,
             storage,
-            reg,
+            boot_state,
             ctl,
         }
     }

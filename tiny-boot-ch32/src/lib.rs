@@ -27,8 +27,8 @@ impl Default for Bootloader {
         let transport = Usart::new(ch32_metapac::USART1, &config);
         let storage = Storage::new(ch32_metapac::FLASH);
         let ctl = BootCtl::new();
-        let reg = BootStateStore::new(ch32_metapac::FLASH);
-        let platform = Platform::new(transport, storage, reg, ctl);
+        let boot_state = BootStateStore::new(ch32_metapac::FLASH);
+        let platform = Platform::new(transport, storage, boot_state, ctl);
         let core = Core::new(platform);
 
         Bootloader { core }

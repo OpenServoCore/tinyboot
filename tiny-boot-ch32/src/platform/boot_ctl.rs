@@ -27,5 +27,5 @@ impl TBBootCtl for BootCtl {
 type EntryPoint = unsafe extern "C" fn() -> !;
 
 fn entry_point() -> EntryPoint {
-    unsafe { core::mem::transmute::<_, EntryPoint>(APP_PTR.add(1)) }
+    unsafe { core::mem::transmute::<_, EntryPoint>(APP_PTR) }
 }
