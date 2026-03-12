@@ -7,9 +7,9 @@ mod rt;
 
 use tiny_boot::{Core, traits::Platform};
 
-use platform::{BaudRate, BootCtl, BootStateStore, Duplex, Storage, Usart, UsartConfig};
+use platform::{BaudRate, BootCtl, BootMetaStore, Duplex, Storage, Usart, UsartConfig};
 
-type Ch32Core = Core<Usart, Storage, BootStateStore, BootCtl>;
+type Ch32Core = Core<Usart, Storage, BootMetaStore, BootCtl>;
 
 pub struct Bootloader {
     core: Ch32Core,
@@ -27,8 +27,8 @@ impl Default for Bootloader {
         let transport = Usart::new(ch32_metapac::USART1, &config);
         let storage = Storage::new(ch32_metapac::FLASH);
         let ctl = BootCtl::new();
-        let boot_state = BootStateStore::new(ch32_metapac::FLASH);
-        let platform = Platform::new(transport, storage, boot_state, ctl);
+        let boot_meta = BootMetaStore::new(ch32_metapac::FLASH);
+        let platform = Platform::new(transport, storage, boot_meta, ctl);
         let core = Core::new(platform);
 
         Bootloader { core }

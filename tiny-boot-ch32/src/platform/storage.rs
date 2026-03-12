@@ -3,7 +3,7 @@ use embedded_storage::nor_flash::{
 };
 
 use crate::common::{APP_BASE, APP_PTR, APP_SIZE, FLASH_ERASE_SIZE, FLASH_WRITE_SIZE};
-use crate::hal::flash;
+use crate::hal::flash::FlashWriter;
 
 #[derive(Debug)]
 pub enum StorageError {
@@ -26,32 +26,9 @@ pub(crate) struct Storage {
     regs: ch32_metapac::flash::Flash,
 }
 
-struct StorageUnlocked<'a> {
-    regs: &'a ch32_metapac::flash::Flash,
-}
-
-impl Drop for StorageUnlocked<'_> {
-    fn drop(&mut self) {
-        flash::lock(self.regs);
-    }
-}
-
 impl Storage {
     pub fn new(regs: ch32_metapac::flash::Flash) -> Self {
         Storage { regs }
-    }
-
-    fn unlock(&self) -> StorageUnlocked<'_> {
-        flash::unlock(&self.regs);
-        StorageUnlocked { regs: &self.regs }
-    }
-}
-
-fn check_error(regs: &ch32_metapac::flash::Flash) -> Result<(), StorageError> {
-    if flash::check_wrprterr(regs) {
-        Err(StorageError::Protected)
-    } else {
-        Ok(())
     }
 }
 
@@ -70,12 +47,14 @@ impl NorFlash for Storage {
         if to as usize > APP_SIZE {
             return Err(StorageError::OutOfBounds);
         }
-        let _guard = self.unlock();
+        let writer = FlashWriter::fast(&self.regs);
         let mut addr = APP_BASE + from;
         let end = APP_BASE + to;
         while addr < end {
-            flash::erase_page(&self.regs, addr);
-            check_error(&self.regs)?;
+            writer.erase_page(addr);
+            if writer.check_wrprterr() {
+                return Err(StorageError::Protected);
+            }
             addr += FLASH_ERASE_SIZE as u32;
         }
         Ok(())
@@ -88,11 +67,13 @@ impl NorFlash for Storage {
         if offset as usize + bytes.len() > APP_SIZE {
             return Err(StorageError::OutOfBounds);
         }
-        let _guard = self.unlock();
+        let writer = FlashWriter::fast(&self.regs);
         let mut addr = APP_BASE + offset;
         for chunk in bytes.chunks_exact(FLASH_WRITE_SIZE) {
-            flash::write_page(&self.regs, addr, chunk);
-            check_error(&self.regs)?;
+            writer.write_page(addr, chunk);
+            if writer.check_wrprterr() {
+                return Err(StorageError::Protected);
+            }
             addr += FLASH_WRITE_SIZE as u32;
         }
         Ok(())
