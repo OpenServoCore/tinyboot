@@ -2,7 +2,7 @@ pub(crate) mod abi;
 pub(crate) mod common;
 pub(crate) mod flash;
 pub(crate) mod registry;
-pub(crate) mod transport;
+pub mod transport;
 
 pub(crate) use abi::Abi;
 pub(crate) use flash::Flash;

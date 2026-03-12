@@ -1,4 +1,4 @@
-use smol_boot::{hal::Abi as SBAbi, log_info};
+use tiny_boot::{hal::Abi as SBAbi, log_info};
 
 use crate::hal::common::*;
 

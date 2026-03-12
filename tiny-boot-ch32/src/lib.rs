@@ -1,8 +1,8 @@
 #![no_std]
 
-mod hal;
+pub mod hal;
 
-use smol_boot::{Core, hal::Hal};
+use tiny_boot::{Core, hal::Hal};
 
 use hal::transport::usart::{BaudRate, Duplex, Usart, UsartConfig};
 use hal::{Abi, Flash, Registry};

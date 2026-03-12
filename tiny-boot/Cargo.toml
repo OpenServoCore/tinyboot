@@ -1,5 +1,5 @@
 [package]
-name = "smol-boot"
+name = "tiny-boot"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

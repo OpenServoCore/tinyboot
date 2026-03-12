@@ -1,4 +1,4 @@
-use smol_boot::hal::{Registry as SBRegistry, RegistryKey};
+use tiny_boot::hal::{Registry as SBRegistry, RegistryKey};
 
 const OB_DATA0: *const u16 = 0x1FFFF804 as *const u16;
 

@@ -1,5 +1,5 @@
 [package]
-name = "smol-boot-ch32"
+name = "tiny-boot-ch32"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
@@ -11,7 +11,7 @@ embedded-hal = { workspace = true }
 embedded-io = { workspace = true }
 embedded-storage = { workspace = true }
 
-smol-boot = { path = "../smol-boot" }
+tiny-boot = { path = "../tiny-boot" }
 
 [build-dependencies]
 ch32-metapac = { version = "0.0.6", default-features = false, features = ["metadata"] }
@@ -27,7 +27,7 @@ ch32v003f4p6 = ["ch32-metapac/ch32v003f4p6"]
 memory-x = []
 
 # logging
-defmt = ["smol-boot/defmt"]
+defmt = ["tiny-boot/defmt"]
 
 # boot behavior
-require-app = ["smol-boot/require-app"]
+require-app = ["tiny-boot/require-app"]

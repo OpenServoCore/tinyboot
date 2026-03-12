@@ -1,14 +1,14 @@
 [workspace]
 members = [
-    "smol-boot",
-    "smol-boot-ch32",
+    "tiny-boot",
+    "tiny-boot-ch32",
 ]
 resolver = "2"
 
 [workspace.package]
 version = "0.0.1"
 edition = "2024"
-repository = "https://github.com/OpenServoCore/smol-boot"
+repository = "https://github.com/OpenServoCore/tiny-boot"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
