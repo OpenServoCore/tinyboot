@@ -6,11 +6,9 @@ use panic_halt as _;
 #[cfg(feature = "defmt")]
 use defmt_rtt as _;
 
-use qingke_rt::entry;
 use tiny_boot_ch32::Bootloader;
 
-#[entry]
+#[unsafe(export_name = "main")]
 fn main() -> ! {
-    let mut bl = Bootloader::default();
-    bl.run();
+    Bootloader::default().run();
 }

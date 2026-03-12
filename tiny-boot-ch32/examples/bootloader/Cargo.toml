@@ -8,22 +8,16 @@ edition = "2024"
 [workspace]
 
 [dependencies]
-ch32-metapac = { version = "0.0.6", default-features = false, features = ["pac", "rt", "ch32v003f4p6"] }
-qingke-rt = "0.6.1"
-qingke = { version = "0.6.1", features = ["critical-section-impl"] }
-embedded-io = "0.7"
-panic-halt = "1.0"
-
-# tiny-boot-ch32 = { version = "0.0.1", features = ["ch32v003f4p6"] }
 tiny-boot-ch32 = { path = "../..", features = ["ch32v003f4p6"] }
 tiny-boot = { path = "../../../tiny-boot" }
+panic-halt = "1.0"
 
 defmt = { version = "1.0", optional = true }
 defmt-rtt = { version = "1.1", optional = true }
 
 [features]
 default = []
-defmt = ["dep:defmt", "dep:defmt-rtt", "tiny-boot/defmt"]
+defmt = ["dep:defmt", "dep:defmt-rtt", "tiny-boot-ch32/defmt"]
 
 [profile.dev]
 opt-level = "z"
@@ -36,4 +30,4 @@ opt-level = "z"
 lto = true
 codegen-units = 1
 panic = "abort"
-strip = true
+strip = "debuginfo"
