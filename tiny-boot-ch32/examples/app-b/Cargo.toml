@@ -1,15 +1,18 @@
 [package]
-name = "bootloader"
+name = "app-b"
 version = "0.1.0"
 edition = "2024"
 
 # Empty workspace table keeps this as a standalone project.
-# Remove this if adding to an existing workspace.
 [workspace]
 
 [dependencies]
-tiny-boot-ch32 = { path = "../..", features = ["ch32v003f4p6", "bootloader"] }
+tiny-boot-ch32 = { path = "../..", features = ["ch32v003f4p6", "app"] }
 tiny-boot = { path = "../../../tiny-boot" }
+# NOTE: do NOT enable memory-x here — tiny-boot-ch32 generates its own memory.x
+ch32-metapac = { version = "0.0.6", default-features = false, features = ["ch32v003f4p6", "rt"] }
+qingke = { version = "0.6", features = ["v2", "critical-section-impl"] }
+qingke-rt = { version = "0.6", features = ["v2"] }
 panic-halt = "1.0"
 
 defmt = { version = "1.0", optional = true }

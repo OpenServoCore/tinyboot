@@ -37,7 +37,7 @@ SECTIONS
         *(.srodata .srodata.*);
     } > FLASH
 
-    /* .boot_request section is injected here by link-app.x via INSERT BEFORE .data */
+    /* .boot_request section is injected here by tiny-boot-ch32.x via INSERT BEFORE .data */
 
     /* --- Initialized mutable data (.data) ---
      *

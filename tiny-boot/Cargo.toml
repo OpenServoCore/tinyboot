@@ -13,4 +13,3 @@ embedded-storage = { workspace = true }
 [features]
 default = []
 defmt = ["dep:defmt"]
-require-app = []

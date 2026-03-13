@@ -17,6 +17,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let flash_alias = "BOOT";
         #[cfg(all(feature = "app", not(feature = "bootloader")))]
         let flash_alias = "APP";
+        #[cfg(not(any(feature = "bootloader", feature = "app")))]
+        let flash_alias = {
+            panic!("Select either \"bootloader\" or \"app\" feature to generate memory.x");
+            #[allow(unreachable_code)]
+            ""
+        };
 
         let memory_x = gen_memory_x(BOOT_PAGES, flash_alias);
         File::create(out.join("memory.x"))?.write_all(memory_x.as_bytes())?;
@@ -36,15 +42,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(feature = "bootloader")]
     {
-        std::fs::copy("link-boot.x", out.join("link-boot.x"))?;
-        println!("cargo:rerun-if-changed=link-boot.x");
+        std::fs::copy("link.x", out.join("link.x"))?;
+        println!("cargo:rerun-if-changed=link.x");
     }
 
-    std::fs::copy("link-app.x", out.join("link-app.x"))?;
+    std::fs::copy("tiny-boot-ch32.x", out.join("tiny-boot-ch32.x"))?;
 
     println!("cargo:rustc-link-search={}", out.display());
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=link-app.x");
+    println!("cargo:rerun-if-changed=tiny-boot-ch32.x");
 
     Ok(())
 }

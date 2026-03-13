@@ -5,7 +5,7 @@
  * across soft reset.
  *
  * This section is placed before .data in RAM via INSERT BEFORE, so it works
- * with any base linker script (link-boot.x, qingke-rt, etc). */
+ * with any base linker script (link.x, qingke-rt, etc). */
 SECTIONS
 {
     .boot_request (NOLOAD) :

@@ -1,5 +1,16 @@
 #![no_std]
 
+#[cfg(not(feature = "ch32v003f4p6"))]
+compile_error!(
+    "No chip variant selected. Enable a chip feature, e.g.: \
+     features = [\"ch32v003f4p6\"]"
+);
+
+#[cfg(not(any(feature = "bootloader", feature = "app")))]
+compile_error!(
+    "Select either \"bootloader\" or \"app\" feature to indicate build role."
+);
+
 pub(crate) mod common;
 pub(crate) mod hal;
 

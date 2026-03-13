@@ -19,20 +19,19 @@ tiny-boot = { path = "../tiny-boot" }
 ch32-metapac = { version = "0.0.6", default-features = false, features = ["metadata"] }
 
 [features]
-default = ["ch32v003f4p6", "memory-x", "bootloader"]
+default = ["memory-x"]
 
 # supported chip variants
 ch32v003f4p6 = ["ch32-metapac/ch32v003f4p6"]
 
 # auto-generate memory.x from ch32-metapac metadata.
 # disable to provide your own memory.x.
+# NOTE: do NOT enable ch32-metapac/memory-x — this crate generates its own
+# memory.x that partitions flash into boot/app regions.
 memory-x = []
 
 # logging
 defmt = ["dep:defmt", "tiny-boot/defmt"]
-
-# boot behavior
-require-app = ["tiny-boot/require-app"]
 
 # Build as bootloader binary (includes runtime assembly + Bootloader struct + link.x)
 bootloader = []
