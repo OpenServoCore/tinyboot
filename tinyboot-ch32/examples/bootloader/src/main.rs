@@ -33,7 +33,7 @@ fn main() -> ! {
     let boot_meta = BootMetaStore::new(MetaConfig {
         meta_base: 0x1FFF_FCC0,
     });
-    let ctl = BootCtl::default();
+    let ctl = BootCtl;
 
     let platform = Platform::new(transport, storage, boot_meta, ctl);
     Core::new(platform).run();

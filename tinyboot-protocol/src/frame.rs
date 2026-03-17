@@ -1,3 +1,5 @@
+use core::mem::MaybeUninit;
+
 use crate::crc::{CRC_INIT, crc16};
 use crate::sync::Sync;
 use crate::{Cmd, ReadError, Status};
@@ -28,16 +30,16 @@ impl Frame {
     pub fn new() -> Self {
         // SAFETY: Frame is repr(C) with no padding before `data`.
         // `data` contents are don't-care until `len` bytes are written.
-        unsafe {
-            let mut frame: Self = core::mem::MaybeUninit::uninit().assume_init();
-            frame.sync = Sync::default();
-            frame.cmd = Cmd::Info;
-            frame.len = 0;
-            frame.addr = 0;
-            frame.status = Status::Request;
-            frame.crc = 0;
-            frame
-        }
+
+        let frame: MaybeUninit<Self> = MaybeUninit::uninit();
+        let mut frame = unsafe { frame.assume_init() };
+        frame.sync = Sync::default();
+        frame.cmd = Cmd::Info;
+        frame.len = 0;
+        frame.addr = 0;
+        frame.status = Status::Request;
+        frame.crc = 0;
+        frame
     }
 }
 

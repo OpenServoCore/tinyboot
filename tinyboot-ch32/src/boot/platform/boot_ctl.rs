@@ -2,7 +2,6 @@ use tinyboot::traits::BootCtl as TBBootCtl;
 
 use crate::hal::{flash, pfic};
 
-#[derive(Default)]
 pub struct BootCtl;
 
 impl TBBootCtl for BootCtl {
