@@ -19,6 +19,5 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo build --workspace
       - run: cargo test --workspace
-      - run: cd tinyboot-ch32/examples/bootloader && cargo +nightly build --release
-      - run: cd tinyboot-ch32/examples/app-a && cargo +nightly build --release
-      - run: cd tinyboot-ch32/examples/app-b && cargo +nightly build --release
+      - run: cd tinyboot-ch32/examples/system-flash && cargo +nightly build --release
+      - run: cd tinyboot-ch32/examples/user-flash && cargo +nightly build --release
