@@ -152,10 +152,7 @@ fn generate_pin_and_usart_mapping(out: &PathBuf) -> Result<(), Box<dyn std::erro
     for ((peri, remap), group) in &groups {
         let variant = format!("{}Remap{}", capitalize_peripheral(peri), remap);
         let tx = group.tx_pin.as_ref().expect("USART mapping missing TX pin");
-        writeln!(
-            code,
-            "            UsartMapping::{variant} => Pin::{tx},"
-        )?;
+        writeln!(code, "            UsartMapping::{variant} => Pin::{tx},")?;
     }
     writeln!(code, "        }}")?;
     writeln!(code, "    }}")?;
@@ -167,10 +164,7 @@ fn generate_pin_and_usart_mapping(out: &PathBuf) -> Result<(), Box<dyn std::erro
     for ((peri, remap), group) in &groups {
         let variant = format!("{}Remap{}", capitalize_peripheral(peri), remap);
         let rx = group.rx_pin.as_ref().expect("USART mapping missing RX pin");
-        writeln!(
-            code,
-            "            UsartMapping::{variant} => Pin::{rx},"
-        )?;
+        writeln!(code, "            UsartMapping::{variant} => Pin::{rx},")?;
     }
     writeln!(code, "        }}")?;
     writeln!(code, "    }}")?;
@@ -181,10 +175,7 @@ fn generate_pin_and_usart_mapping(out: &PathBuf) -> Result<(), Box<dyn std::erro
     writeln!(code, "        match self {{")?;
     for ((peri, remap), _) in &groups {
         let variant = format!("{}Remap{}", capitalize_peripheral(peri), remap);
-        writeln!(
-            code,
-            "            UsartMapping::{variant} => {remap},"
-        )?;
+        writeln!(code, "            UsartMapping::{variant} => {remap},")?;
     }
     writeln!(code, "        }}")?;
     writeln!(code, "    }}")?;

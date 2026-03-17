@@ -35,9 +35,7 @@ pub fn configure(pin: Pin, mode: PinMode) {
         }
         PinMode::InputPull(Pull::None) => (Mode::INPUT, Cnf::FLOATING_IN__OPEN_DRAIN_OUT, None),
         PinMode::OutputPushPull => (Mode::OUTPUT_10MHZ, Cnf::ANALOG_IN__PUSH_PULL_OUT, None),
-        PinMode::OutputOpenDrain => {
-            (Mode::OUTPUT_10MHZ, Cnf::FLOATING_IN__OPEN_DRAIN_OUT, None)
-        }
+        PinMode::OutputOpenDrain => (Mode::OUTPUT_10MHZ, Cnf::FLOATING_IN__OPEN_DRAIN_OUT, None),
         PinMode::AfPushPull => (Mode::OUTPUT_10MHZ, Cnf::PULL_IN__AF_PUSH_PULL_OUT, None),
         PinMode::AfOpenDrain => (Mode::OUTPUT_10MHZ, Cnf::AF_OPEN_DRAIN_OUT, None),
     };
@@ -48,7 +46,8 @@ pub fn configure(pin: Pin, mode: PinMode) {
     let mask = !(0xFu32 << shift);
     let bits = ((m.to_bits() as u32) | ((cnf.to_bits() as u32) << 2)) << shift;
     let prev = regs.cfglr().read().0;
-    regs.cfglr().write_value(ch32_metapac::gpio::regs::Cfglr(prev & mask | bits));
+    regs.cfglr()
+        .write_value(ch32_metapac::gpio::regs::Cfglr(prev & mask | bits));
 
     if let Some(val) = odr {
         let mut outdr = regs.outdr().read();
@@ -58,11 +57,15 @@ pub fn configure(pin: Pin, mode: PinMode) {
 }
 
 pub fn set_high(pin: Pin) {
-    pin.gpio_regs().bshr().write(|w| w.set_bs(pin.pin_number(), true));
+    pin.gpio_regs()
+        .bshr()
+        .write(|w| w.set_bs(pin.pin_number(), true));
 }
 
 pub fn set_low(pin: Pin) {
-    pin.gpio_regs().bcr().write(|w| w.set_br(pin.pin_number(), true));
+    pin.gpio_regs()
+        .bcr()
+        .write(|w| w.set_br(pin.pin_number(), true));
 }
 
 impl embedded_hal::digital::ErrorType for Pin {

@@ -60,7 +60,9 @@ impl FlashWriter {
     pub fn erase_page(&self, addr: u32) {
         flash().ctlr().modify(|w| w.set_page_er(true));
         fence(Ordering::SeqCst);
-        flash().addr().write(|w| w.set_addr(FLASH_PROGRAM_BASE + addr));
+        flash()
+            .addr()
+            .write(|w| w.set_addr(FLASH_PROGRAM_BASE + addr));
         fence(Ordering::SeqCst);
         flash().ctlr().modify(|w| w.set_strt(true));
         wait_busy();

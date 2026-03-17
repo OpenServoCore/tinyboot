@@ -62,8 +62,7 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, 
                 }
             }
             Cmd::Verify => {
-                let crc =
-                    crc16(CRC_INIT, self.platform.storage.as_slice());
+                let crc = crc16(CRC_INIT, self.platform.storage.as_slice());
                 let crc_bytes = crc.to_le_bytes();
                 self.frame.len = 2;
                 self.frame.data[0] = crc_bytes[0];
@@ -215,24 +214,39 @@ mod tests {
 
     struct MockBootCtl;
     impl BootCtl for MockBootCtl {
-        fn is_boot_requested(&self) -> bool { false }
+        fn is_boot_requested(&self) -> bool {
+            false
+        }
         fn clear_boot_request(&mut self) {}
-        fn system_reset(&mut self) -> ! { loop {} }
+        fn system_reset(&mut self) -> ! {
+            loop {}
+        }
     }
 
     struct MockBootMeta;
     impl BootMetaStore for MockBootMeta {
         type Error = ();
         fn read(&self) -> crate::traits::BootMeta {
-            crate::traits::BootMeta { state: 0xFFFF, trials: 0xFFFF, app_checksum: 0, app_size: 0 }
+            crate::traits::BootMeta {
+                state: 0xFFFF,
+                trials: 0xFFFF,
+                app_checksum: 0,
+                app_size: 0,
+            }
         }
-        fn advance(&mut self) -> Result<crate::traits::BootState, ()> { Ok(crate::traits::BootState::Idle) }
-        fn consume_trial(&mut self) -> Result<(), ()> { Ok(()) }
+        fn advance(&mut self) -> Result<crate::traits::BootState, ()> {
+            Ok(crate::traits::BootState::Idle)
+        }
+        fn consume_trial(&mut self) -> Result<(), ()> {
+            Ok(())
+        }
     }
 
     type TestDispatcher<'a> = Dispatcher<'a, MockTransport, MockStorage, MockBootMeta, MockBootCtl>;
 
-    fn make_platform(storage: MockStorage) -> Platform<MockTransport, MockStorage, MockBootMeta, MockBootCtl> {
+    fn make_platform(
+        storage: MockStorage,
+    ) -> Platform<MockTransport, MockStorage, MockBootMeta, MockBootCtl> {
         Platform::new(MockTransport::new(), storage, MockBootMeta, MockBootCtl)
     }
 
@@ -269,7 +283,9 @@ mod tests {
     fn write_stores_data() {
         let mut p = make_platform(MockStorage::new());
         let mut d = Dispatcher::new(&mut p);
-        d.platform.transport.load_request(Cmd::Write, 0, 4, &[0xDE, 0xAD, 0xBE, 0xEF]);
+        d.platform
+            .transport
+            .load_request(Cmd::Write, 0, 4, &[0xDE, 0xAD, 0xBE, 0xEF]);
 
         d.dispatch().unwrap();
 
@@ -281,7 +297,9 @@ mod tests {
     fn write_at_offset() {
         let mut p = make_platform(MockStorage::new());
         let mut d = Dispatcher::new(&mut p);
-        d.platform.transport.load_request(Cmd::Write, 8, 4, &[0x01, 0x02, 0x03, 0x04]);
+        d.platform
+            .transport
+            .load_request(Cmd::Write, 8, 4, &[0x01, 0x02, 0x03, 0x04]);
 
         d.dispatch().unwrap();
 
@@ -292,7 +310,9 @@ mod tests {
     fn write_out_of_bounds() {
         let mut p = make_platform(MockStorage::new());
         let mut d = Dispatcher::new(&mut p);
-        d.platform.transport.load_request(Cmd::Write, 256, 4, &[0; 4]);
+        d.platform
+            .transport
+            .load_request(Cmd::Write, 256, 4, &[0; 4]);
 
         d.dispatch().unwrap();
         assert_eq!(d.frame.status, Status::AddrOutOfBounds);

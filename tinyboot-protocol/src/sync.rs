@@ -25,7 +25,6 @@ impl Sync {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

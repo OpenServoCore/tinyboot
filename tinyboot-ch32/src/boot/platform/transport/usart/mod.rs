@@ -2,9 +2,9 @@ use core::convert::Infallible;
 
 use embedded_io::ErrorType;
 
-use crate::{Pin, UsartMapping};
-use crate::hal::{afio, gpio, rcc, usart};
 use crate::hal::gpio::{PinMode, Pull};
+use crate::hal::{afio, gpio, rcc, usart};
+use crate::{Pin, UsartMapping};
 
 pub enum Duplex {
     Half,
@@ -40,6 +40,13 @@ pub struct TxEnConfig {
 pub struct UsartConfig {
     pub duplex: Duplex,
     pub baud: BaudRate,
+    /// Peripheral clock frequency (Hz) feeding this USART.
+    /// Used to compute the baud rate divisor (BRR = pclk / baud).
+    ///
+    /// Default PCLK2 at reset from OpenWCH SDK headers:
+    ///   CH32V003: HSI=24MHz / HPRE=3 = 8_000_000
+    ///   CH32V1xx/V2xx/V3xx: HSI=8MHz / HPRE=1 = 8_000_000
+    ///   CH32X0xx: HSI=48MHz / HPRE=1 = 48_000_000
     pub pclk: u32,
     pub mapping: UsartMapping,
     pub rx_pull: Pull,
