@@ -7,10 +7,9 @@ edition = "2024"
 [workspace]
 
 [dependencies]
-tinyboot-ch32 = { path = "../..", features = ["ch32v003f4p6", "app"] }
+tinyboot-ch32 = { path = "../..", features = ["ch32v003f4p6"] }
 tinyboot = { path = "../../../tinyboot" }
-# NOTE: do NOT enable memory-x here — tinyboot-ch32 generates its own memory.x
-ch32-metapac = { version = "0.0.6", default-features = false, features = ["ch32v003f4p6", "rt"] }
+ch32-metapac = { version = "0.0.6", default-features = false, features = ["ch32v003f4p6", "rt", "memory-x"] }
 qingke = { version = "0.6", features = ["v2", "critical-section-impl"] }
 qingke-rt = { version = "0.6", features = ["v2"] }
 panic-halt = "1.0"

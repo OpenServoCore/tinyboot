@@ -11,7 +11,9 @@ use tinyboot_ch32::app;
 
 #[qingke_rt::entry]
 fn main() -> ! {
-    let mut client = app::BootClient::default();
+    let mut client = app::BootClient::new(app::BootClientConfig {
+        meta_base: 0x1FFF_FCC0,
+    });
     client.confirm();
 
     #[cfg(feature = "defmt")]

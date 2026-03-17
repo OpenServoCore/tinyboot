@@ -8,7 +8,7 @@ edition = "2024"
 [workspace]
 
 [dependencies]
-tinyboot-ch32 = { path = "../..", features = ["ch32v003f4p6", "bootloader"] }
+tinyboot-ch32 = { path = "../..", features = ["ch32v003f4p6", "rt"] }
 tinyboot = { path = "../../../tinyboot", default-features = false }
 panic-halt = "1.0"
 

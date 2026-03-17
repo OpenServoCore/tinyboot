@@ -219,7 +219,7 @@ mod tests {
         }
         fn clear_boot_request(&mut self) {}
         fn system_reset(&mut self) -> ! {
-            loop {}
+            panic!("mock reset")
         }
     }
 
@@ -241,8 +241,6 @@ mod tests {
             Ok(())
         }
     }
-
-    type TestDispatcher<'a> = Dispatcher<'a, MockTransport, MockStorage, MockBootMeta, MockBootCtl>;
 
     fn make_platform(
         storage: MockStorage,

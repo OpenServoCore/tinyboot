@@ -1,5 +1,5 @@
 pub mod platform;
-#[cfg(target_arch = "riscv32")]
+#[cfg(all(target_arch = "riscv32", feature = "rt"))]
 mod rt;
 
 pub use platform::{

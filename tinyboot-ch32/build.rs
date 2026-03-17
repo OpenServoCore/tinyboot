@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     generate_pin_and_usart_mapping(out)?;
 
-    #[cfg(feature = "bootloader")]
+    #[cfg(feature = "rt")]
     {
         fs::copy("link.x", out.join("link.x"))?;
         println!("cargo:rerun-if-changed=link.x");

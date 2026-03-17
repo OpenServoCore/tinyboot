@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use core::sync::atomic::{Ordering, fence};
 
 const KEY1: u32 = 0x4567_0123;

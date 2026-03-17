@@ -27,11 +27,8 @@ ch32v003f4p6 = ["ch32-metapac/ch32v003f4p6"]
 # logging
 defmt = ["dep:defmt", "tinyboot/defmt"]
 
-# Build as bootloader binary (includes runtime assembly + Bootloader struct + link.x)
-bootloader = []
-
-# Build app-side boot client (includes BootClient impl + convenience functions)
-app = []
+# Custom minimal runtime without interrupt vector table for reduced flash footprint.
+rt = []
 
 # Enable trial-boot FSM in the bootloader
 trial-boot = ["tinyboot/trial-boot"]

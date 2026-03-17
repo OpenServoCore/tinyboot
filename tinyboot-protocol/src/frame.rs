@@ -160,15 +160,21 @@ mod tests {
         }
     }
 
+    fn frame(cmd: Cmd, status: Status, addr: u16, data: &[u8]) -> Frame {
+        let mut f = Frame {
+            cmd,
+            status,
+            addr,
+            len: data.len() as u8,
+            ..Default::default()
+        };
+        f.data[..data.len()].copy_from_slice(data);
+        f
+    }
+
     #[test]
     fn request_round_trip() {
-        let mut frame = Frame::default();
-        frame.cmd = Cmd::Write;
-        frame.len = 2;
-        frame.addr = 0x0800;
-        frame.status = Status::Request;
-        frame.data[0] = 0xDE;
-        frame.data[1] = 0xAD;
+        let mut frame = frame(Cmd::Write, Status::Request, 0x0800, &[0xDE, 0xAD]);
 
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
@@ -185,13 +191,7 @@ mod tests {
 
     #[test]
     fn response_round_trip() {
-        let mut frame = Frame::default();
-        frame.cmd = Cmd::Verify;
-        frame.len = 2;
-        frame.addr = 0;
-        frame.status = Status::Ok;
-        frame.data[0] = 0x12;
-        frame.data[1] = 0x34;
+        let mut frame = frame(Cmd::Verify, Status::Ok, 0, &[0x12, 0x34]);
 
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
@@ -205,9 +205,7 @@ mod tests {
 
     #[test]
     fn request_no_data() {
-        let mut frame = Frame::default();
-        frame.cmd = Cmd::Erase;
-        frame.status = Status::Request;
+        let mut frame = frame(Cmd::Erase, Status::Request, 0, &[]);
 
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
@@ -223,13 +221,7 @@ mod tests {
 
     #[test]
     fn cmd_addr_carry_over() {
-        let mut frame = Frame::default();
-        frame.cmd = Cmd::Write;
-        frame.len = 2;
-        frame.addr = 0x0400;
-        frame.status = Status::Request;
-        frame.data[0] = 0xAB;
-        frame.data[1] = 0xCD;
+        let mut frame = frame(Cmd::Write, Status::Request, 0x0400, &[0xAB, 0xCD]);
 
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
@@ -255,9 +247,7 @@ mod tests {
 
     #[test]
     fn read_bad_crc() {
-        let mut frame = Frame::default();
-        frame.cmd = Cmd::Info;
-        frame.status = Status::Request;
+        let mut frame = frame(Cmd::Info, Status::Request, 0, &[]);
 
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
@@ -272,9 +262,7 @@ mod tests {
 
     #[test]
     fn read_after_garbage() {
-        let mut frame = Frame::default();
-        frame.cmd = Cmd::Verify;
-        frame.status = Status::Request;
+        let mut frame = frame(Cmd::Verify, Status::Request, 0, &[]);
 
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
