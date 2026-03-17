@@ -13,7 +13,7 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, 
     pub fn new(platform: &'a mut Platform<T, S, B, C>) -> Self {
         Self {
             platform,
-            frame: Frame::new(),
+            frame: Frame::default(),
         }
     }
 
@@ -109,7 +109,7 @@ mod tests {
 
         /// Load a request frame into the rx buffer by sending it through Frame.
         fn load_request(&mut self, cmd: Cmd, addr: u16, len: u8, data: &[u8]) {
-            let mut frame = Frame::new();
+            let mut frame = Frame::default();
             frame.cmd = cmd;
             frame.addr = addr;
             frame.len = len;

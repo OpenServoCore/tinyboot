@@ -1,4 +1,5 @@
 pub mod platform;
+#[cfg(target_arch = "riscv32")]
 mod rt;
 
 pub use platform::{

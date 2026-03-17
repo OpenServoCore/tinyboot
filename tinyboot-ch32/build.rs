@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 use std::env;
+use std::error::Error;
 use std::fmt::Write as FmtWrite;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use ch32_metapac::metadata::METADATA;
 
@@ -38,7 +39,7 @@ fn port_index(port: char) -> usize {
     (port as usize) - ('A' as usize)
 }
 
-fn generate_pin_and_usart_mapping(out: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_pin_and_usart_mapping(out: &Path) -> Result<(), Box<dyn Error>> {
     let mut code = String::new();
 
     // ── Pin enum ──────────────────────────────────────────────────────
@@ -173,7 +174,8 @@ fn generate_pin_and_usart_mapping(out: &PathBuf) -> Result<(), Box<dyn std::erro
     // remap_value()
     writeln!(code, "    pub const fn remap_value(self) -> u8 {{")?;
     writeln!(code, "        match self {{")?;
-    for ((peri, remap), _) in &groups {
+    for key in groups.keys() {
+        let (peri, remap) = key;
         let variant = format!("{}Remap{}", capitalize_peripheral(peri), remap);
         writeln!(code, "            UsartMapping::{variant} => {remap},")?;
     }

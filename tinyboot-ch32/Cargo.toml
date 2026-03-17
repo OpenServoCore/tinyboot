@@ -19,7 +19,7 @@ tinyboot = { path = "../tinyboot", default-features = false }
 ch32-metapac = { version = "0.0.6", default-features = false, features = ["metadata"] }
 
 [features]
-default = []
+default = ["ch32v003f4p6"]
 
 # supported chip variants
 ch32v003f4p6 = ["ch32-metapac/ch32v003f4p6"]
@@ -32,3 +32,6 @@ bootloader = []
 
 # Build app-side boot client (includes BootClient impl + convenience functions)
 app = []
+
+# Enable trial-boot FSM in the bootloader
+trial-boot = ["tinyboot/trial-boot"]

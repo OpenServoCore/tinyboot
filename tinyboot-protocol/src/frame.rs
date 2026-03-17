@@ -24,13 +24,10 @@ pub struct Frame {
     pub crc: u16,
 }
 
-impl Frame {
-    /// Create a new frame. Data buffer is uninitialized — `read()` or
+impl Default for Frame {
+    /// Create a default frame. Data buffer is uninitialized — `read()` or
     /// caller writes populate it before use.
-    pub fn new() -> Self {
-        // SAFETY: Frame is repr(C) with no padding before `data`.
-        // `data` contents are don't-care until `len` bytes are written.
-
+    fn default() -> Self {
         let frame: MaybeUninit<Self> = MaybeUninit::uninit();
         let mut frame = unsafe { frame.assume_init() };
         frame.sync = Sync::default();
@@ -165,7 +162,7 @@ mod tests {
 
     #[test]
     fn request_round_trip() {
-        let mut frame = Frame::new();
+        let mut frame = Frame::default();
         frame.cmd = Cmd::Write;
         frame.len = 2;
         frame.addr = 0x0800;
@@ -176,7 +173,7 @@ mod tests {
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
 
-        let mut frame2 = Frame::new();
+        let mut frame2 = Frame::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Write);
         assert_eq!(frame2.len, 2);
@@ -188,7 +185,7 @@ mod tests {
 
     #[test]
     fn response_round_trip() {
-        let mut frame = Frame::new();
+        let mut frame = Frame::default();
         frame.cmd = Cmd::Verify;
         frame.len = 2;
         frame.addr = 0;
@@ -199,7 +196,7 @@ mod tests {
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
 
-        let mut frame2 = Frame::new();
+        let mut frame2 = Frame::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Verify);
         assert_eq!(frame2.status, Status::Ok);
@@ -208,7 +205,7 @@ mod tests {
 
     #[test]
     fn request_no_data() {
-        let mut frame = Frame::new();
+        let mut frame = Frame::default();
         frame.cmd = Cmd::Erase;
         frame.status = Status::Request;
 
@@ -218,7 +215,7 @@ mod tests {
         // Frame: SYNC(2) + CMD(1) + LEN(1) + ADDR(2) + STATUS(1) + CRC(2) = 9
         assert_eq!(sink.written().len(), 9);
 
-        let mut frame2 = Frame::new();
+        let mut frame2 = Frame::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Erase);
         assert_eq!(frame2.len, 0);
@@ -226,7 +223,7 @@ mod tests {
 
     #[test]
     fn cmd_addr_carry_over() {
-        let mut frame = Frame::new();
+        let mut frame = Frame::default();
         frame.cmd = Cmd::Write;
         frame.len = 2;
         frame.addr = 0x0400;
@@ -238,7 +235,7 @@ mod tests {
         frame.send(&mut sink).unwrap();
 
         // "Device" reads the request
-        let mut dev = Frame::new();
+        let mut dev = Frame::default();
         dev.read(&mut MockReader::new(sink.written())).unwrap();
 
         // Device sends response — cmd and addr carry over
@@ -248,7 +245,7 @@ mod tests {
         dev.send(&mut resp_sink).unwrap();
 
         // Host reads response
-        let mut host = Frame::new();
+        let mut host = Frame::default();
         host.read(&mut MockReader::new(resp_sink.written()))
             .unwrap();
         assert_eq!(host.cmd, Cmd::Write);
@@ -258,7 +255,7 @@ mod tests {
 
     #[test]
     fn read_bad_crc() {
-        let mut frame = Frame::new();
+        let mut frame = Frame::default();
         frame.cmd = Cmd::Info;
         frame.status = Status::Request;
 
@@ -266,7 +263,7 @@ mod tests {
         frame.send(&mut sink).unwrap();
         sink.buf[2] ^= 0xFF; // corrupt CMD byte — caught by is_valid before CRC
 
-        let mut frame2 = Frame::new();
+        let mut frame2 = Frame::default();
         assert_eq!(
             frame2.read(&mut MockReader::new(sink.written())),
             Err(ReadError::InvalidFrame)
@@ -275,7 +272,7 @@ mod tests {
 
     #[test]
     fn read_after_garbage() {
-        let mut frame = Frame::new();
+        let mut frame = Frame::default();
         frame.cmd = Cmd::Verify;
         frame.status = Status::Request;
 
@@ -287,7 +284,7 @@ mod tests {
         input[..4].copy_from_slice(&[0xFF, 0x00, 0xAA, 0x42]);
         input[4..4 + frame_len].copy_from_slice(&sink.buf[..frame_len]);
 
-        let mut frame2 = Frame::new();
+        let mut frame2 = Frame::default();
         frame2
             .read(&mut MockReader::new(&input[..4 + frame_len]))
             .unwrap();
