@@ -1,4 +1,10 @@
 pub(crate) mod flash;
 pub(crate) mod pfic;
 #[cfg(feature = "bootloader")]
+pub(crate) mod afio;
+#[cfg(feature = "bootloader")]
+pub mod gpio;
+#[cfg(feature = "bootloader")]
+pub mod rcc;
+#[cfg(feature = "bootloader")]
 pub(crate) mod usart;

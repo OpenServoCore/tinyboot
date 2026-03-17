@@ -13,17 +13,22 @@ pub trait Storage:
     fn as_slice(&self) -> &[u8];
 }
 
-/// Trait for system / app interactions.
+/// Trait for system boot control.
 pub trait BootCtl {
-    /// Jump to the app entry point.
-    fn jump_to_app(&self) -> !;
+    /// Returns true if the bootloader was explicitly requested (e.g. via boot mode register).
+    fn is_boot_requested(&self) -> bool;
 
-    /// Reset the system after flash operations.
+    /// Clear the boot request flag so the next reset boots the app.
+    fn clear_boot_request(&mut self);
+
+    /// Reset the system.
     fn system_reset(&mut self) -> !;
 
-    /// Check for a RAM-based boot request and clear it.
-    /// Returns true if the app requested bootloader entry (via soft reset).
-    fn take_boot_request(&mut self) -> bool;
+    /// Clear boot request and reset into the app.
+    fn boot_app(&mut self) -> ! {
+        self.clear_boot_request();
+        self.system_reset()
+    }
 }
 
 /// Current stage in the firmware update lifecycle.

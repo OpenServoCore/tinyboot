@@ -1,50 +1,47 @@
 use tinyboot::traits::{BootClient as TBBootClient, BootMeta, BootState};
 
-use crate::common::{BOOT_REQUEST_MAGIC, BOOT_REQUEST_PTR, META_BASE};
-use crate::hal::flash::FlashWriter;
+use crate::hal::flash::{self, FlashWriter};
 use crate::hal::pfic;
 
-const META_PTR: *const BootMeta = META_BASE as *const BootMeta;
-
-/// Byte offset of the `state` field within `BootMeta`.
 const STATE_OFFSET: u32 = 0;
 
-/// App-side boot client for CH32 chips.
-///
-/// Provides boot confirmation and bootloader entry request
-/// using the flash and PFIC peripherals.
-///
-/// All operations are wrapped in a critical section so they
-/// are safe to call from interrupt context.
-pub struct BootClient {
-    flash: ch32_metapac::flash::Flash,
+pub struct BootClientConfig {
+    pub meta_base: u32,
 }
 
-impl Default for BootClient {
-    fn default() -> Self {
-        Self {
-            flash: ch32_metapac::FLASH,
+pub struct BootClient {
+    meta_base: u32,
+}
+
+impl BootClient {
+    pub fn new(config: BootClientConfig) -> Self {
+        BootClient {
+            meta_base: config.meta_base,
         }
+    }
+
+    fn meta_ptr(&self) -> *const BootMeta {
+        self.meta_base as *const BootMeta
     }
 }
 
 impl TBBootClient for BootClient {
     fn confirm(&mut self) {
         critical_section::with(|_| {
-            let meta: BootMeta = unsafe { core::ptr::read_volatile(META_PTR) };
+            let meta: BootMeta = unsafe { core::ptr::read_volatile(self.meta_ptr()) };
             if meta.boot_state() != BootState::Validating {
                 return;
             }
             let next = meta.state & (meta.state >> 1);
-            let writer = FlashWriter::standard(&self.flash);
-            writer.write_halfword(META_BASE + STATE_OFFSET, next);
+            let writer = FlashWriter::standard();
+            writer.write_halfword(self.meta_base + STATE_OFFSET, next);
         });
     }
 
     fn request_update(&mut self) -> ! {
         critical_section::with(|_| {
-            unsafe { core::ptr::write_volatile(BOOT_REQUEST_PTR, BOOT_REQUEST_MAGIC) };
+            flash::set_boot_mode(true);
         });
-        pfic::system_reset(&ch32_metapac::PFIC);
+        pfic::system_reset();
     }
 }

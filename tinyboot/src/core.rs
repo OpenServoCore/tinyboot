@@ -25,7 +25,7 @@ where
     pub fn run(mut self) -> ! {
         log_info!("Bootloader started");
 
-        let mut enter = self.platform.ctl.take_boot_request();
+        let mut enter = self.platform.ctl.is_boot_requested();
 
         if enter {
             log_info!("Boot requested");
@@ -48,20 +48,18 @@ where
         if enter || self.app_is_blank() {
             self.enter_bootloader();
         }
-        self.platform.ctl.jump_to_app();
+        self.platform.ctl.boot_app();
     }
 
-    /// Check if the app region contains valid code by reading the first word.
-    /// Erased flash reads as 0xFFFFFFFF.
     fn app_is_blank(&self) -> bool {
         let data = self.platform.storage.as_slice();
         data.len() < 4 || data[..4] == [0xFF; 4]
     }
 
-    fn enter_bootloader(self) -> ! {
+    fn enter_bootloader(&mut self) -> ! {
         log_info!("Entering bootloader mode");
 
-        let mut d = protocol::Dispatcher::new(self.platform);
+        let mut d = protocol::Dispatcher::new(&mut self.platform);
 
         loop {
             let _ = d.dispatch();

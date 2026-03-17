@@ -1,45 +1,44 @@
 use tinyboot::traits::{BootMeta, BootMetaStore as TBBootMetaStore, BootState};
 
-use crate::common::META_BASE;
 use crate::hal::flash::FlashWriter;
 
-/// Memory-mapped read pointer for the boot meta struct.
-const META_PTR: *const BootMeta = META_BASE as *const BootMeta;
-
-/// Byte offset of the `state` field within `BootMeta`.
 const STATE_OFFSET: u32 = 0;
-
-/// Byte offset of the `trials` field within `BootMeta`.
 const TRIALS_OFFSET: u32 = 2;
 
+pub struct MetaConfig {
+    pub meta_base: u32,
+}
+
 #[derive(Debug)]
-pub(crate) enum BootMetaError {
+pub enum BootMetaError {
     InvalidTransition,
     TrialsExhausted,
 }
 
-pub(crate) struct BootMetaStore {
-    regs: ch32_metapac::flash::Flash,
+pub struct BootMetaStore {
+    meta_base: u32,
 }
 
 impl BootMetaStore {
-    pub fn new(regs: ch32_metapac::flash::Flash) -> Self {
-        BootMetaStore { regs }
+    pub fn new(config: MetaConfig) -> Self {
+        BootMetaStore {
+            meta_base: config.meta_base,
+        }
     }
 
-    /// Write a u16 at a half-word-aligned offset within the meta region (1→0 only).
+    fn meta_ptr(&self) -> *const BootMeta {
+        self.meta_base as *const BootMeta
+    }
+
     fn patch_u16(&mut self, offset: u32, value: u16) {
-        let writer = FlashWriter::standard(&self.regs);
-        writer.write_halfword(META_BASE + offset, value);
+        let writer = FlashWriter::standard();
+        writer.write_halfword(self.meta_base + offset, value);
     }
 
-    /// Read a u16 at a half-word-aligned offset within the meta region.
     fn read_u16(&self, offset: u32) -> u16 {
-        unsafe { core::ptr::read_volatile((META_BASE + offset) as *const u16) }
+        unsafe { core::ptr::read_volatile((self.meta_base + offset) as *const u16) }
     }
 
-    /// Clear the MSB of a contiguous-ones field: `v & (v >> 1)`.
-    /// Returns the new value, or `None` if already at or below `floor`.
     fn step_down(&mut self, offset: u32, floor: u16) -> Option<u16> {
         let current = self.read_u16(offset);
         if current <= floor {
@@ -55,7 +54,7 @@ impl TBBootMetaStore for BootMetaStore {
     type Error = BootMetaError;
 
     fn read(&self) -> BootMeta {
-        unsafe { core::ptr::read_volatile(META_PTR) }
+        unsafe { core::ptr::read_volatile(self.meta_ptr()) }
     }
 
     fn advance(&mut self) -> Result<BootState, Self::Error> {

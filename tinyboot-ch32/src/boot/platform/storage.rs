@@ -3,8 +3,15 @@ use embedded_storage::nor_flash::{
 };
 use tinyboot::traits::Storage as StorageTrait;
 
-use crate::common::{APP_BASE, APP_PTR, APP_SIZE, FLASH_ERASE_SIZE, FLASH_WRITE_SIZE};
 use crate::hal::flash::FlashWriter;
+
+const FLASH_WRITE_SIZE: usize = 2;
+const FLASH_ERASE_SIZE: usize = 1024;
+
+pub struct StorageConfig {
+    pub app_base: u32,
+    pub app_size: usize,
+}
 
 #[derive(Debug)]
 pub enum StorageError {
@@ -23,13 +30,21 @@ impl NorFlashError for StorageError {
     }
 }
 
-pub(crate) struct Storage {
-    regs: ch32_metapac::flash::Flash,
+pub struct Storage {
+    app_base: u32,
+    app_size: usize,
 }
 
 impl Storage {
-    pub fn new(regs: ch32_metapac::flash::Flash) -> Self {
-        Storage { regs }
+    pub fn new(config: StorageConfig) -> Self {
+        Storage {
+            app_base: config.app_base,
+            app_size: config.app_size,
+        }
+    }
+
+    fn app_ptr(&self) -> *const u8 {
+        self.app_base as *const u8
     }
 }
 
@@ -45,12 +60,12 @@ impl NorFlash for Storage {
         if from as usize % FLASH_ERASE_SIZE != 0 || to as usize % FLASH_ERASE_SIZE != 0 {
             return Err(StorageError::NotAligned);
         }
-        if to as usize > APP_SIZE {
+        if to as usize > self.app_size {
             return Err(StorageError::OutOfBounds);
         }
-        let writer = FlashWriter::standard(&self.regs);
-        let mut addr = APP_BASE + from;
-        let end = APP_BASE + to;
+        let writer = FlashWriter::standard();
+        let mut addr = self.app_base + from;
+        let end = self.app_base + to;
         while addr < end {
             writer.erase_page(addr);
             addr += FLASH_ERASE_SIZE as u32;
@@ -65,11 +80,11 @@ impl NorFlash for Storage {
         if offset as usize % FLASH_WRITE_SIZE != 0 || bytes.len() % FLASH_WRITE_SIZE != 0 {
             return Err(StorageError::NotAligned);
         }
-        if offset as usize + bytes.len() > APP_SIZE {
+        if offset as usize + bytes.len() > self.app_size {
             return Err(StorageError::OutOfBounds);
         }
-        let writer = FlashWriter::standard(&self.regs);
-        let mut addr = APP_BASE + offset;
+        let writer = FlashWriter::standard();
+        let mut addr = self.app_base + offset;
         for pair in bytes.chunks_exact(2) {
             let halfword = u16::from_le_bytes([pair[0], pair[1]]);
             writer.write_halfword(addr, halfword);
@@ -84,7 +99,7 @@ impl NorFlash for Storage {
 
 impl StorageTrait for Storage {
     fn as_slice(&self) -> &[u8] {
-        unsafe { core::slice::from_raw_parts(APP_PTR as *const u8, APP_SIZE) }
+        unsafe { core::slice::from_raw_parts(self.app_ptr(), self.app_size) }
     }
 }
 
@@ -92,16 +107,16 @@ impl ReadNorFlash for Storage {
     const READ_SIZE: usize = 1;
 
     fn read(&mut self, offset: u32, bytes: &mut [u8]) -> Result<(), Self::Error> {
-        if offset as usize + bytes.len() > APP_SIZE {
+        if offset as usize + bytes.len() > self.app_size {
             return Err(StorageError::OutOfBounds);
         }
-        let src = unsafe { core::slice::from_raw_parts(APP_PTR as *const u8, APP_SIZE) };
+        let src = unsafe { core::slice::from_raw_parts(self.app_ptr(), self.app_size) };
         let offset = offset as usize;
         bytes.copy_from_slice(&src[offset..offset + bytes.len()]);
         Ok(())
     }
 
     fn capacity(&self) -> usize {
-        APP_SIZE
+        self.app_size
     }
 }

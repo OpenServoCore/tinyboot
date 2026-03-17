@@ -3,14 +3,14 @@ use tinyboot_protocol::crc::{CRC_INIT, crc16};
 use tinyboot_protocol::frame::Frame;
 use tinyboot_protocol::{Cmd, ReadError, Status};
 
-/// Protocol dispatcher. Owns the platform and frame.
-pub struct Dispatcher<T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> {
-    pub platform: Platform<T, S, B, C>,
+/// Protocol dispatcher. Borrows the platform, owns the frame.
+pub struct Dispatcher<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> {
+    pub platform: &'a mut Platform<T, S, B, C>,
     pub frame: Frame,
 }
 
-impl<T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<T, S, B, C> {
-    pub fn new(platform: Platform<T, S, B, C>) -> Self {
+impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, T, S, B, C> {
+    pub fn new(platform: &'a mut Platform<T, S, B, C>) -> Self {
         Self {
             platform,
             frame: Frame::new(),
@@ -215,9 +215,9 @@ mod tests {
 
     struct MockBootCtl;
     impl BootCtl for MockBootCtl {
-        fn jump_to_app(&self) -> ! { loop {} }
+        fn is_boot_requested(&self) -> bool { false }
+        fn clear_boot_request(&mut self) {}
         fn system_reset(&mut self) -> ! { loop {} }
-        fn take_boot_request(&mut self) -> bool { false }
     }
 
     struct MockBootMeta;
@@ -230,17 +230,18 @@ mod tests {
         fn consume_trial(&mut self) -> Result<(), ()> { Ok(()) }
     }
 
-    type TestDispatcher = Dispatcher<MockTransport, MockStorage, MockBootMeta, MockBootCtl>;
+    type TestDispatcher<'a> = Dispatcher<'a, MockTransport, MockStorage, MockBootMeta, MockBootCtl>;
 
-    fn make_dispatcher(storage: MockStorage) -> TestDispatcher {
-        Dispatcher::new(Platform::new(MockTransport::new(), storage, MockBootMeta, MockBootCtl))
+    fn make_platform(storage: MockStorage) -> Platform<MockTransport, MockStorage, MockBootMeta, MockBootCtl> {
+        Platform::new(MockTransport::new(), storage, MockBootMeta, MockBootCtl)
     }
 
     // -- Tests --
 
     #[test]
     fn info_reports_geometry() {
-        let mut d = make_dispatcher(MockStorage::new());
+        let mut p = make_platform(MockStorage::new());
+        let mut d = Dispatcher::new(&mut p);
         d.platform.transport.load_request(Cmd::Info, 0, 0, &[]);
 
         d.dispatch().unwrap();
@@ -253,7 +254,8 @@ mod tests {
 
     #[test]
     fn erase_clears_storage() {
-        let mut d = make_dispatcher(MockStorage::new());
+        let mut p = make_platform(MockStorage::new());
+        let mut d = Dispatcher::new(&mut p);
         d.platform.storage.data[0] = 0x42;
         d.platform.transport.load_request(Cmd::Erase, 0, 0, &[]);
 
@@ -265,7 +267,8 @@ mod tests {
 
     #[test]
     fn write_stores_data() {
-        let mut d = make_dispatcher(MockStorage::new());
+        let mut p = make_platform(MockStorage::new());
+        let mut d = Dispatcher::new(&mut p);
         d.platform.transport.load_request(Cmd::Write, 0, 4, &[0xDE, 0xAD, 0xBE, 0xEF]);
 
         d.dispatch().unwrap();
@@ -276,7 +279,8 @@ mod tests {
 
     #[test]
     fn write_at_offset() {
-        let mut d = make_dispatcher(MockStorage::new());
+        let mut p = make_platform(MockStorage::new());
+        let mut d = Dispatcher::new(&mut p);
         d.platform.transport.load_request(Cmd::Write, 8, 4, &[0x01, 0x02, 0x03, 0x04]);
 
         d.dispatch().unwrap();
@@ -286,7 +290,8 @@ mod tests {
 
     #[test]
     fn write_out_of_bounds() {
-        let mut d = make_dispatcher(MockStorage::new());
+        let mut p = make_platform(MockStorage::new());
+        let mut d = Dispatcher::new(&mut p);
         d.platform.transport.load_request(Cmd::Write, 256, 4, &[0; 4]);
 
         d.dispatch().unwrap();
@@ -295,7 +300,8 @@ mod tests {
 
     #[test]
     fn write_unaligned_addr() {
-        let mut d = make_dispatcher(MockStorage::new());
+        let mut p = make_platform(MockStorage::new());
+        let mut d = Dispatcher::new(&mut p);
         d.platform.transport.load_request(Cmd::Write, 1, 4, &[0; 4]);
 
         d.dispatch().unwrap();
@@ -304,7 +310,8 @@ mod tests {
 
     #[test]
     fn verify_computes_crc() {
-        let mut d = make_dispatcher(MockStorage::new());
+        let mut p = make_platform(MockStorage::new());
+        let mut d = Dispatcher::new(&mut p);
         d.platform.storage.data[..4].copy_from_slice(&[0x01, 0x02, 0x03, 0x04]);
         d.platform.transport.load_request(Cmd::Verify, 0, 0, &[]);
 
