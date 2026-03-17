@@ -1,0 +1,15 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tinyboot-ch32 = { path = "../../..", features = ["ch32v003f4p6", "system-flash", "defmt"] }
+tinyboot = { path = "../../../../tinyboot", features = ["defmt"] }
+ch32-metapac = { version = "0.0.6", default-features = false, features = ["ch32v003f4p6", "rt", "memory-x"] }
+qingke = { version = "0.6", features = ["v2", "critical-section-impl"] }
+qingke-rt = { version = "0.6", features = ["v2"] }
+panic-halt = "1.0"
+
+defmt = "1.0"
+defmt-rtt = "1.1"

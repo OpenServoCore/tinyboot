@@ -1,0 +1,9 @@
+[package]
+name = "boot"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tinyboot-ch32 = { path = "../../..", features = ["ch32v003f4p6", "rt", "system-flash"] }
+tinyboot = { path = "../../../../tinyboot", default-features = false }
+panic-halt = "1.0"
