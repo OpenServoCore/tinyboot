@@ -4,13 +4,16 @@ use tinyboot_protocol::frame::Frame;
 use tinyboot_protocol::{Cmd, ReadError, Status};
 
 /// Protocol dispatcher. Borrows the platform, owns the frame.
-pub struct Dispatcher<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> {
-    pub platform: &'a mut Platform<T, S, B, C>,
-    pub frame: Frame,
+pub struct Dispatcher<'a, const D: usize, T: Transport<D>, S: Storage, B: BootMetaStore, C: BootCtl>
+{
+    pub platform: &'a mut Platform<D, T, S, B, C>,
+    pub frame: Frame<D>,
 }
 
-impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, T, S, B, C> {
-    pub fn new(platform: &'a mut Platform<T, S, B, C>) -> Self {
+impl<'a, const D: usize, T: Transport<D>, S: Storage, B: BootMetaStore, C: BootCtl>
+    Dispatcher<'a, D, T, S, B, C>
+{
+    pub fn new(platform: &'a mut Platform<D, T, S, B, C>) -> Self {
         Self {
             platform,
             frame: Frame::default(),
@@ -31,13 +34,14 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, 
             Cmd::Info => {
                 let ws = (S::WRITE_SIZE as u16).to_le_bytes();
                 let cap = (capacity as u16).to_le_bytes();
+                let ds = (D as u16).to_le_bytes();
                 self.frame.len = 6;
                 self.frame.data[0] = ws[0];
                 self.frame.data[1] = ws[1];
                 self.frame.data[2] = cap[0];
                 self.frame.data[3] = cap[1];
-                self.frame.data[4] = ws[0];
-                self.frame.data[5] = ws[1];
+                self.frame.data[4] = ds[0];
+                self.frame.data[5] = ds[1];
             }
             Cmd::Erase => {
                 if self.platform.storage.erase(0, capacity as u32).is_err() {
@@ -88,6 +92,9 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, 
 mod tests {
     use super::*;
     use embedded_storage::nor_flash;
+    use tinyboot_protocol::frame::payload_size;
+
+    const TEST_D: usize = payload_size(64);
 
     // -- Mock transport (read feeds rx_buf, write captures to tx_buf) --
 
@@ -112,7 +119,7 @@ mod tests {
 
         /// Load a request frame into the rx buffer by sending it through Frame.
         fn load_request(&mut self, cmd: Cmd, addr: u16, len: u8, data: &[u8]) {
-            let mut frame = Frame::default();
+            let mut frame = Frame::<TEST_D>::default();
             frame.cmd = cmd;
             frame.addr = addr;
             frame.len = len;
@@ -152,6 +159,8 @@ mod tests {
             Ok(())
         }
     }
+
+    impl Transport<TEST_D> for MockTransport {}
 
     // -- Mock storage --
 
@@ -250,7 +259,7 @@ mod tests {
 
     fn make_platform(
         storage: MockStorage,
-    ) -> Platform<MockTransport, MockStorage, MockBootMeta, MockBootCtl> {
+    ) -> Platform<TEST_D, MockTransport, MockStorage, MockBootMeta, MockBootCtl> {
         Platform::new(MockTransport::new(), storage, MockBootMeta, MockBootCtl)
     }
 
@@ -266,8 +275,15 @@ mod tests {
 
         assert_eq!(d.frame.status, Status::Ok);
         assert_eq!(d.frame.len, 6);
+        // MockStorage::WRITE_SIZE = 4
         assert_eq!(u16::from_le_bytes([d.frame.data[0], d.frame.data[1]]), 4);
+        // Capacity = 256 bytes
         assert_eq!(u16::from_le_bytes([d.frame.data[2], d.frame.data[3]]), 256);
+        // Data size = TEST_D = 55
+        assert_eq!(
+            u16::from_le_bytes([d.frame.data[4], d.frame.data[5]]),
+            TEST_D as u16
+        );
     }
 
     #[test]

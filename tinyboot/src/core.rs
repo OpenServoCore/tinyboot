@@ -4,24 +4,24 @@ use crate::traits::{BootCtl, BootMetaStore, Platform, Storage, Transport};
 #[cfg(feature = "trial-boot")]
 use crate::traits::BootState;
 
-pub struct Core<T, S, B, C>
+pub struct Core<const D: usize, T, S, B, C>
 where
-    T: Transport,
+    T: Transport<D>,
     S: Storage,
     B: BootMetaStore,
     C: BootCtl,
 {
-    platform: Platform<T, S, B, C>,
+    platform: Platform<D, T, S, B, C>,
 }
 
-impl<T, S, B, C> Core<T, S, B, C>
+impl<const D: usize, T, S, B, C> Core<D, T, S, B, C>
 where
-    T: Transport,
+    T: Transport<D>,
     S: Storage,
     B: BootMetaStore,
     C: BootCtl,
 {
-    pub fn new(platform: Platform<T, S, B, C>) -> Self {
+    pub fn new(platform: Platform<D, T, S, B, C>) -> Self {
         Core { platform }
     }
 

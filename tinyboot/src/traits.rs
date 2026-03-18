@@ -1,6 +1,8 @@
 /// Trait for firmware transfer protocol.
-pub trait Transport: embedded_io::Read + embedded_io::Write {}
-impl<T> Transport for T where T: embedded_io::Read + embedded_io::Write {}
+///
+/// The const generic `D` is the maximum payload size per frame,
+/// determined by the transport (e.g. UART frame size minus protocol overhead).
+pub trait Transport<const D: usize>: embedded_io::Read + embedded_io::Write {}
 
 /// Trait for reading and writing firmware to persistent storage.
 ///
@@ -146,9 +148,9 @@ pub trait BootClient {
     fn request_update(&mut self) -> !;
 }
 
-pub struct Platform<T, S, B, C>
+pub struct Platform<const D: usize, T, S, B, C>
 where
-    T: Transport,
+    T: Transport<D>,
     S: Storage,
     B: BootMetaStore,
     C: BootCtl,
@@ -159,9 +161,9 @@ where
     pub ctl: C,
 }
 
-impl<T, S, B, C> Platform<T, S, B, C>
+impl<const D: usize, T, S, B, C> Platform<D, T, S, B, C>
 where
-    T: Transport,
+    T: Transport<D>,
     S: Storage,
     B: BootMetaStore,
     C: BootCtl,

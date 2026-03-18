@@ -5,6 +5,7 @@ use embedded_io::ErrorType;
 use tinyboot_ch32_hal::gpio::{PinMode, Pull};
 use tinyboot_ch32_hal::{Pin, UsartMapping};
 use tinyboot_ch32_hal::{afio, gpio, rcc, usart};
+use tinyboot_protocol::frame::payload_size;
 
 pub enum Duplex {
     Half,
@@ -57,6 +58,13 @@ pub struct Usart {
     regs: ch32_metapac::usart::Usart,
     tx_en: Option<TxEnConfig>,
 }
+
+impl Usart {
+    pub const FRAME_SIZE: usize = 64;
+    pub const PAYLOAD_SIZE: usize = payload_size(Self::FRAME_SIZE);
+}
+
+impl tinyboot::traits::Transport<{ Usart::PAYLOAD_SIZE }> for Usart {}
 
 impl Usart {
     pub fn new(config: &UsartConfig) -> Self {

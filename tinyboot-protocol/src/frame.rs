@@ -4,27 +4,35 @@ use crate::crc::{CRC_INIT, crc16};
 use crate::sync::Sync;
 use crate::{Cmd, ReadError, Status};
 
-/// Maximum data payload size. Matches the u8 max of the `len` field.
-pub const MAX_DATA_LEN: usize = 255;
+/// Fixed overhead per frame: SYNC(2) + CMD(1) + LEN(1) + ADDR(2) + STATUS(1) + CRC(2).
+pub const FRAME_OVERHEAD: usize = 9;
+
+/// Derive the payload capacity from a total frame size.
+pub const fn payload_size(frame_size: usize) -> usize {
+    frame_size - FRAME_OVERHEAD
+}
 
 /// Wire frame: SYNC(2) + CMD(1) + LEN(1) + ADDR(2) + STATUS(1) + DATA(len) + CRC(2)
+///
+/// `D` is the maximum data payload size, typically derived via
+/// [`payload_size`] from the transport's frame size.
 ///
 /// Used for both requests and responses. For requests, `status` is
 /// [`Status::Request`]. For responses, `cmd` and `addr` echo the request.
 ///
 /// Single instance, reused each iteration of the protocol loop.
 #[repr(C)]
-pub struct Frame {
+pub struct Frame<const D: usize> {
     sync: Sync,
     pub cmd: Cmd,
     pub len: u8,
     pub addr: u16,
     pub status: Status,
-    pub data: [u8; MAX_DATA_LEN],
-    pub crc: u16,
+    pub data: [u8; D],
+    pub crc: [u8; 2],
 }
 
-impl Default for Frame {
+impl<const D: usize> Default for Frame<D> {
     /// Create a default frame. Data buffer is uninitialized — `read()` or
     /// caller writes populate it before use.
     fn default() -> Self {
@@ -35,12 +43,12 @@ impl Default for Frame {
         frame.len = 0;
         frame.addr = 0;
         frame.status = Status::Request;
-        frame.crc = 0;
+        frame.crc = [0; 2];
         frame
     }
 }
 
-impl Frame {
+impl<const D: usize> Frame<D> {
     fn as_bytes(&self, offset: usize, len: usize) -> &[u8] {
         unsafe {
             let ptr = (self as *const Self as *const u8).add(offset);
@@ -59,9 +67,9 @@ impl Frame {
     pub fn send<W: embedded_io::Write>(&mut self, w: &mut W) -> Result<(), W::Error> {
         self.sync = Sync::valid();
         let body_len = 7 + self.len as usize;
-        self.crc = crc16(CRC_INIT, self.as_bytes(0, body_len));
+        self.crc = crc16(CRC_INIT, self.as_bytes(0, body_len)).to_le_bytes();
         w.write_all(self.as_bytes(0, body_len))?;
-        w.write_all(&self.crc.to_le_bytes())
+        w.write_all(&self.crc)
     }
 
     /// Read one frame from the transport (blocking).
@@ -80,18 +88,21 @@ impl Frame {
 
         let data_len = self.len as usize;
 
+        if data_len > D {
+            return Err(ReadError::Overflow);
+        }
+
         // Read data directly into buffer
         if data_len > 0 {
             r.read_exact(&mut self.data[..data_len])
                 .map_err(|_| ReadError::Io)?;
         }
 
-        // Read CRC directly into struct (offset 7 + 255 = 262, u16-aligned)
-        r.read_exact(self.as_bytes_mut(7 + MAX_DATA_LEN, 2))
-            .map_err(|_| ReadError::Io)?;
+        // Read CRC directly — [u8; 2] has no alignment constraint
+        r.read_exact(&mut self.crc).map_err(|_| ReadError::Io)?;
 
         // Validate CRC over body
-        if self.crc != crc16(CRC_INIT, self.as_bytes(0, 7 + data_len)) {
+        if self.crc != crc16(CRC_INIT, self.as_bytes(0, 7 + data_len)).to_le_bytes() {
             return Err(ReadError::Crc);
         }
 
@@ -102,6 +113,10 @@ impl Frame {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Test frame size: 64-byte UART frame → 55 bytes payload.
+    const TEST_D: usize = payload_size(64);
+    type TestFrame = Frame<TEST_D>;
 
     struct MockReader<'a> {
         data: &'a [u8],
@@ -160,8 +175,8 @@ mod tests {
         }
     }
 
-    fn frame(cmd: Cmd, status: Status, addr: u16, data: &[u8]) -> Frame {
-        let mut f = Frame {
+    fn frame(cmd: Cmd, status: Status, addr: u16, data: &[u8]) -> TestFrame {
+        let mut f = TestFrame {
             cmd,
             status,
             addr,
@@ -179,7 +194,7 @@ mod tests {
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = TestFrame::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Write);
         assert_eq!(frame2.len, 2);
@@ -196,7 +211,7 @@ mod tests {
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = TestFrame::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Verify);
         assert_eq!(frame2.status, Status::Ok);
@@ -213,7 +228,7 @@ mod tests {
         // Frame: SYNC(2) + CMD(1) + LEN(1) + ADDR(2) + STATUS(1) + CRC(2) = 9
         assert_eq!(sink.written().len(), 9);
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = TestFrame::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Erase);
         assert_eq!(frame2.len, 0);
@@ -227,7 +242,7 @@ mod tests {
         frame.send(&mut sink).unwrap();
 
         // "Device" reads the request
-        let mut dev = Frame::default();
+        let mut dev = TestFrame::default();
         dev.read(&mut MockReader::new(sink.written())).unwrap();
 
         // Device sends response — cmd and addr carry over
@@ -237,7 +252,7 @@ mod tests {
         dev.send(&mut resp_sink).unwrap();
 
         // Host reads response
-        let mut host = Frame::default();
+        let mut host = TestFrame::default();
         host.read(&mut MockReader::new(resp_sink.written()))
             .unwrap();
         assert_eq!(host.cmd, Cmd::Write);
@@ -253,7 +268,7 @@ mod tests {
         frame.send(&mut sink).unwrap();
         sink.buf[2] ^= 0xFF; // corrupt CMD byte — caught by is_valid before CRC
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = TestFrame::default();
         assert_eq!(
             frame2.read(&mut MockReader::new(sink.written())),
             Err(ReadError::InvalidFrame)
@@ -272,10 +287,25 @@ mod tests {
         input[..4].copy_from_slice(&[0xFF, 0x00, 0xAA, 0x42]);
         input[4..4 + frame_len].copy_from_slice(&sink.buf[..frame_len]);
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = TestFrame::default();
         frame2
             .read(&mut MockReader::new(&input[..4 + frame_len]))
             .unwrap();
         assert_eq!(frame2.cmd, Cmd::Verify);
+    }
+
+    #[test]
+    fn read_overflow() {
+        // Use a tiny frame (D=2) and try to read a payload that's too large
+        let mut big_frame = frame(Cmd::Write, Status::Request, 0, &[1, 2, 3, 4]);
+
+        let mut sink = Sink::new();
+        big_frame.send(&mut sink).unwrap();
+
+        let mut small_frame = Frame::<2>::default();
+        assert_eq!(
+            small_frame.read(&mut MockReader::new(sink.written())),
+            Err(ReadError::Overflow)
+        );
     }
 }

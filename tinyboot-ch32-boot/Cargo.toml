@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 tinyboot-ch32-hal = { path = "../tinyboot-ch32-hal", default-features = false }
 tinyboot = { path = "../tinyboot", default-features = false }
+tinyboot-protocol = { path = "../tinyboot-protocol" }
 ch32-metapac = { version = "0.0.6", default-features = false, features = ["pac"] }
 critical-section = "1.2"
 defmt = { workspace = true, optional = true }
