@@ -4,6 +4,8 @@ pub mod crc;
 pub mod frame;
 pub(crate) mod sync;
 
+pub use frame::{Data, InfoData, VerifyData};
+
 /// Commands (host → device).
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq)]

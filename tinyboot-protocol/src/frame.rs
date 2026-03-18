@@ -4,15 +4,45 @@ use crate::crc::{CRC_INIT, crc16};
 use crate::sync::Sync;
 use crate::{Cmd, ReadError, Status};
 
-/// Fixed overhead per frame: SYNC(2) + CMD(1) + LEN(1) + ADDR(2) + STATUS(1) + CRC(2).
-pub const FRAME_OVERHEAD: usize = 9;
+/// Fixed overhead per frame: SYNC(2) + CMD(1) + STATUS(1) + ADDR(4) + LEN(2) + CRC(2).
+pub const FRAME_OVERHEAD: usize = 12;
 
 /// Derive the payload capacity from a total frame size.
 pub const fn payload_size(frame_size: usize) -> usize {
     frame_size - FRAME_OVERHEAD
 }
 
-/// Wire frame: SYNC(2) + CMD(1) + LEN(1) + ADDR(2) + STATUS(1) + DATA(len) + CRC(2)
+/// Typed Info response data.
+///
+/// Packed to keep alignment ≤ 2 so the `Data` union doesn't force padding
+/// inside `Frame` (data starts at offset 10, not 4-byte aligned).
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+pub struct InfoData {
+    pub capacity: u32,
+    pub payload_size: u16,
+    pub erase_size: u16,
+}
+
+/// Typed Verify response data.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct VerifyData {
+    pub crc: u16,
+}
+
+/// Union-typed data payload.
+///
+/// Provides zero-cost typed access to frame data. Reading fields is unsafe
+/// because the caller must know which variant is active.
+#[repr(C)]
+pub union Data<const D: usize> {
+    pub raw: [u8; D],
+    pub info: InfoData,
+    pub verify: VerifyData,
+}
+
+/// Wire frame: SYNC(2) + CMD(1) + STATUS(1) + ADDR(4) + LEN(2) + DATA(len) + CRC(2)
 ///
 /// `D` is the maximum data payload size, typically derived via
 /// [`payload_size`] from the transport's frame size.
@@ -25,10 +55,10 @@ pub const fn payload_size(frame_size: usize) -> usize {
 pub struct Frame<const D: usize> {
     sync: Sync,
     pub cmd: Cmd,
-    pub len: u8,
-    pub addr: u16,
     pub status: Status,
-    pub data: [u8; D],
+    pub addr: u32,
+    pub len: u16,
+    pub data: Data<D>,
     pub crc: [u8; 2],
 }
 
@@ -40,9 +70,9 @@ impl<const D: usize> Default for Frame<D> {
         let mut frame = unsafe { frame.assume_init() };
         frame.sync = Sync::default();
         frame.cmd = Cmd::Info;
-        frame.len = 0;
-        frame.addr = 0;
         frame.status = Status::Request;
+        frame.addr = 0;
+        frame.len = 0;
         frame.crc = [0; 2];
         frame
     }
@@ -66,7 +96,7 @@ impl<const D: usize> Frame<D> {
     /// Send the frame. Two `write_all` calls: body, then CRC.
     pub fn send<W: embedded_io::Write>(&mut self, w: &mut W) -> Result<(), W::Error> {
         self.sync = Sync::valid();
-        let body_len = 7 + self.len as usize;
+        let body_len = 10 + self.len as usize;
         self.crc = crc16(CRC_INIT, self.as_bytes(0, body_len)).to_le_bytes();
         w.write_all(self.as_bytes(0, body_len))?;
         w.write_all(&self.crc)
@@ -78,8 +108,8 @@ impl<const D: usize> Frame<D> {
     pub fn read<R: embedded_io::Read>(&mut self, r: &mut R) -> Result<(), ReadError> {
         self.sync.read(r)?;
 
-        // Read header fields: cmd(1) + len(1) + addr(2) + status(1) = 5 bytes at offset 2
-        r.read_exact(self.as_bytes_mut(2, 5))
+        // Read header fields: cmd(1) + status(1) + addr(4) + len(2) = 8 bytes at offset 2
+        r.read_exact(self.as_bytes_mut(2, 8))
             .map_err(|_| ReadError::Io)?;
 
         if !self.cmd.is_valid() || !self.status.is_valid() {
@@ -94,7 +124,7 @@ impl<const D: usize> Frame<D> {
 
         // Read data directly into buffer
         if data_len > 0 {
-            r.read_exact(&mut self.data[..data_len])
+            r.read_exact(unsafe { &mut self.data.raw[..data_len] })
                 .map_err(|_| ReadError::Io)?;
         }
 
@@ -102,7 +132,7 @@ impl<const D: usize> Frame<D> {
         r.read_exact(&mut self.crc).map_err(|_| ReadError::Io)?;
 
         // Validate CRC over body
-        if self.crc != crc16(CRC_INIT, self.as_bytes(0, 7 + data_len)).to_le_bytes() {
+        if self.crc != crc16(CRC_INIT, self.as_bytes(0, 10 + data_len)).to_le_bytes() {
             return Err(ReadError::Crc);
         }
 
@@ -114,7 +144,7 @@ impl<const D: usize> Frame<D> {
 mod tests {
     use super::*;
 
-    /// Test frame size: 64-byte UART frame → 55 bytes payload.
+    /// Test frame size: 64-byte UART frame → 52 bytes payload.
     const TEST_D: usize = payload_size(64);
     type TestFrame = Frame<TEST_D>;
 
@@ -175,15 +205,15 @@ mod tests {
         }
     }
 
-    fn frame(cmd: Cmd, status: Status, addr: u16, data: &[u8]) -> TestFrame {
+    fn frame(cmd: Cmd, status: Status, addr: u32, data: &[u8]) -> TestFrame {
         let mut f = TestFrame {
             cmd,
             status,
             addr,
-            len: data.len() as u8,
+            len: data.len() as u16,
             ..Default::default()
         };
-        f.data[..data.len()].copy_from_slice(data);
+        unsafe { f.data.raw[..data.len()].copy_from_slice(data) };
         f
     }
 
@@ -200,7 +230,7 @@ mod tests {
         assert_eq!(frame2.len, 2);
         assert_eq!(frame2.addr, 0x0800);
         assert_eq!(frame2.status, Status::Request);
-        assert_eq!(&frame2.data[..2], &[0xDE, 0xAD]);
+        assert_eq!(unsafe { &frame2.data.raw[..2] }, &[0xDE, 0xAD]);
         assert_eq!(frame2.crc, frame.crc);
     }
 
@@ -215,7 +245,7 @@ mod tests {
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Verify);
         assert_eq!(frame2.status, Status::Ok);
-        assert_eq!(&frame2.data[..2], &[0x12, 0x34]);
+        assert_eq!(unsafe { &frame2.data.raw[..2] }, &[0x12, 0x34]);
     }
 
     #[test]
@@ -225,13 +255,25 @@ mod tests {
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
 
-        // Frame: SYNC(2) + CMD(1) + LEN(1) + ADDR(2) + STATUS(1) + CRC(2) = 9
-        assert_eq!(sink.written().len(), 9);
+        // Frame: SYNC(2) + CMD(1) + STATUS(1) + ADDR(4) + LEN(2) + CRC(2) = 12
+        assert_eq!(sink.written().len(), 12);
 
         let mut frame2 = TestFrame::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Erase);
         assert_eq!(frame2.len, 0);
+    }
+
+    #[test]
+    fn large_addr_round_trip() {
+        let mut frame = frame(Cmd::Write, Status::Request, 0x0001_0800, &[0xAB]);
+
+        let mut sink = Sink::new();
+        frame.send(&mut sink).unwrap();
+
+        let mut frame2 = TestFrame::default();
+        frame2.read(&mut MockReader::new(sink.written())).unwrap();
+        assert_eq!(frame2.addr, 0x0001_0800);
     }
 
     #[test]
@@ -296,13 +338,18 @@ mod tests {
 
     #[test]
     fn read_overflow() {
-        // Use a tiny frame (D=2) and try to read a payload that's too large
-        let mut big_frame = frame(Cmd::Write, Status::Request, 0, &[1, 2, 3, 4]);
+        // Use a tiny frame (D=8) and try to read a payload that's too large
+        let mut big_frame = frame(
+            Cmd::Write,
+            Status::Request,
+            0,
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        );
 
         let mut sink = Sink::new();
         big_frame.send(&mut sink).unwrap();
 
-        let mut small_frame = Frame::<2>::default();
+        let mut small_frame = Frame::<8>::default();
         assert_eq!(
             small_frame.read(&mut MockReader::new(sink.written())),
             Err(ReadError::Overflow)

@@ -1,6 +1,6 @@
 use crate::traits::{BootCtl, BootMetaStore, Platform, Storage, Transport};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
-use tinyboot_protocol::frame::Frame;
+use tinyboot_protocol::frame::{Frame, InfoData, VerifyData};
 use tinyboot_protocol::{Cmd, ReadError, Status};
 
 /// Protocol dispatcher. Borrows the platform, owns the frame.
@@ -26,37 +26,46 @@ impl<'a, const D: usize, T: Transport<D>, S: Storage, B: BootMetaStore, C: BootC
         self.frame.read(&mut self.platform.transport)?;
 
         let data_len = self.frame.len as usize;
-        let capacity = self.platform.storage.capacity();
+        let capacity = self.platform.storage.capacity() as u32;
+        let erase_size = S::ERASE_SIZE as u32;
+        let write_size = S::WRITE_SIZE as u32;
         self.frame.len = 0;
         self.frame.status = Status::Ok;
 
         match self.frame.cmd {
             Cmd::Info => {
-                let cap = (capacity as u16).to_le_bytes();
-                let ds = (D as u16).to_le_bytes();
-                self.frame.len = 4;
-                self.frame.data[0] = cap[0];
-                self.frame.data[1] = cap[1];
-                self.frame.data[2] = ds[0];
-                self.frame.data[3] = ds[1];
+                self.frame.len = 8;
+                self.frame.data.info = InfoData {
+                    capacity,
+                    payload_size: D as u16,
+                    erase_size: erase_size as u16,
+                };
             }
             Cmd::Erase => {
-                if self.platform.storage.erase(0, capacity as u32).is_err() {
+                let addr = self.frame.addr;
+                if !addr.is_multiple_of(erase_size) || addr + erase_size > capacity {
+                    self.frame.status = Status::AddrOutOfBounds;
+                } else if self
+                    .platform
+                    .storage
+                    .erase(addr, addr + erase_size)
+                    .is_err()
+                {
                     self.frame.status = Status::WriteError;
                 }
             }
             Cmd::Write => {
-                let addr = self.frame.addr as u32;
+                let addr = self.frame.addr;
 
-                if addr >= capacity as u32
-                    || addr + data_len as u32 > capacity as u32
-                    || !(addr as usize).is_multiple_of(S::WRITE_SIZE)
+                if addr >= capacity
+                    || addr + data_len as u32 > capacity
+                    || !addr.is_multiple_of(write_size)
                 {
                     self.frame.status = Status::AddrOutOfBounds;
                 } else if self
                     .platform
                     .storage
-                    .write(addr, &self.frame.data[..data_len])
+                    .write(addr, unsafe { &self.frame.data.raw[..data_len] })
                     .is_err()
                 {
                     self.frame.status = Status::WriteError;
@@ -64,10 +73,8 @@ impl<'a, const D: usize, T: Transport<D>, S: Storage, B: BootMetaStore, C: BootC
             }
             Cmd::Verify => {
                 let crc = crc16(CRC_INIT, self.platform.storage.as_slice());
-                let crc_bytes = crc.to_le_bytes();
                 self.frame.len = 2;
-                self.frame.data[0] = crc_bytes[0];
-                self.frame.data[1] = crc_bytes[1];
+                self.frame.data.verify = VerifyData { crc };
                 #[cfg(feature = "trial-boot")]
                 if self.platform.boot_meta.advance().is_err() {
                     self.frame.status = Status::WriteError;
@@ -115,13 +122,13 @@ mod tests {
         }
 
         /// Load a request frame into the rx buffer by sending it through Frame.
-        fn load_request(&mut self, cmd: Cmd, addr: u16, len: u8, data: &[u8]) {
+        fn load_request(&mut self, cmd: Cmd, addr: u32, len: u16, data: &[u8]) {
             let mut frame = Frame::<TEST_D>::default();
             frame.cmd = cmd;
             frame.addr = addr;
             frame.len = len;
             frame.status = Status::Request;
-            frame.data[..data.len()].copy_from_slice(data);
+            unsafe { frame.data.raw[..data.len()].copy_from_slice(data) };
 
             // Send into a temp buffer, then copy to rx_buf
             let mut tmp = MockTransport::new();
@@ -201,7 +208,7 @@ mod tests {
 
     impl nor_flash::NorFlash for MockStorage {
         const WRITE_SIZE: usize = 4;
-        const ERASE_SIZE: usize = 256;
+        const ERASE_SIZE: usize = 64;
 
         fn erase(&mut self, from: u32, to: u32) -> Result<(), Self::Error> {
             self.data[from as usize..to as usize].fill(0xFF);
@@ -271,27 +278,63 @@ mod tests {
         d.dispatch().unwrap();
 
         assert_eq!(d.frame.status, Status::Ok);
-        assert_eq!(d.frame.len, 4);
-        // Capacity = 256 bytes
-        assert_eq!(u16::from_le_bytes([d.frame.data[0], d.frame.data[1]]), 256);
-        // Data size = TEST_D = 55
-        assert_eq!(
-            u16::from_le_bytes([d.frame.data[2], d.frame.data[3]]),
-            TEST_D as u16
-        );
+        assert_eq!(d.frame.len, 8);
+        let info = unsafe { d.frame.data.info };
+        assert_eq!({ info.capacity }, 256);
+        assert_eq!({ info.payload_size }, TEST_D as u16);
+        assert_eq!({ info.erase_size }, 64);
     }
 
     #[test]
-    fn erase_clears_storage() {
+    fn erase_clears_page() {
         let mut p = make_platform(MockStorage::new());
         let mut d = Dispatcher::new(&mut p);
         d.platform.storage.data[0] = 0x42;
+        d.platform.storage.data[64] = 0x42;
         d.platform.transport.load_request(Cmd::Erase, 0, 0, &[]);
 
         d.dispatch().unwrap();
 
         assert_eq!(d.platform.storage.data[0], 0xFF);
+        // Second page untouched
+        assert_eq!(d.platform.storage.data[64], 0x42);
         assert_eq!(d.frame.status, Status::Ok);
+    }
+
+    #[test]
+    fn erase_second_page() {
+        let mut p = make_platform(MockStorage::new());
+        let mut d = Dispatcher::new(&mut p);
+        d.platform.storage.data[0] = 0x42;
+        d.platform.storage.data[64] = 0x42;
+        d.platform.transport.load_request(Cmd::Erase, 64, 0, &[]);
+
+        d.dispatch().unwrap();
+
+        // First page untouched
+        assert_eq!(d.platform.storage.data[0], 0x42);
+        assert_eq!(d.platform.storage.data[64], 0xFF);
+        assert_eq!(d.frame.status, Status::Ok);
+    }
+
+    #[test]
+    fn erase_out_of_bounds() {
+        let mut p = make_platform(MockStorage::new());
+        let mut d = Dispatcher::new(&mut p);
+        d.platform.transport.load_request(Cmd::Erase, 256, 0, &[]);
+
+        d.dispatch().unwrap();
+        assert_eq!(d.frame.status, Status::AddrOutOfBounds);
+    }
+
+    #[test]
+    fn erase_unaligned() {
+        let mut p = make_platform(MockStorage::new());
+        let mut d = Dispatcher::new(&mut p);
+        d.platform.transport.load_request(Cmd::Erase, 32, 0, &[]);
+
+        d.dispatch().unwrap();
+        assert_eq!(d.frame.status, Status::AddrOutOfBounds);
     }
 
     #[test]
@@ -355,7 +398,6 @@ mod tests {
         assert_eq!(d.frame.status, Status::Ok);
         assert_eq!(d.frame.len, 2);
         let expected = crc16(CRC_INIT, &d.platform.storage.data);
-        assert_eq!(d.frame.data[0], expected as u8);
-        assert_eq!(d.frame.data[1], (expected >> 8) as u8);
+        assert_eq!(unsafe { d.frame.data.verify }.crc, expected);
     }
 }
