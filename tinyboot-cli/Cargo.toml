@@ -1,0 +1,19 @@
+[package]
+name = "tinyboot-cli"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "tinyboot"
+path = "src/main.rs"
+
+[dependencies]
+tinyboot-protocol = { path = "../tinyboot-protocol" }
+embedded-io = { workspace = true }
+serialport = "4"
+clap = { version = "4", features = ["derive"] }
+thiserror = "2"
+indicatif = "0.17"
+object = { version = "0.36", default-features = false, features = ["read", "elf"] }

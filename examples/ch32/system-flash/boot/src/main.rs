@@ -14,8 +14,8 @@ use panic_halt as _;
 
 use tinyboot::{Core, traits::Platform};
 use tinyboot_ch32_boot::{
-    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex, MetaConfig, Pin, Pull, Storage,
-    StorageConfig, TxEnConfig, Usart, UsartConfig, UsartMapping,
+    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex, MetaConfig, Pull, Storage,
+    StorageConfig, Usart, UsartConfig, UsartMapping,
 };
 
 // --- Flash layout (must match memory.x) ---
@@ -39,12 +39,9 @@ fn main() -> ! {
         duplex: Duplex::Full,
         baud: BaudRate::B115200,
         pclk: 8_000_000, // HSI default clock, no PLL
-        mapping: UsartMapping::Usart1Remap3, // TX=PD6, RX=PD5
-        rx_pull: Pull::Up,
-        tx_en: Some(TxEnConfig {
-            pin: Pin::PC2,       // RS-485 transceiver direction pin
-            active_high: true,   // DE pin is active-high
-        }),
+        mapping: UsartMapping::Usart1Remap0, // TX=PD5, RX=PD6 (default)
+        rx_pull: Pull::None,
+        tx_en: None,
     });
 
     let storage = Storage::new(StorageConfig {

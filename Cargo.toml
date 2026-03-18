@@ -5,6 +5,7 @@ members = [
     "tinyboot-ch32-boot",
     "tinyboot-ch32-app",
     "tinyboot-protocol",
+    "tinyboot-cli",
 ]
 resolver = "2"
 
