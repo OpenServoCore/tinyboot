@@ -41,7 +41,7 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, 
             }
             Cmd::Erase => {
                 if self.platform.storage.erase(0, capacity as u32).is_err() {
-                    self.frame.status = Status::Error;
+                    self.frame.status = Status::WriteError;
                 }
             }
             Cmd::Write => {
@@ -58,7 +58,7 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, 
                     .write(addr, &self.frame.data[..data_len])
                     .is_err()
                 {
-                    self.frame.status = Status::Error;
+                    self.frame.status = Status::WriteError;
                 }
             }
             Cmd::Verify => {
@@ -67,9 +67,12 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, 
                 self.frame.len = 2;
                 self.frame.data[0] = crc_bytes[0];
                 self.frame.data[1] = crc_bytes[1];
+                #[cfg(feature = "trial-boot")]
+                if self.platform.boot_meta.advance().is_err() {
+                    self.frame.status = Status::WriteError;
+                }
             }
             Cmd::Reset => {
-                let _ = self.platform.boot_meta.advance();
                 let _ = self.frame.send(&mut self.platform.transport);
                 self.platform.ctl.system_reset();
             }
@@ -220,6 +223,9 @@ mod tests {
         fn clear_boot_request(&mut self) {}
         fn system_reset(&mut self) -> ! {
             panic!("mock reset")
+        }
+        fn boot_app(&mut self) -> ! {
+            panic!("mock boot_app")
         }
     }
 

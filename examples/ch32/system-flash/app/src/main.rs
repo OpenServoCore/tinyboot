@@ -30,5 +30,7 @@ fn main() -> ! {
 
     defmt::info!("Hello from app!");
 
-    loop {}
+    loop {
+        core::hint::spin_loop();
+    }
 }

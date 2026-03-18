@@ -6,8 +6,8 @@ pub mod platform;
 mod rt;
 
 pub use platform::{
-    BaudRate, BootCtl, BootMetaStore, Duplex, MetaConfig, Storage, StorageConfig, TxEnConfig,
-    Usart, UsartConfig,
+    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex, MetaConfig, Storage, StorageConfig,
+    TxEnConfig, Usart, UsartConfig,
 };
 
 // Re-export HAL types for convenience

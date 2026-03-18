@@ -13,19 +13,21 @@
 #![no_std]
 #![no_main]
 
-use panic_halt as _;
 use defmt_rtt as _;
+use panic_halt as _;
 
 use tinyboot::{Core, traits::Platform};
 use tinyboot_ch32_boot::{
-    BaudRate, BootCtl, BootMetaStore, Duplex, MetaConfig, Pull, Storage, StorageConfig, Usart,
-    UsartConfig, UsartMapping,
+    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex, MetaConfig, Pull, Storage,
+    StorageConfig, Usart, UsartConfig, UsartMapping,
 };
 
 // --- Flash layout (must match memory.x) ---
 
-/// Application starts after the 4KB bootloader+meta region.
-/// Uses FPEC programming address (0x0800_0000 base).
+/// Application entry point (execution alias).
+const APP_ENTRY: u32 = 0x0000_1000;
+
+/// Application FPEC programming address (0x0800_0000 base).
 const APP_BASE: u32 = 0x0800_1000;
 
 /// Full 12KB available for the application.
@@ -42,7 +44,7 @@ fn main() -> ! {
     let transport = Usart::new(&UsartConfig {
         duplex: Duplex::Full,
         baud: BaudRate::B115200,
-        pclk: 8_000_000, // HSI default clock, no PLL
+        pclk: 8_000_000,                     // HSI default clock, no PLL
         mapping: UsartMapping::Usart1Remap3, // TX=PD6, RX=PD5
         rx_pull: Pull::None,
         // For RS-485 half-duplex, enable tx_en to drive a transceiver DE pin:
@@ -57,7 +59,9 @@ fn main() -> ! {
     let boot_meta = BootMetaStore::new(MetaConfig {
         meta_base: META_BASE,
     });
-    let ctl = BootCtl;
+    let ctl = BootCtl::new(BootCtlConfig {
+        app_entry: APP_ENTRY,
+    });
 
     let platform = Platform::new(transport, storage, boot_meta, ctl);
     Core::new(platform).run();

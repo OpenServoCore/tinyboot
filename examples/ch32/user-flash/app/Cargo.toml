@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tinyboot-ch32-app = { path = "../../../../tinyboot-ch32-app", features = ["ch32v003f4p6"] }
+tinyboot-ch32-app = { path = "../../../../tinyboot-ch32-app", features = ["ch32v003f4p6", "trial-boot"] }
 tinyboot = { path = "../../../../tinyboot", default-features = false }
 ch32-metapac = { version = "0.0.6", default-features = false, features = ["ch32v003f4p6", "rt"] }
 qingke = { version = "0.6", features = ["v2", "critical-section-impl"] }

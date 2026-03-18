@@ -14,8 +14,8 @@ use panic_halt as _;
 
 use tinyboot::{Core, traits::Platform};
 use tinyboot_ch32_boot::{
-    BaudRate, BootCtl, BootMetaStore, Duplex, MetaConfig, Pin, Pull, Storage, StorageConfig,
-    TxEnConfig, Usart, UsartConfig, UsartMapping,
+    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex, MetaConfig, Pin, Pull, Storage,
+    StorageConfig, TxEnConfig, Usart, UsartConfig, UsartMapping,
 };
 
 // --- Flash layout (must match memory.x) ---
@@ -54,7 +54,7 @@ fn main() -> ! {
     let boot_meta = BootMetaStore::new(MetaConfig {
         meta_base: META_BASE,
     });
-    let ctl = BootCtl;
+    let ctl = BootCtl::new(BootCtlConfig {});
 
     let platform = Platform::new(transport, storage, boot_meta, ctl);
     Core::new(platform).run();

@@ -28,18 +28,17 @@ impl Cmd {
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Status {
-    Ok = 0x00,
-    Error = 0x01,
-    CrcMismatch = 0x02,
-    AddrOutOfBounds = 0x03,
-    NotReady = 0x04,
-    Request = 0x05,
+    Request = 0x00,
+    Ok = 0x01,
+    WriteError = 0x02,
+    CrcMismatch = 0x03,
+    AddrOutOfBounds = 0x04,
 }
 
 impl Status {
     pub fn is_valid(&self) -> bool {
         let b = unsafe { *(self as *const Self as *const u8) };
-        b <= 0x05
+        b <= 0x04
     }
 }
 

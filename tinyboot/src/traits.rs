@@ -24,11 +24,8 @@ pub trait BootCtl {
     /// Reset the system.
     fn system_reset(&mut self) -> !;
 
-    /// Clear boot request and reset into the app.
-    fn boot_app(&mut self) -> ! {
-        self.clear_boot_request();
-        self.system_reset()
-    }
+    /// Clear boot request and jump/reset into the app.
+    fn boot_app(&mut self) -> !;
 }
 
 /// Current stage in the firmware update lifecycle.

@@ -11,8 +11,8 @@
 #![no_std]
 #![no_main]
 
-use panic_halt as _;
 use defmt_rtt as _;
+use panic_halt as _;
 
 use tinyboot::traits::BootClient;
 
@@ -32,5 +32,7 @@ fn main() -> ! {
 
     defmt::info!("Hello from app!");
 
-    loop {}
+    loop {
+        core::hint::spin_loop();
+    }
 }
