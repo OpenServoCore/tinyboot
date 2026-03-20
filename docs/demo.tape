@@ -1,8 +1,8 @@
-Output docs/demo.webm
+Output docs/demo.gif
 
 Set Shell "bash"
-Set Width 800
-Set Height 400
+Set Width 1200
+Set Height 600
 Set FontSize 14
 Set Padding 20
 Set Theme "Dracula"

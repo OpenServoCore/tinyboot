@@ -2,7 +2,7 @@
 
 Rust bootloader for resource-constrained microcontrollers. Fits in the CH32V003's 1920-byte system flash with full trial boot, CRC16 app validation, OB-based metadata, and version reporting — leaving the entire 16KB user flash for the application.
 
-![tinyboot demo](docs/demo.webm)
+![tinyboot demo](docs/demo.gif)
 
 ## Why tinyboot?
 
