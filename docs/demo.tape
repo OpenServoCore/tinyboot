@@ -1,4 +1,4 @@
-Output demo.gif
+Output docs/demo.gif
 
 Set Shell "bash"
 Set Width 800
