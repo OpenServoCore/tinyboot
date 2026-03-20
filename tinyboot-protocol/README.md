@@ -4,7 +4,7 @@ Wire protocol for tinyboot. Defines the frame format used between host and devic
 
 ## Frame format
 
-A single `Frame` struct is used for both requests (host to device) and responses (device to host), so we keep code size tiny. The data buffer size is determined by the transport via a const generic `D`.
+A single `Frame` struct is used for both requests (host to device) and responses (device to host), so we keep code size tiny.
 
 ```
  0       1       2       3       4       5       6       7       8       9       10      10+len  10+len+2
@@ -15,7 +15,7 @@ A single `Frame` struct is used for both requests (host to device) and responses
  |<--------------------- header (10 bytes) --------------------->|<- payload ->|<--- CRC --->|
 ```
 
-Total frame size = 12 bytes overhead + payload. For example, a UART transport with 64-byte frames has 52 bytes of payload per frame.
+Total frame size = 12 bytes overhead + payload. Maximum payload is 64 bytes (`MAX_PAYLOAD`).
 
 | Field  | Size     | Description                                                   |
 | ------ | -------- | ------------------------------------------------------------- |
@@ -23,41 +23,47 @@ Total frame size = 12 bytes overhead + payload. For example, a UART transport wi
 | CMD    | 1 byte   | Command code                                                  |
 | STATUS | 1 byte   | `Request (0x00)` for requests, result status for responses    |
 | ADDR   | 4 bytes  | Flash address (u32 LE). Echoed in responses                   |
-| LEN    | 2 bytes  | Data payload length (u16 LE, 0..D)                            |
-| DATA   | 0..D     | Payload bytes                                                 |
+| LEN    | 2 bytes  | Data payload length (u16 LE, 0..64)                           |
+| DATA   | 0..64    | Payload bytes                                                 |
 | CRC    | 2 bytes  | CRC16-CCITT (LE) over SYNC + CMD + STATUS + ADDR + LEN + DATA |
 
 ## Commands
 
 | Code | Name   | Direction      | Description                                               |
 | ---- | ------ | -------------- | --------------------------------------------------------- |
-| 0x01 | Info   | Host to Device | Query device geometry (capacity, payload size, erase size) |
-| 0x02 | Erase  | Host to Device | Erase one page at addr (first erase transitions Idle → Updating) |
-| 0x03 | Write  | Host to Device | Write data at address                                     |
-| 0x04 | Verify | Host to Device | Compute CRC16, store checksum + Validating state in OB    |
-| 0x05 | Reset  | Host to Device | Reset the device                                          |
+| 0x00 | Info   | Host to Device | Query device info (capacity, erase size, versions, mode)  |
+| 0x01 | Erase  | Host to Device | Erase `byte_count` bytes at addr (first erase transitions Idle → Updating) |
+| 0x02 | Write  | Host to Device | Write data at address                                     |
+| 0x03 | Verify | Host to Device | Compute CRC16, store checksum + Validating state in OB    |
+| 0x04 | Reset  | Host to Device | Reset the device                                          |
 
 ### Info response
 
-Returns 12 bytes via the `InfoData` union variant:
+Returns 12 bytes via the `InfoData` struct:
 
-| Offset | Size    | Description                                |
-| ------ | ------- | ------------------------------------------ |
-| 0      | 4 bytes | App region capacity in bytes (u32 LE)      |
-| 4      | 2 bytes | Max payload size per write frame (u16 LE)  |
-| 6      | 2 bytes | Erase page size in bytes (u16 LE)          |
-| 8      | 2 bytes | Boot version (packed u16 LE, 0xFFFF=none)  |
-| 10     | 2 bytes | App version (packed u16 LE, 0xFFFF=none)   |
+| Offset | Size    | Field          | Description                                |
+| ------ | ------- | -------------- | ------------------------------------------ |
+| 0      | 4 bytes | capacity       | App region capacity in bytes (u32 LE)      |
+| 4      | 2 bytes | erase_size     | Erase page size in bytes (u16 LE)          |
+| 6      | 2 bytes | boot_version   | Boot version (packed u16 LE, 0xFFFF=none)  |
+| 8      | 2 bytes | app_version    | App version (packed u16 LE, 0xFFFF=none)   |
+| 10     | 2 bytes | mode           | 0 = bootloader, 1 = app                    |
 
 Versions are packed as `(major << 11) | (minor << 6) | patch` and read from the last 2 bytes of each flash region.
 
 ### Erase
 
-Erases one page at `addr`. The address must be aligned to the device's erase size. The host should loop over all pages to erase the full region.
+Erases `byte_count` bytes starting at `addr`. Both `addr` and `byte_count` must be aligned to the device's erase size.
+
+Request payload (2 bytes via `EraseData`):
+
+| Offset | Size    | Field      | Description                          |
+| ------ | ------- | ---------- | ------------------------------------ |
+| 0      | 2 bytes | byte_count | Number of bytes to erase (u16 LE)    |
 
 ### Verify response
 
-Returns 2 bytes via the `VerifyData` union variant:
+Returns 2 bytes via the `VerifyData` struct:
 
 | Offset | Size    | Description                     |
 | ------ | ------- | ------------------------------- |
@@ -72,6 +78,7 @@ Returns 2 bytes via the `VerifyData` union variant:
 | 0x02 | WriteError      | Flash write/erase failed            |
 | 0x03 | CrcMismatch     | CRC verification failed             |
 | 0x04 | AddrOutOfBounds | Address or length out of range      |
+| 0x05 | Unsupported     | Command not valid in current state  |
 
 ## CRC
 
@@ -87,12 +94,13 @@ The same `Frame` struct is reused: after `read()`, the device modifies `status`,
 
 ## Data union
 
-The `data` field is a `#[repr(C)]` union with typed variants for structured responses:
+The `data` field is a `#[repr(C)]` union with typed variants for structured payloads:
 
 ```rust
-pub union Data<const D: usize> {
-    pub raw: [u8; D],
+pub union Data {
+    pub raw: [u8; MAX_PAYLOAD],
     pub info: InfoData,
+    pub erase: EraseData,
     pub verify: VerifyData,
 }
 ```
@@ -103,17 +111,15 @@ Data starts at offset 10 (even-aligned), so `u16` fields in the union variants a
 
 ```
 Host  -> Info request
-Device -> Info response (capacity=16384, payload_size=52, erase_size=1024)
+Device -> Info response (capacity=16384, erase_size=64, mode=0)
 
-Host  -> Erase addr=0x0000
-Device -> Ok
-Host  -> Erase addr=0x0400
+Host  -> Erase addr=0x0000 byte_count=16384
 Device -> Ok
 ...
 
-Host  -> Write addr=0x0000 data=[52 bytes]
+Host  -> Write addr=0x0000 data=[64 bytes]
 Device -> Ok
-Host  -> Write addr=0x0034 data=[52 bytes]
+Host  -> Write addr=0x0040 data=[64 bytes]
 Device -> Ok
 ...
 

@@ -1,9 +1,13 @@
 [package]
 name = "tinyboot-ch32-hal"
-version.workspace = true
+description = "Hardware abstraction layer for tinyboot on CH32 microcontrollers"
+version = "0.1.0"
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+keywords = ["bootloader", "embedded", "ch32", "risc-v", "no-std"]
+categories = ["embedded", "no-std", "hardware-support"]
+readme = "README.md"
 links = "tinyboot-ch32-hal"
 
 [dependencies]

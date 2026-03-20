@@ -1,16 +1,20 @@
 [package]
 name = "tinyboot-cli"
-version.workspace = true
+description = "CLI firmware flasher for tinyboot bootloader"
+version = "0.1.0"
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+keywords = ["bootloader", "embedded", "firmware", "flasher", "serial"]
+categories = ["command-line-utilities", "embedded", "development-tools"]
+readme = "README.md"
 
 [[bin]]
 name = "tinyboot"
 path = "src/main.rs"
 
 [dependencies]
-tinyboot-protocol = { path = "../tinyboot-protocol" }
+tinyboot-protocol = { version = "0.1.0", path = "../tinyboot-protocol" }
 embedded-io = { workspace = true }
 serialport = "4"
 clap = { version = "4", features = ["derive"] }

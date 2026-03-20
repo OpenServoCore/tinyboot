@@ -131,8 +131,12 @@ mod tests {
 
     #[test]
     fn pkg_version_macro() {
-        // Workspace version is 0.0.1
         let v = pkg_version!();
-        assert_eq!(unpack_version(v), (0, 0, 1));
+        let expected = pack_version(
+            const_parse_u8(env!("CARGO_PKG_VERSION_MAJOR")),
+            const_parse_u8(env!("CARGO_PKG_VERSION_MINOR")),
+            const_parse_u8(env!("CARGO_PKG_VERSION_PATCH")),
+        );
+        assert_eq!(v, expected);
     }
 }

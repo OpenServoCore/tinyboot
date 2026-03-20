@@ -1,14 +1,18 @@
 [package]
 name = "tinyboot-ch32-boot"
-version.workspace = true
+description = "Bootloader library for tinyboot on CH32 microcontrollers"
+version = "0.1.0"
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+keywords = ["bootloader", "embedded", "ch32", "risc-v", "no-std"]
+categories = ["embedded", "no-std", "hardware-support"]
+readme = "README.md"
 
 [dependencies]
-tinyboot-ch32-hal = { path = "../tinyboot-ch32-hal", default-features = false }
-tinyboot = { path = "../tinyboot", default-features = false }
-tinyboot-protocol = { path = "../tinyboot-protocol" }
+tinyboot-ch32-hal = { version = "0.1.0", path = "../tinyboot-ch32-hal", default-features = false }
+tinyboot = { version = "0.1.0", path = "../tinyboot", default-features = false }
+tinyboot-protocol = { version = "0.1.0", path = "../tinyboot-protocol" }
 ch32-metapac = { version = "0.0.6", default-features = false, features = ["pac"] }
 critical-section = "1.2"
 defmt = { workspace = true, optional = true }

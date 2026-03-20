@@ -1,15 +1,19 @@
 [package]
 name = "tinyboot"
-version.workspace = true
+description = "Core bootloader library for tinyboot"
+version = "0.1.0"
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
+keywords = ["bootloader", "embedded", "firmware", "no-std"]
+categories = ["embedded", "no-std"]
+readme = "README.md"
 
 [dependencies]
 defmt = { workspace = true, optional = true }
 embedded-io = { workspace = true }
 embedded-storage = { workspace = true }
-tinyboot-protocol = { path = "../tinyboot-protocol" }
+tinyboot-protocol = { version = "0.1.0", path = "../tinyboot-protocol" }
 
 [features]
 defmt = ["dep:defmt", "tinyboot-protocol/defmt"]
