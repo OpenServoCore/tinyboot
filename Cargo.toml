@@ -5,8 +5,8 @@ members = [
     "tinyboot-ch32-boot",
     "tinyboot-ch32-app",
     "tinyboot-protocol",
-    "tinyboot-cli",
 ]
+exclude = ["tinyboot-cli"]
 resolver = "2"
 
 [workspace.package]
