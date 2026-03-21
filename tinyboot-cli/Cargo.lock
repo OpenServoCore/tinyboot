@@ -396,7 +396,7 @@ dependencies = [
 
 [[package]]
 name = "tinyboot-cli"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "clap",
  "embedded-io",
@@ -409,7 +409,7 @@ dependencies = [
 
 [[package]]
 name = "tinyboot-protocol"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "embedded-io",
  "embedded-io-async",
