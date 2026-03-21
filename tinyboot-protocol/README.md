@@ -36,7 +36,7 @@ Total frame size = 12 bytes overhead + payload. Maximum payload is 64 bytes (`MA
 | 0x00 | Info   | Host to Device | Query device info (capacity, erase size, versions, mode)                   |
 | 0x01 | Erase  | Host to Device | Erase `byte_count` bytes at addr (first erase transitions Idle → Updating) |
 | 0x02 | Write  | Host to Device | Write data at address                                                      |
-| 0x03 | Verify | Host to Device | Compute CRC16, store checksum + Validating state in OB                     |
+| 0x03 | Verify | Host to Device | Compute CRC16 over `addr` bytes of app, store checksum + state in OB       |
 | 0x04 | Reset  | Host to Device | Reset the device                                                           |
 
 ### Info response
@@ -51,7 +51,7 @@ Returns 12 bytes via the `InfoData` struct:
 | 8      | 2 bytes | app_version  | App version (packed u16 LE, 0xFFFF=none)  |
 | 10     | 2 bytes | mode         | 0 = bootloader, 1 = app                   |
 
-Versions are packed as `(major << 11) | (minor << 6) | patch` and read from the last 2 bytes of each flash region.
+Versions are packed as `(major << 11) | (minor << 6) | patch` and read from the last 2 bytes of each binary (boot and app).
 
 ### Erase
 
@@ -63,13 +63,15 @@ Request payload (2 bytes via `EraseData`):
 | ------ | ------- | ---------- | --------------------------------- |
 | 0      | 2 bytes | byte_count | Number of bytes to erase (u16 LE) |
 
-### Verify response
+### Verify
 
-Returns 2 bytes via the `VerifyData` struct:
+The `addr` field carries the application size in bytes. The device computes CRC16 over the first `addr` bytes of flash (the actual firmware, not the full region), stores the checksum and app size in OB metadata, and transitions to Validating state.
 
-| Offset | Size    | Description                  |
-| ------ | ------- | ---------------------------- |
-| 0      | 2 bytes | CRC16 of app region (u16 LE) |
+Response returns 2 bytes via the `VerifyData` struct:
+
+| Offset | Size    | Description                          |
+| ------ | ------- | ------------------------------------ |
+| 0      | 2 bytes | CRC16 of app firmware bytes (u16 LE) |
 
 ## Status codes
 
@@ -126,7 +128,7 @@ Host  -> Write addr=0x0040 data=[64 bytes]
 Device -> Ok
 ...
 
-Host  -> Verify
+Host  -> Verify addr=5110 (app_size)
 Device -> Ok crc=0x1234
 
 Host  -> Reset
