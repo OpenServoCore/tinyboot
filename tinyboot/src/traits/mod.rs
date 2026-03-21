@@ -3,6 +3,15 @@ pub mod app;
 /// Boot-side platform traits.
 pub mod boot;
 
+/// Boot target after a system reset.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BootMode {
+    /// Boot the application.
+    App,
+    /// Enter the bootloader.
+    Bootloader,
+}
+
 /// Current stage in the firmware update lifecycle.
 ///
 /// Each state is a contiguous run of 1-bits from bit 0.

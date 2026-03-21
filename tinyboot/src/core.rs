@@ -1,6 +1,6 @@
 use crate::protocol;
-use crate::traits::BootState;
 use crate::traits::boot::{BootCtl, BootMetaStore, Platform, Storage, Transport};
+use crate::traits::{BootMode, BootState};
 
 /// Bootloader entry point. Checks boot state, validates the app, and either
 /// boots the application or enters the protocol loop for firmware updates.
@@ -32,33 +32,33 @@ where
         log_info!("Bootloader started");
 
         match self.check_boot_state() {
-            Ok(false) => self.platform.ctl.system_reset(false),
-            Ok(true) | Err(_) => self.enter_bootloader(),
+            Ok(BootMode::App) => self.platform.ctl.system_reset(BootMode::App),
+            Ok(BootMode::Bootloader) | Err(_) => self.enter_bootloader(),
         }
     }
 
-    fn check_boot_state(&mut self) -> Result<bool, B::Error> {
+    fn check_boot_state(&mut self) -> Result<BootMode, B::Error> {
         if self.platform.ctl.is_boot_requested() {
             log_info!("Boot requested");
-            return Ok(true);
+            return Ok(BootMode::Bootloader);
         }
 
         match self.platform.boot_meta.boot_state() {
             BootState::Idle => {}
-            BootState::Updating => return Ok(true),
+            BootState::Updating => return Ok(BootMode::Bootloader),
             BootState::Validating => {
                 if !self.platform.boot_meta.has_trials() {
-                    return Ok(true);
+                    return Ok(BootMode::Bootloader);
                 }
                 self.platform.boot_meta.consume_trial()?;
             }
         }
 
         if !self.validate_app() {
-            return Ok(true);
+            return Ok(BootMode::Bootloader);
         }
 
-        Ok(false)
+        Ok(BootMode::App)
     }
 
     /// Validate the app image. The CRC covers only `app_size` bytes

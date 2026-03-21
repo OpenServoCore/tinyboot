@@ -1,3 +1,4 @@
+use tinyboot::traits::BootMode;
 use tinyboot::traits::boot::BootCtl as TBBootCtl;
 
 use tinyboot_ch32_hal::pfic;
@@ -38,7 +39,8 @@ impl TBBootCtl for BootCtl {
         }
     }
 
-    fn system_reset(&mut self, bootloader: bool) -> ! {
+    fn system_reset(&mut self, mode: BootMode) -> ! {
+        let bootloader = mode == BootMode::Bootloader;
         #[cfg(feature = "system-flash")]
         {
             tinyboot_ch32_hal::flash::set_boot_mode(bootloader);

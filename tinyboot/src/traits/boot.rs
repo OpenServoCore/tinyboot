@@ -1,4 +1,4 @@
-use super::BootState;
+use super::{BootMode, BootState};
 
 /// Trait for firmware transfer protocol.
 pub trait Transport: embedded_io::Read + embedded_io::Write {}
@@ -28,9 +28,8 @@ pub trait BootCtl {
     /// Returns true if the bootloader was explicitly requested (e.g. via boot mode register).
     fn is_boot_requested(&self) -> bool;
 
-    /// Reset the system. `bootloader=true` sets boot mode to enter bootloader,
-    /// `bootloader=false` clears it to boot the app.
-    fn system_reset(&mut self, bootloader: bool) -> !;
+    /// Reset the system into the specified boot mode.
+    fn system_reset(&mut self, mode: BootMode) -> !;
 }
 
 /// Persistent boot metadata storage.

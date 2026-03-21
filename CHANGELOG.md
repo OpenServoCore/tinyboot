@@ -7,6 +7,7 @@
 - **Breaking:** Verify command now carries `app_size` in the addr field
 - **Breaking:** `BootMetaStore` trait: `trials_remaining()` replaced by `has_trials() -> bool`; `refresh()` takes an additional `app_size` parameter
 - **Breaking:** `BootMetaStore::new()` replaced by `Default` impl (`BootMetaStore::default()`)
+- **Breaking:** `BootCtl::system_reset()` takes `BootMode` enum (`App` / `Bootloader`) instead of `bool`
 - CRC16 validation now covers only actual firmware bytes, not the entire flash region
 - CLI only writes actual firmware data — no more 0xFF padding to fill the region
 - App version read from end of binary (`flash[app_size-2..app_size]`) instead of end of flash region
@@ -17,6 +18,7 @@
 ### Added
 
 - `iwdg::feed()` in HAL — feeds the independent watchdog timer before OB erase in app-side `confirm()` to prevent watchdog reset during the critical OB erase+rewrite window
+- `BootMode` enum (`App` / `Bootloader`) — replaces bare `bool` in boot control APIs
 - `has_trials() -> bool` on `BootMetaStore` trait — simpler and avoids software popcount on targets without hardware support
 
 ### Optimized

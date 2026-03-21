@@ -1,5 +1,5 @@
-use crate::traits::BootState;
 use crate::traits::boot::{BootCtl, BootMetaStore, Platform, Storage, Transport};
+use crate::traits::{BootMode, BootState};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
 use tinyboot_protocol::frame::{Frame, InfoData, VerifyData};
 use tinyboot_protocol::{Cmd, ReadError, Status};
@@ -160,7 +160,12 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, 
             }
             Cmd::Reset => {
                 let _ = self.frame.send(&mut self.platform.transport);
-                self.platform.ctl.system_reset(self.frame.addr == 1);
+                let mode = if self.frame.addr == 1 {
+                    BootMode::Bootloader
+                } else {
+                    BootMode::App
+                };
+                self.platform.ctl.system_reset(mode);
             }
         }
 

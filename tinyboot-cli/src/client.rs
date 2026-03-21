@@ -193,7 +193,7 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
     /// `bootloader=true` (addr=1): enter bootloader. `bootloader=false` (addr=0): boot app.
     pub fn reset(&mut self, bootloader: bool) {
         self.frame.cmd = Cmd::Reset;
-        self.frame.addr = bootloader as u32;
+        self.frame.addr = u32::from(bootloader);
         self.frame.len = 0;
         self.frame.status = Status::Request;
         let _ = self.frame.send(&mut self.transport);

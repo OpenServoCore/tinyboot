@@ -5,8 +5,8 @@
 
 use embedded_storage::nor_flash;
 use tinyboot::protocol::Dispatcher;
-use tinyboot::traits::BootState;
 use tinyboot::traits::boot::{BootCtl, BootMetaStore, Platform, Storage, Transport};
+use tinyboot::traits::{BootMode, BootState};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
 use tinyboot_protocol::frame::Frame;
 use tinyboot_protocol::{Cmd, Status};
@@ -140,7 +140,7 @@ impl BootCtl for MockBootCtl {
     fn is_boot_requested(&self) -> bool {
         false
     }
-    fn system_reset(&mut self, _bootloader: bool) -> ! {
+    fn system_reset(&mut self, _mode: BootMode) -> ! {
         panic!("mock reset")
     }
 }
