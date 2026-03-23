@@ -18,16 +18,19 @@ pub fn init(r: Regs, pclk: u32, baud: u32, half_duplex: bool) {
     r.ctlr1().modify(|w| w.set_ue(true));
 }
 
+#[inline(always)]
 pub fn read_byte(r: ch32_metapac::usart::Usart) -> u8 {
     while !r.statr().read().rxne() {}
     r.datar().read().dr() as u8
 }
 
+#[inline(always)]
 pub fn write_byte(r: ch32_metapac::usart::Usart, byte: u8) {
     while !r.statr().read().txe() {}
     r.datar().write(|w| w.set_dr(byte as u16));
 }
 
+#[inline(always)]
 pub fn flush(r: ch32_metapac::usart::Usart) {
     while !r.statr().read().tc() {}
 }

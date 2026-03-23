@@ -149,15 +149,32 @@ impl embedded_io::Read for Usart {
         buf[0] = usart::read_byte(self.regs);
         Ok(1)
     }
+
+    fn read_exact(
+        &mut self,
+        buf: &mut [u8],
+    ) -> Result<(), embedded_io::ReadExactError<Self::Error>> {
+        let regs = self.regs;
+        for byte in buf {
+            *byte = usart::read_byte(regs);
+        }
+        Ok(())
+    }
 }
 
 impl embedded_io::Write for Usart {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
-        self.set_tx_mode();
-        for &byte in buf {
-            usart::write_byte(self.regs, byte);
-        }
+        self.write_all(buf)?;
         Ok(buf.len())
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
+        self.set_tx_mode();
+        let regs = self.regs;
+        for &byte in buf {
+            usart::write_byte(regs, byte);
+        }
+        Ok(())
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
