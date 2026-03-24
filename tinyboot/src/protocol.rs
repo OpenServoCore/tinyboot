@@ -11,18 +11,21 @@ use tinyboot_protocol::{Cmd, ReadError, Status};
 /// in page-sized chunks using fast page programming. The host must send a
 /// `Flush` command to commit any remaining partial page before `Verify`,
 /// or before skipping to a non-sequential address.
-pub struct Dispatcher<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> {
+pub struct Dispatcher<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usize>
+{
     /// Mutable reference to the platform peripherals.
     pub platform: &'a mut Platform<T, S, B, C>,
     /// Reusable frame buffer.
     pub frame: Frame,
-    /// Write buffer. Sized for 2 × 64-byte pages.
-    buf: RingBuf<128>,
+    /// Write buffer. Sized for 2 × page size.
+    buf: RingBuf<BUF>,
     /// Expected address of the next sequential write. `None` = accept any.
     next_addr: Option<u32>,
 }
 
-impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, T, S, B, C> {
+impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usize>
+    Dispatcher<'a, T, S, B, C, BUF>
+{
     /// Create a new dispatcher for the given platform.
     pub fn new(platform: &'a mut Platform<T, S, B, C>) -> Self {
         Self {

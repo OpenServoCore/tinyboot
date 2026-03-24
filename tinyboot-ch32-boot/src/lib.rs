@@ -18,11 +18,18 @@ pub use platform::{
 };
 
 // Re-exports so boot examples only need this one crate.
-pub use tinyboot::Core;
 pub use tinyboot::traits::boot::Platform;
 pub use tinyboot_ch32_hal::gpio::Pull;
 pub use tinyboot_ch32_hal::{Pin, UsartMapping};
 pub use tinyboot_protocol::pkg_version;
+
+/// Protocol write buffer size (2 × page size).
+const PROTOCOL_BUF_SIZE: usize = 2 * tinyboot_ch32_hal::flash::PAGE_SIZE;
+
+/// Run the bootloader. Hides the protocol buffer size const generic.
+pub fn run(platform: Platform<Usart, Storage, BootMetaStore, BootCtl>) -> ! {
+    tinyboot::Core::<_, _, _, _, PROTOCOL_BUF_SIZE>::new(platform).run()
+}
 
 #[unsafe(link_section = ".tinyboot_version")]
 #[used]

@@ -14,7 +14,7 @@
 use panic_halt as _;
 
 use tinyboot_ch32_boot::{
-    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Core, Duplex, Platform, Pull, Storage,
+    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex, Platform, Pull, Storage,
     StorageConfig, Usart, UsartConfig, UsartMapping,
 };
 
@@ -54,5 +54,5 @@ fn main() -> ! {
 
     const BOOT_VER: u16 = tinyboot_ch32_boot::pkg_version!();
     let platform = Platform::new(transport, storage, boot_meta, ctl, BOOT_VER);
-    Core::new(platform).run();
+    tinyboot_ch32_boot::run(platform);
 }

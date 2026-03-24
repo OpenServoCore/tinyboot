@@ -4,7 +4,7 @@ use crate::traits::{BootMode, BootState};
 
 /// Bootloader entry point. Checks boot state, validates the app, and either
 /// boots the application or enters the protocol loop for firmware updates.
-pub struct Core<T, S, B, C>
+pub struct Core<T, S, B, C, const BUF: usize>
 where
     T: Transport,
     S: Storage,
@@ -14,7 +14,7 @@ where
     platform: Platform<T, S, B, C>,
 }
 
-impl<T, S, B, C> Core<T, S, B, C>
+impl<T, S, B, C, const BUF: usize> Core<T, S, B, C, BUF>
 where
     T: Transport,
     S: Storage,
@@ -87,7 +87,7 @@ where
         log_info!("Entering bootloader mode");
         self.platform.storage.unlock();
 
-        let mut d = protocol::Dispatcher::new(&mut self.platform);
+        let mut d = protocol::Dispatcher::<_, _, _, _, BUF>::new(&mut self.platform);
 
         loop {
             let _ = d.dispatch();
