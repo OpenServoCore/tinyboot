@@ -70,6 +70,7 @@ impl tinyboot::traits::boot::Transport for Usart {}
 
 impl Usart {
     /// Initialize the USART peripheral with the given configuration.
+    #[inline(always)]
     pub fn new(config: &UsartConfig) -> Self {
         let tx_pin = config.mapping.tx_pin();
         let rx_pin = config.mapping.rx_pin();
@@ -77,13 +78,13 @@ impl Usart {
         let regs = config.mapping.regs();
         let half_duplex = matches!(config.duplex, Duplex::Half);
 
-        // Enable clocks
-        rcc::enable_gpio(tx_pin.port_index());
-        if rx_pin.port_index() != tx_pin.port_index() {
-            rcc::enable_gpio(rx_pin.port_index());
-        }
-        rcc::enable_afio();
-        rcc::enable_usart1();
+        // Batch-enable GPIO port(s), AFIO, and USART1 clocks
+        rcc::enable_apb2(
+            (1 << (2 + tx_pin.port_index()))
+                | (1 << (2 + rx_pin.port_index()))
+                | 1        // AFIO (bit 0)
+                | (1 << 14), // USART1 (bit 14)
+        );
 
         // Set pin remap if non-default
         if remap != 0 {
@@ -116,6 +117,7 @@ impl Usart {
         }
     }
 
+    #[inline(always)]
     fn set_tx_mode(&self) {
         if let Some(ref tx_en) = self.tx_en {
             if tx_en.active_high {
@@ -126,6 +128,7 @@ impl Usart {
         }
     }
 
+    #[inline(always)]
     fn set_rx_mode(&self) {
         if let Some(ref tx_en) = self.tx_en {
             if tx_en.active_high {
@@ -149,15 +152,32 @@ impl embedded_io::Read for Usart {
         buf[0] = usart::read_byte(self.regs);
         Ok(1)
     }
+
+    fn read_exact(
+        &mut self,
+        buf: &mut [u8],
+    ) -> Result<(), embedded_io::ReadExactError<Self::Error>> {
+        let regs = self.regs;
+        for byte in buf {
+            *byte = usart::read_byte(regs);
+        }
+        Ok(())
+    }
 }
 
 impl embedded_io::Write for Usart {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
-        self.set_tx_mode();
-        for &byte in buf {
-            usart::write_byte(self.regs, byte);
-        }
+        self.write_all(buf)?;
         Ok(buf.len())
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::Error> {
+        self.set_tx_mode();
+        let regs = self.regs;
+        for &byte in buf {
+            usart::write_byte(regs, byte);
+        }
+        Ok(())
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {

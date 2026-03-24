@@ -10,10 +10,6 @@ const FLASH_ERASE_SIZE: usize = 64;
 
 /// Flash storage configuration.
 pub struct StorageConfig {
-    /// Physical base address of the boot region.
-    pub boot_base: u32,
-    /// Size of the boot region in bytes.
-    pub boot_size: u32,
     /// Physical base address of the app region.
     pub app_base: u32,
     /// Size of the app region in bytes.
@@ -39,18 +35,15 @@ impl NorFlashError for StorageError {
 
 /// CH32 flash storage implementing [`NorFlash`] and the tinyboot [`Storage`](tinyboot::traits::boot::Storage) trait.
 pub struct Storage {
-    boot_base: u32,
-    boot_size: u32,
     app_base: u32,
     app_size: usize,
 }
 
 impl Storage {
     /// Create storage from configuration.
+    #[inline(always)]
     pub fn new(config: StorageConfig) -> Self {
         Storage {
-            boot_base: config.boot_base,
-            boot_size: config.boot_size,
             app_base: config.app_base,
             app_size: config.app_size,
         }
@@ -129,14 +122,6 @@ impl NorFlash for Storage {
 impl StorageTrait for Storage {
     fn as_slice(&self) -> &[u8] {
         unsafe { core::slice::from_raw_parts(self.app_ptr(), self.app_size) }
-    }
-
-    fn boot_base(&self) -> usize {
-        self.boot_base as usize
-    }
-
-    fn boot_size(&self) -> usize {
-        self.boot_size as usize
     }
 
     fn unlock(&mut self) {

@@ -13,12 +13,6 @@ pub trait Storage:
     /// Direct read access to the app region (zero-copy).
     fn as_slice(&self) -> &[u8];
 
-    /// Physical base address of the boot flash region.
-    fn boot_base(&self) -> usize;
-
-    /// Size of the boot flash region in bytes.
-    fn boot_size(&self) -> usize;
-
     /// Unlock flash for erase/write. Called once before entering the protocol loop.
     fn unlock(&mut self);
 }
@@ -83,6 +77,8 @@ where
     pub boot_meta: B,
     /// Boot control (reset, boot mode selection).
     pub ctl: C,
+    /// Boot version (packed 5.5.6).
+    pub boot_version: u16,
 }
 
 impl<T, S, B, C> Platform<T, S, B, C>
@@ -93,12 +89,14 @@ where
     C: BootCtl,
 {
     /// Assemble a platform from its components.
-    pub fn new(transport: T, storage: S, boot_meta: B, ctl: C) -> Self {
+    #[inline(always)]
+    pub fn new(transport: T, storage: S, boot_meta: B, ctl: C, boot_version: u16) -> Self {
         Self {
             transport,
             storage,
             boot_meta,
             ctl,
+            boot_version,
         }
     }
 }

@@ -114,13 +114,20 @@ impl Frame {
         }
     }
 
-    /// Send the frame. Two `write_all` calls: body, then CRC.
+    /// Send the frame. CRC is placed inline after data for a single write.
     pub fn send<W: embedded_io::Write>(&mut self, w: &mut W) -> Result<(), W::Error> {
         self.sync = Sync::valid();
         let body_len = 10 + self.len as usize;
-        self.crc = crc16(CRC_INIT, self.as_bytes(0, body_len)).to_le_bytes();
-        w.write_all(self.as_bytes(0, body_len))?;
-        w.write_all(&self.crc)
+        let crc = crc16(CRC_INIT, self.as_bytes(0, body_len)).to_le_bytes();
+        // SAFETY: len <= MAX_PAYLOAD (64), data is 64 bytes, so len+1 < 64 holds
+        // as long as len < 63. Frame::read validates len <= MAX_PAYLOAD and our
+        // responses never exceed 12 bytes of data.
+        let len = self.len as usize;
+        unsafe {
+            *self.data.raw.get_unchecked_mut(len) = crc[0];
+            *self.data.raw.get_unchecked_mut(len + 1) = crc[1];
+        }
+        w.write_all(self.as_bytes(0, body_len + 2))
     }
 
     /// Read one frame from the transport.
@@ -306,7 +313,6 @@ mod tests {
         assert_eq!(frame2.addr, 0x0800);
         assert_eq!(frame2.status, Status::Request);
         assert_eq!(unsafe { &frame2.data.raw[..2] }, &[0xDE, 0xAD]);
-        assert_eq!(frame2.crc, frame.crc);
     }
 
     #[test]

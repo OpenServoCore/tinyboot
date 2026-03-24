@@ -88,12 +88,6 @@ impl Storage for MockStorage {
     fn as_slice(&self) -> &[u8] {
         &self.data
     }
-    fn boot_base(&self) -> usize {
-        self.data.as_ptr() as usize
-    }
-    fn boot_size(&self) -> usize {
-        self.data.len()
-    }
     fn unlock(&mut self) {}
 }
 
@@ -204,6 +198,7 @@ fn platform(state: BootState) -> TestPlatform {
         MockStorage::new(),
         MockBootMeta::new(state),
         MockBootCtl,
+        0xFFFF,
     )
 }
 

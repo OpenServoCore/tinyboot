@@ -5,6 +5,7 @@ fn flash() -> ch32_metapac::flash::Flash {
     ch32_metapac::FLASH
 }
 
+#[inline(always)]
 fn wait_busy() {
     while flash().statr().read().bsy() {}
 }
@@ -74,6 +75,7 @@ impl FlashWriter {
     }
 
     /// Start write operation
+    #[inline(always)]
     pub fn write_start(&self) {
         let write_bit = self.write_bit as usize;
         let ctlr_start = (1 << OBWRE) | (1 << write_bit);
@@ -81,12 +83,14 @@ impl FlashWriter {
     }
 
     /// Halfword (2-byte) write.
+    #[inline(always)]
     pub fn write(&self, addr: u32, value: u16) {
         unsafe { core::ptr::write_volatile(addr as *mut u16, value) };
         wait_busy();
     }
 
     /// Start erase operation
+    #[inline(always)]
     pub fn erase_start(&self) {
         let erase_bit = self.erase_bit as usize;
         let ctlr_start = (1 << OBWRE) | (1 << erase_bit);
@@ -104,6 +108,7 @@ impl FlashWriter {
     }
 
     // End write or erase operation
+    #[inline(always)]
     pub fn operation_end(&self) {
         let ctlr_end = 1 << OBWRE; // preserve OB write enable bit
         flash().ctlr().write(|w| w.0 = ctlr_end);

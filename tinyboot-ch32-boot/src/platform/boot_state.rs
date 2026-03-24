@@ -25,6 +25,7 @@ pub struct BootMetaStore {
 
 impl Default for BootMetaStore {
     /// Read all OB metadata into the struct from option bytes.
+    #[inline(always)]
     fn default() -> Self {
         let mut meta = core::mem::MaybeUninit::<Self>::uninit();
         let ptr = meta.as_mut_ptr() as *mut u8;
@@ -40,14 +41,23 @@ impl Default for BootMetaStore {
 impl BootMetaStore {
     /// Erase OB and rewrite chip config + cached meta bytes.
     fn write(&self) {
-        let mut buf = [0xFFu8; 16];
-        for (i, slot) in buf[..8].iter_mut().enumerate() {
-            *slot = unsafe { core::ptr::read_volatile((OB_BASE + i as u32 * 2) as *const u8) };
-        }
-        let meta = self as *const Self as *const u8;
+        let mut buf = core::mem::MaybeUninit::<[u8; 16]>::uninit();
+        let ptr = buf.as_mut_ptr() as *mut u8;
+        // Read 8 chip config bytes from OB (stride-2 volatile reads)
         for i in 0..8 {
-            buf[8 + i] = unsafe { *meta.add(i) };
+            unsafe {
+                *ptr.add(i) = core::ptr::read_volatile((OB_BASE + i as u32 * 2) as *const u8);
+            }
         }
+        // Copy 8 meta struct bytes as two word copies
+        let meta = self as *const Self as *const u32;
+        let dst = unsafe { ptr.add(8) as *mut u32 };
+        unsafe {
+            *dst = *meta;
+            *dst.add(1) = *meta.add(1);
+        }
+        let buf = unsafe { buf.assume_init() };
+
         let w = FlashWriter::ob();
         w.erase_start();
         w.erase(OB_BASE);

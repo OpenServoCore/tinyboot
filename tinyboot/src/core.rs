@@ -22,12 +22,14 @@ where
     C: BootCtl,
 {
     /// Create a new bootloader core from a platform implementation.
+    #[inline(always)]
     pub fn new(platform: Platform<T, S, B, C>) -> Self {
         Core { platform }
     }
 
     /// Run the bootloader. Checks boot state, validates the app, and either
     /// boots the application or enters the protocol loop. Does not return.
+    #[inline(always)]
     pub fn run(mut self) -> ! {
         log_info!("Bootloader started");
 
@@ -80,6 +82,7 @@ where
             && unsafe { core::ptr::read_volatile(data.as_ptr() as *const u32) } != 0xFFFF_FFFF
     }
 
+    #[inline(always)]
     fn enter_bootloader(&mut self) -> ! {
         log_info!("Entering bootloader mode");
         self.platform.storage.unlock();

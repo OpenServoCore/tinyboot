@@ -22,6 +22,7 @@ pub use tinyboot::Core;
 pub use tinyboot::traits::boot::Platform;
 pub use tinyboot_ch32_hal::gpio::Pull;
 pub use tinyboot_ch32_hal::{Pin, UsartMapping};
+pub use tinyboot_protocol::pkg_version;
 
 #[unsafe(link_section = ".tinyboot_version")]
 #[used]

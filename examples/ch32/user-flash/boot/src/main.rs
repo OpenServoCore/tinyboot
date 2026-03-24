@@ -21,18 +21,7 @@ use tinyboot_ch32_boot::{
     StorageConfig, Usart, UsartConfig, UsartMapping,
 };
 
-// --- Flash layout (must match memory.x) ---
-
-const BOOT_BASE: u32 = 0x0800_0000;
-const BOOT_SIZE: u32 = 4 * 1024;
-
-/// Application entry point (execution alias).
-const APP_ENTRY: u32 = 0x0000_1000;
-
-/// Application FPEC programming address (0x0800_0000 base).
 const APP_BASE: u32 = 0x0800_1000;
-
-/// Full 12KB available for the application.
 const APP_SIZE: usize = 12 * 1024;
 
 #[unsafe(export_name = "main")]
@@ -60,16 +49,15 @@ fn main() -> ! {
     });
 
     let storage = Storage::new(StorageConfig {
-        boot_base: BOOT_BASE,
-        boot_size: BOOT_SIZE,
         app_base: APP_BASE,
         app_size: APP_SIZE,
     });
     let boot_meta = BootMetaStore::default();
     let ctl = BootCtl::new(BootCtlConfig {
-        app_entry: APP_ENTRY,
+        app_entry: APP_BASE,
     });
 
-    let platform = Platform::new(transport, storage, boot_meta, ctl);
+    const BOOT_VER: u16 = tinyboot_ch32_boot::pkg_version!();
+    let platform = Platform::new(transport, storage, boot_meta, ctl, BOOT_VER);
     Core::new(platform).run();
 }

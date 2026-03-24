@@ -47,8 +47,6 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, 
         match self.frame.cmd {
             Cmd::Info => {
                 self.frame.len = 12;
-                let boot_ver =
-                    self.platform.storage.boot_base() + self.platform.storage.boot_size() - 2;
                 let app_sz = self.platform.boot_meta.app_size();
                 let app_ver = if app_sz != 0xFFFF_FFFF {
                     // SAFETY: app_size != 0xFFFFFFFF means meta was previously written
@@ -61,7 +59,7 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl> Dispatcher<'a, 
                 self.frame.data.info = InfoData {
                     capacity,
                     erase_size: erase_size as u16,
-                    boot_version: unsafe { (boot_ver as *const u16).read_volatile() },
+                    boot_version: self.platform.boot_version,
                     app_version: app_ver,
                     mode: 0,
                 };

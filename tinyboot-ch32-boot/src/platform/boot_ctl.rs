@@ -19,6 +19,7 @@ pub struct BootCtl {
 
 impl BootCtl {
     /// Create boot control from configuration.
+    #[inline(always)]
     pub fn new(_config: BootCtlConfig) -> Self {
         Self {
             #[cfg(not(feature = "system-flash"))]
