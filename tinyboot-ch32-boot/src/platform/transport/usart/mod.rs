@@ -78,13 +78,13 @@ impl Usart {
         let regs = config.mapping.regs();
         let half_duplex = matches!(config.duplex, Duplex::Half);
 
-        // Enable clocks
-        rcc::enable_gpio(tx_pin.port_index());
-        if rx_pin.port_index() != tx_pin.port_index() {
-            rcc::enable_gpio(rx_pin.port_index());
-        }
-        rcc::enable_afio();
-        rcc::enable_usart1();
+        // Batch-enable GPIO port(s), AFIO, and USART1 clocks
+        rcc::enable_apb2(
+            (1 << (2 + tx_pin.port_index()))
+                | (1 << (2 + rx_pin.port_index()))
+                | 1        // AFIO (bit 0)
+                | (1 << 14), // USART1 (bit 14)
+        );
 
         // Set pin remap if non-default
         if remap != 0 {
@@ -117,6 +117,7 @@ impl Usart {
         }
     }
 
+    #[inline(always)]
     fn set_tx_mode(&self) {
         if let Some(ref tx_en) = self.tx_en {
             if tx_en.active_high {
@@ -127,6 +128,7 @@ impl Usart {
         }
     }
 
+    #[inline(always)]
     fn set_rx_mode(&self) {
         if let Some(ref tx_en) = self.tx_en {
             if tx_en.active_high {
