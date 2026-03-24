@@ -175,7 +175,10 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
             on_progress("Writing", chunk_idx, total_chunks);
         }
 
-        // 4. Verify — CRC only covers firmware bytes (no padding)
+        // 4. Flush buffered writes
+        self.flush()?;
+
+        // 5. Verify — CRC only covers firmware bytes (no padding)
         let expected_crc = crc16(CRC_INIT, firmware);
 
         self.frame.cmd = Cmd::Verify;
@@ -192,6 +195,14 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
         }
 
         Ok(info)
+    }
+
+    /// Flush buffered writes on the device.
+    pub fn flush(&mut self) -> Result<(), FlashError> {
+        self.frame.cmd = Cmd::Flush;
+        self.frame.addr = 0;
+        self.frame.len = 0;
+        self.transact()
     }
 
     /// Reset the device. Does not wait for a response since the device resets immediately.
