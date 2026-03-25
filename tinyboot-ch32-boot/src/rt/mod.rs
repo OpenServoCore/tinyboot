@@ -1,4 +1,7 @@
-#[cfg(pfic_rv2)]
+#[cfg(all(pfic_rv2, feature = "defmt"))]
+core::arch::global_asm!(include_str!("v2_full.S"));
+
+#[cfg(all(pfic_rv2, not(feature = "defmt")))]
 core::arch::global_asm!(include_str!("v2.S"));
 
 // defmt-rtt requires a critical-section implementation.

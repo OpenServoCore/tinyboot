@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ch32-hal",
  "critical-section",
@@ -42,7 +42,7 @@ checksum = "a1d084b0137aaa901caf9f1e8b21daa6aa24d41cd806e111335541eff9683bd6"
 
 [[package]]
 name = "boot"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "defmt",
  "defmt-rtt",
@@ -691,7 +691,7 @@ dependencies = [
 
 [[package]]
 name = "tinyboot"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "defmt",
  "embedded-io 0.7.1",
@@ -702,12 +702,13 @@ dependencies = [
 
 [[package]]
 name = "tinyboot-ch32-app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "critical-section",
  "defmt",
  "embedded-io 0.7.1",
  "embedded-io-async 0.7.0",
+ "qingke",
  "tinyboot",
  "tinyboot-ch32-hal",
  "tinyboot-protocol",
@@ -715,7 +716,7 @@ dependencies = [
 
 [[package]]
 name = "tinyboot-ch32-boot"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "critical-section",
  "defmt",
@@ -728,7 +729,7 @@ dependencies = [
 
 [[package]]
 name = "tinyboot-ch32-hal"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ch32-metapac 0.0.6",
  "critical-section",
@@ -739,7 +740,7 @@ dependencies = [
 
 [[package]]
 name = "tinyboot-protocol"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "defmt",
  "embedded-io 0.7.1",

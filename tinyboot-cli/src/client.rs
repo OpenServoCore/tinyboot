@@ -1,3 +1,4 @@
+use log::debug;
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
 use tinyboot_protocol::frame::{EraseData, Frame, MAX_PAYLOAD};
 use tinyboot_protocol::{Cmd, Status};
@@ -42,6 +43,10 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
     /// Send current frame as a request and read the response.
     fn transact(&mut self) -> Result<(), FlashError> {
         self.frame.status = Status::Request;
+        debug!(
+            ">> {:?} addr={:#X} len={}",
+            self.frame.cmd, self.frame.addr, self.frame.len
+        );
         self.frame
             .send(&mut self.transport)
             .map_err(|_| FlashError::Io)?;
@@ -50,6 +55,10 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
             .read(&mut self.transport)
             .map_err(|_| FlashError::Io)?;
 
+        debug!(
+            "<< {:?} status={:?} len={}",
+            self.frame.cmd, self.frame.status, self.frame.len
+        );
         if parse_status != Status::Ok {
             return Err(FlashError::Device(parse_status));
         }
@@ -100,16 +109,14 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
         let capacity = info.capacity;
         let mut addr = 0u32;
         while addr < capacity {
-            let byte_count = (capacity - addr).min(u16::MAX as u32);
-            let byte_count = byte_count - (byte_count % erase_size);
             self.frame.cmd = Cmd::Erase;
             self.frame.addr = addr;
             self.frame.len = 2;
             self.frame.data.erase = EraseData {
-                byte_count: byte_count as u16,
+                byte_count: erase_size as u16,
             };
             self.transact()?;
-            addr += byte_count;
+            addr += erase_size;
             on_progress(addr, capacity);
         }
         Ok(info)
@@ -136,20 +143,18 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
 
         let erase_size = info.erase_size as u32;
 
-        // 2. Erase — bulk
+        // 2. Erase — page by page
         let erase_total = fw_size.next_multiple_of(erase_size);
         let mut erase_addr = 0u32;
         while erase_addr < erase_total {
-            let byte_count = (erase_total - erase_addr).min(u16::MAX as u32);
-            let byte_count = byte_count - (byte_count % erase_size);
             self.frame.cmd = Cmd::Erase;
             self.frame.addr = erase_addr;
             self.frame.len = 2;
             self.frame.data.erase = EraseData {
-                byte_count: byte_count as u16,
+                byte_count: erase_size as u16,
             };
             self.transact()?;
-            erase_addr += byte_count;
+            erase_addr += erase_size;
             on_progress("Erasing", erase_addr, erase_total);
         }
 

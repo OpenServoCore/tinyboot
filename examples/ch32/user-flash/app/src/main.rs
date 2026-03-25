@@ -46,6 +46,8 @@ fn TIM2() {
     });
 }
 
+tinyboot_ch32_app::fix_mtvec!();
+
 #[qingke_rt::entry]
 fn main() -> ! {
     let p = ch32_hal::init(Default::default());

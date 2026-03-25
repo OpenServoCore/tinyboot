@@ -9,6 +9,9 @@ pub use tinyboot::app::{App, AppConfig};
 pub use tinyboot::traits::app as traits;
 pub use tinyboot_protocol::pkg_version;
 
+#[doc(hidden)]
+pub use qingke;
+
 /// Define the `.tinyboot_version` static using the calling crate's version.
 /// Place this at module scope in your application binary.
 #[macro_export]
@@ -17,6 +20,41 @@ macro_rules! app_version {
         #[unsafe(link_section = ".tinyboot_version")]
         #[used]
         static _APP_VERSION: u16 = $crate::pkg_version!();
+    };
+}
+
+/// Fix `mtvec` for apps linked at a non-zero flash address (user-flash bootloader).
+///
+/// `qingke-rt` hardcodes `mtvec = 0x0` in its `_setup_interrupts`. This macro
+/// generates a linker `--wrap` override that calls the original setup, then
+/// rewrites `mtvec` to the actual vector table base.
+///
+/// Not needed for system-flash bootloaders (app starts at 0x0).
+///
+/// Place at module scope alongside [`app_version!`]. Requires
+/// `--wrap=_setup_interrupts` in `build.rs`:
+///
+/// ```rust,ignore
+/// // build.rs
+/// println!("cargo:rustc-link-arg=--wrap=_setup_interrupts");
+/// ```
+#[cfg(not(feature = "system-flash"))]
+#[macro_export]
+macro_rules! fix_mtvec {
+    () => {
+        #[unsafe(export_name = "__wrap__setup_interrupts")]
+        unsafe extern "C" fn _tinyboot_setup_interrupts() {
+            use $crate::qingke::register::mtvec::{self, TrapMode};
+
+            unsafe extern "C" {
+                fn __real__setup_interrupts();
+                fn _start();
+            }
+            unsafe {
+                __real__setup_interrupts();
+                mtvec::write(_start as *const () as usize, TrapMode::VectoredAddress);
+            }
+        }
     };
 }
 

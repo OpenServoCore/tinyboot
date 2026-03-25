@@ -21,3 +21,5 @@ clap = { version = "4", features = ["derive"] }
 thiserror = "2"
 indicatif = "0.17"
 object = { version = "0.36", default-features = false, features = ["read", "elf"] }
+log = "0.4"
+env_logger = "0.11"

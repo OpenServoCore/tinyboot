@@ -16,6 +16,7 @@ tinyboot-protocol = { version = "0.2.0", path = "../tinyboot-protocol" }
 embedded-io = { workspace = true }
 embedded-io-async = { workspace = true }
 critical-section = "1.2"
+qingke = "0.6"
 defmt = { workspace = true, optional = true }
 
 [features]

@@ -22,6 +22,7 @@ use tinyboot_ch32_boot::{
 };
 
 const APP_BASE: u32 = 0x0800_1000;
+const APP_ENTRY: u32 = 0x0000_1000;
 const APP_SIZE: usize = 12 * 1024;
 
 #[unsafe(export_name = "main")]
@@ -54,7 +55,7 @@ fn main() -> ! {
     });
     let boot_meta = BootMetaStore::default();
     let ctl = BootCtl::new(BootCtlConfig {
-        app_entry: APP_BASE,
+        app_entry: APP_ENTRY,
     });
 
     const BOOT_VER: u16 = tinyboot_ch32_boot::pkg_version!();

@@ -24,9 +24,10 @@ pub struct BootMetaStore {
 }
 
 impl Default for BootMetaStore {
-    /// Read all OB metadata into the struct from option bytes.
+    /// Unlock flash and read all OB metadata from option bytes.
     #[inline(always)]
     fn default() -> Self {
+        tinyboot_ch32_hal::flash::unlock();
         let mut meta = core::mem::MaybeUninit::<Self>::uninit();
         let ptr = meta.as_mut_ptr() as *mut u8;
         for i in 0..8 {
@@ -41,7 +42,7 @@ impl Default for BootMetaStore {
 impl BootMetaStore {
     /// Erase OB and rewrite chip config + cached meta bytes.
     fn write(&self) {
-        let mut buf = core::mem::MaybeUninit::<[u8; 16]>::uninit();
+        let mut buf = core::mem::MaybeUninit::<[u32; 4]>::uninit();
         let ptr = buf.as_mut_ptr() as *mut u8;
         // Read 8 chip config bytes from OB (stride-2 volatile reads)
         for i in 0..8 {
@@ -56,7 +57,7 @@ impl BootMetaStore {
             *dst = *meta;
             *dst.add(1) = *meta.add(1);
         }
-        let buf = unsafe { buf.assume_init() };
+        let buf = unsafe { &*(buf.as_ptr() as *const [u8; 16]) };
 
         let w = FlashWriter::ob();
         w.erase_start();

@@ -53,6 +53,8 @@ impl TBBootCtl for BootCtl {
             if bootloader {
                 pfic::system_reset()
             } else {
+                tinyboot_ch32_hal::flash::lock();
+                tinyboot_ch32_hal::rcc::reset_apb2();
                 pfic::jump(self.app_entry)
             }
         }

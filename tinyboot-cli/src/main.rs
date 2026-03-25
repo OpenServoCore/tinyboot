@@ -15,6 +15,9 @@ use transport::Serial;
 #[derive(Parser)]
 #[command(name = "tinyboot", about = "tinyboot firmware flasher")]
 struct Cli {
+    /// Increase verbosity (-v debug, -vv trace)
+    #[arg(short, long, action = clap::ArgAction::Count, global = true)]
+    verbose: u8,
     #[command(subcommand)]
     command: Commands,
 }
@@ -198,6 +201,13 @@ fn open_serial(port: &str, baud: u32) -> Result<Serial, Box<dyn std::error::Erro
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
+
+    let log_level = match cli.verbose {
+        0 => log::LevelFilter::Warn,
+        1 => log::LevelFilter::Info,
+        _ => log::LevelFilter::Debug,
+    };
+    env_logger::Builder::new().filter_level(log_level).init();
 
     match cli.command {
         Commands::Info { conn } => {

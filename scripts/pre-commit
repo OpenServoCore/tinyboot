@@ -1,7 +1,21 @@
 #!/bin/sh
 set -e
 
+# --- Core libraries (host target) ---
 cargo fmt --all --check
-cargo clippy --workspace --all-targets --features ch32v003f4p6 -- -D warnings
-cargo build --workspace --features ch32v003f4p6
-cargo test --workspace --features ch32v003f4p6
+cargo clippy -p tinyboot -p tinyboot-protocol --all-targets -- -D warnings
+cargo test -p tinyboot -p tinyboot-protocol
+
+# --- CH32 libraries (embedded target, needs nightly + build-std) ---
+TARGET_JSON=examples/ch32/system-flash/riscv32ec-unknown-none-elf.json
+CHIP=ch32v003f4p6
+cargo +nightly clippy -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app \
+  --features $CHIP \
+  --target $TARGET_JSON \
+  -Zbuild-std=core -Zjson-target-spec \
+  -- -D warnings
+
+# --- Examples ---
+for example in system-flash user-flash; do
+  (cd examples/ch32/$example && cargo +nightly clippy -- -D warnings)
+done
