@@ -6,9 +6,6 @@
 //! Implements the boot state machine, protocol dispatcher, and app validation.
 //! Platform-specific behaviour is injected via the traits in [`traits::boot`].
 
-#[macro_use]
-mod log;
-
 /// App-side tinyboot client (poll, confirm, command handling).
 pub mod app;
 /// Boot state machine and entry point.
