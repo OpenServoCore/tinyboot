@@ -19,7 +19,7 @@ Implements the `tinyboot::traits::boot::Platform` trait by composing four compon
 
 ```rust
 use tinyboot_ch32_boot::{
-    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Core, Duplex,
+    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex,
     Platform, Pull, Storage, StorageConfig, Usart, UsartConfig, UsartMapping,
     pkg_version,
 };
@@ -43,8 +43,10 @@ let ctl = BootCtl::new(BootCtlConfig {});
 
 const BOOT_VER: u16 = pkg_version!();
 let platform = Platform::new(transport, storage, boot_meta, ctl, BOOT_VER);
-Core::new(platform).run();
+tinyboot_ch32_boot::run(platform);
 ```
+
+Note: `BOOT_VERSION` is defined as a static in `tinyboot-ch32-boot` itself (placed in the `.tinyboot_version` section), so the `BOOT_VER` local is only used for runtime info responses — the linker-embedded version is handled automatically.
 
 See [`examples/ch32/system-flash`](../examples/ch32/system-flash/) for a complete bootloader example.
 

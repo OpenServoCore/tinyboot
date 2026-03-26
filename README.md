@@ -4,36 +4,33 @@ Rust bootloader for resource-constrained microcontrollers. Fits in the CH32V003'
 
 ![tinyboot demo](docs/demo.gif)
 
-## Why tinyboot?
+## Chip Compatibility
 
-I built tinyboot for [OpenServoCore](https://github.com/OpenServoCore), where CH32V006-based servo boards need seamless firmware updates over the existing DXL TTL bus — no opening the shell, no debug probe, just flash over the same wire the servos already talk on.
+tinyboot currently supports **UART / RS-485** transport. The table below tracks chip support status.
 
-The existing options didn't fit:
+✅ Verified | ❓ Untested (same die, likely works — volunteer needed) | 📋 Planned
 
-- **CH32 factory bootloader** — Fixed to 115200 baud on PD5/PD6 with no way to configure UART pins, baud rate, or TX-enable for RS-485. Uses a sum-mod-256 checksum that silently drops bad commands with no error response. No CRC verification, no trial boot, no boot state machine. See [ch32v003-bootloader-docs](https://github.com/basilhussain/ch32v003-bootloader-docs) for the reverse-engineered protocol details.
-
-- **[embassy-boot](https://github.com/embassy-rs/embassy/tree/main/embassy-boot)** — A well-designed bootloader, but requires ~8KB of flash. That's half the V003's 16KB user flash, and doesn't fit in system flash at all. Not practical for MCUs with 16-32KB total.
-
-I took it as a challenge to fit a proper bootloader — with a real protocol, CRC16 validation, trial boot, and configurable transport — into the CH32V003's 1920-byte system flash. The key inspiration was [rv003usb](https://github.com/cnlohr/rv003usb) by cnlohr, whose software USB implementation includes a 1920-byte bootloader in system flash. That project proved it was possible to fit meaningful code in that space, and showed me that the entire 16KB of user flash could be left free for the application.
-
-### How it fits in 1920 bytes
-
-Beyond the usual Cargo profile tricks (`opt-level = "z"`, LTO, `codegen-units = 1`, `panic = "abort"`), fitting a real bootloader in 1920 bytes required some more deliberate choices:
-
-- **No HAL crates** — bare metal register access via PAC crates only; HAL abstractions are too expensive for this budget
-- **Custom runtime** — no qingke-rt; the system-flash bootloader startup (`v2.S`) is just GP/SP init and a jump to main (20 bytes of assembly instead of ~1.4KB of full runtime). A full startup variant (`v2_full.S`) with .data/.bss init is used when defmt logging is enabled
-- **Symmetric frame format** — the same `Frame` struct is used for both requests and responses with one shared parse and format path, eliminating code duplication
-- **`repr(C)` frame with union data** — CRC is computed directly over the struct memory via pointer cast; no serialization step, no intermediate buffer
-- **`MaybeUninit` frame buffer** — the 76-byte `Frame` struct is reused every iteration without zero-initialization
-- **Bit-bang CRC16** — no lookup table, trades speed for ~512 bytes of flash savings
-- **OB bit-clear state transitions** — forward state changes (Idle→Updating, trial consumption) flip 1→0 bits without erasing, avoiding the cost of a full erase+rewrite cycle and the code to preserve OB contents
-- **Avoid `memset`/`memcpy`** — these pull in expensive core routines; manual byte loops and volatile writes keep the linker from dragging in library code
-- **`.write()` over `.modify()`** — register writes use direct writes instead of read-modify-write, saving the read and mask operations
-- **Aggressive code deduplication** — shared flash operation primitives across erase, write, and OB operations (see the flash HAL)
-
-### Design approach
-
-tinyboot is structured as a library, not a monolithic binary. The core logic and protocol are platform-agnostic crates; chip-specific details live in separate `ch32-*` crates. To build your bootloader, you create a small crate with a `main.rs` that wires up your pin configuration, baud rate, and flash layout — see the [examples](examples/ch32/) for exactly this. The same split applies on the app side: [`tinyboot-ch32-app`](tinyboot-ch32-app/) integrates into your application so it can confirm a successful boot and reboot into the bootloader on command, enabling fully remote firmware updates without physical access.
+| Chip         | Feature Flag   | System Flash              | Status | Blocker                                |
+| ------------ | -------------- | ------------------------- | ------ | -------------------------------------- |
+| CH32V003F4P6 | `ch32v003f4p6` | `0x1FFFF000` (1920B)      | ✅     | --                                     |
+| CH32V003A4M6 | `ch32v003a4m6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
+| CH32V003F4U6 | `ch32v003f4u6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
+| CH32V003J4M6 | `ch32v003j4m6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
+| CH32V003X4X6 | `ch32v003x4x6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
+| CH32V002X4X6 | `ch32v002x4x6` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
+| CH32V004X6X1 | `ch32v004x6x1` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
+| CH32V005X6X6 | `ch32v005x6x6` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
+| CH32V006X8X6 | `ch32v006x8x6` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
+| CH32V007X8X6 | `ch32v007x8x6` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
+| CH32X033F8P6 | `ch32x033f8p6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
+| CH32X034F8P6 | `ch32x034f8p6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
+| CH32X034F8U6 | `ch32x034f8u6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
+| CH32X035C8T6 | `ch32x035c8t6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
+| CH32X035F7P6 | `ch32x035f7p6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
+| CH32X035F8U6 | `ch32x035f8u6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
+| CH32X035G8R6 | `ch32x035g8r6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
+| CH32X035G8U6 | `ch32x035g8u6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
+| CH32X035R8T6 | `ch32x035r8t6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
 
 ## Features
 
@@ -46,6 +43,23 @@ tinyboot is structured as a library, not a monolithic binary. The core logic and
 - **App-side integration** — The app can confirm a successful boot and request bootloader entry over the wire, enabling fully remote firmware updates without physical access
 - **Library, not binary** — Build your bootloader by creating a small crate that wires up your specific hardware; the core logic is reusable across chips
 - **Modular and portable** — Platform-agnostic core with four traits (`Transport`, `Storage`, `BootMetaStore`, `BootCtl`) that you implement for your MCU; the protocol, state machine, and CLI work unchanged
+
+## Getting Started
+
+1. **Build your bootloader** — create a small crate with a `main.rs` that configures your pins, baud rate, and flash layout. The [system-flash example](examples/ch32/system-flash/) puts the bootloader in system flash, leaving all user flash for your app. The [user-flash example](examples/ch32/user-flash/) keeps it in user flash instead, which gives more room for bootloader features (e.g. defmt logging) or debugging the bootloader itself.
+
+2. **Flash the bootloader** to system flash using [wlink](https://github.com/ch32-rs/wlink):
+
+   ```sh
+   wlink flash --address 0x1FFFF000 target/riscv32ec-unknown-none-elf/release/boot
+   ```
+
+3. **Install the CLI** and flash your app over UART:
+
+   ```sh
+   cargo install tinyboot-cli
+   tinyboot flash target/riscv32ec-unknown-none-elf/release/app --reset
+   ```
 
 ## Crates
 
@@ -66,23 +80,6 @@ The workspace uses **edition 2024**.
 
 - **Library crates and CLI** — stable Rust 1.85+
 - **CH32 examples** (bootloader and app binaries) — nightly, for `-Zbuild-std` on `riscv32ec-unknown-none-elf`
-
-## Getting Started
-
-1. **Build your bootloader** — create a small crate with a `main.rs` that configures your pins, baud rate, and flash layout. The [system-flash example](examples/ch32/system-flash/) puts the bootloader in system flash, leaving all user flash for your app. The [user-flash example](examples/ch32/user-flash/) keeps it in user flash instead, which gives more room for bootloader features (e.g. defmt logging) or debugging the bootloader itself.
-
-2. **Flash the bootloader** to system flash using [wlink](https://github.com/ch32-rs/wlink):
-
-   ```sh
-   wlink flash --address 0x1FFFF000 target/riscv32ec-unknown-none-elf/release/boot
-   ```
-
-3. **Install the CLI** and flash your app over UART:
-
-   ```sh
-   cargo install tinyboot-cli
-   tinyboot flash target/riscv32ec-unknown-none-elf/release/app --reset
-   ```
 
 ## Porting to a New MCU Family
 
@@ -129,33 +126,36 @@ The core `tinyboot::app::App` handles command polling and dispatch generically �
 
 The entire protocol (frame format, CRC, sync, commands), the boot state machine (Idle/Updating/Validating transitions, trial boot logic, app validation), the CLI, and the host-side flashing workflow all work unchanged. You only write the chip-specific glue.
 
-## Chip Compatibility
+## Why tinyboot?
 
-tinyboot currently supports **UART / RS-485** transport. The table below tracks chip support status.
+I built tinyboot for [OpenServoCore](https://github.com/OpenServoCore), where CH32V006-based servo boards need seamless firmware updates over the existing DXL TTL bus — no opening the shell, no debug probe, just flash over the same wire the servos already talk on.
 
-✅ Verified | ❓ Untested (same die, likely works — volunteer needed) | 📋 Planned
+The existing options didn't fit:
 
-| Chip         | Feature Flag   | System Flash              | Status | Blocker                                |
-| ------------ | -------------- | ------------------------- | ------ | -------------------------------------- |
-| CH32V003F4P6 | `ch32v003f4p6` | `0x1FFFF000` (1920B)      | ✅     | --                                     |
-| CH32V003A4M6 | `ch32v003a4m6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
-| CH32V003F4U6 | `ch32v003f4u6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
-| CH32V003J4M6 | `ch32v003j4m6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
-| CH32V003X4X6 | `ch32v003x4x6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
-| CH32V002X4X6 | `ch32v002x4x6` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
-| CH32V004X6X1 | `ch32v004x6x1` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
-| CH32V005X6X6 | `ch32v005x6x6` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
-| CH32V006X8X6 | `ch32v006x8x6` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
-| CH32V007X8X6 | `ch32v007x8x6` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
-| CH32X033F8P6 | `ch32x033f8p6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
-| CH32X034F8P6 | `ch32x034f8p6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
-| CH32X034F8U6 | `ch32x034f8u6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
-| CH32X035C8T6 | `ch32x035c8t6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
-| CH32X035F7P6 | `ch32x035f7p6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
-| CH32X035F8U6 | `ch32x035f8u6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
-| CH32X035G8R6 | `ch32x035g8r6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
-| CH32X035G8U6 | `ch32x035g8u6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
-| CH32X035R8T6 | `ch32x035r8t6` | `0x1FFF0000` (3KB + 256B) | 📋     | --                                     |
+- **CH32 factory bootloader** — Fixed to 115200 baud on PD5/PD6 with no way to configure UART pins, baud rate, or TX-enable for RS-485. Uses a sum-mod-256 checksum that silently drops bad commands with no error response. No CRC verification, no trial boot, no boot state machine. See [ch32v003-bootloader-docs](https://github.com/basilhussain/ch32v003-bootloader-docs) for the reverse-engineered protocol details.
+
+- **[embassy-boot](https://github.com/embassy-rs/embassy/tree/main/embassy-boot)** — A well-designed bootloader, but requires ~8KB of flash. That's half the V003's 16KB user flash, and doesn't fit in system flash at all. Not practical for MCUs with 16-32KB total.
+
+I took it as a challenge to fit a proper bootloader — with a real protocol, CRC16 validation, trial boot, and configurable transport — into the CH32V003's 1920-byte system flash. The key inspiration was [rv003usb](https://github.com/cnlohr/rv003usb) by cnlohr, whose software USB implementation includes a 1920-byte bootloader in system flash. That project proved it was possible to fit meaningful code in that space, and showed me that the entire 16KB of user flash could be left free for the application.
+
+### How it fits in 1920 bytes
+
+Beyond the usual Cargo profile tricks (`opt-level = "z"`, LTO, `codegen-units = 1`, `panic = "abort"`), fitting a real bootloader in 1920 bytes required some more deliberate choices:
+
+- **No HAL crates** — bare metal register access via PAC crates only; HAL abstractions are too expensive for this budget
+- **Custom runtime** — no qingke-rt; the system-flash bootloader startup (`v2.S`) is just GP/SP init and a jump to main (20 bytes of assembly instead of ~1.4KB of full runtime). A full startup variant (`v2_full.S`) with .data/.bss init is used when defmt logging is enabled
+- **Symmetric frame format** — the same `Frame` struct is used for both requests and responses with one shared parse and format path, eliminating code duplication
+- **`repr(C)` frame with union data** — CRC is computed directly over the struct memory via pointer cast; no serialization step, no intermediate buffer
+- **`MaybeUninit` frame buffer** — the 76-byte `Frame` struct is reused every iteration without zero-initialization
+- **Bit-bang CRC16** — no lookup table, trades speed for ~512 bytes of flash savings
+- **OB bit-clear state transitions** — forward state changes (Idle→Updating, trial consumption) flip 1→0 bits without erasing, avoiding the cost of a full erase+rewrite cycle and the code to preserve OB contents
+- **Avoid `memset`/`memcpy`** — these pull in expensive core routines; manual byte loops and volatile writes keep the linker from dragging in library code
+- **`.write()` over `.modify()`** — register writes use direct writes instead of read-modify-write, saving the read and mask operations
+- **Aggressive code deduplication** — shared flash operation primitives across erase, write, and OB operations (see the flash HAL)
+
+### Design approach
+
+tinyboot is structured as a library, not a monolithic binary. The core logic and protocol are platform-agnostic crates; chip-specific details live in separate `ch32-*` crates. To build your bootloader, you create a small crate with a `main.rs` that wires up your pin configuration, baud rate, and flash layout — see the [examples](examples/ch32/) for exactly this. The same split applies on the app side: [`tinyboot-ch32-app`](tinyboot-ch32-app/) integrates into your application so it can confirm a successful boot and reboot into the bootloader on command, enabling fully remote firmware updates without physical access.
 
 ## Safety
 
@@ -173,7 +173,7 @@ These are deliberate trade-offs — safe alternatives would pull in extra code t
 
 ## Contributing
 
-Contributions are welcome — especially new chip ports and transport implementations. If you're thinking about adding support for a new MCU family, the [Porting to a New Chip](#porting-to-a-new-chip) section above covers the trait surface you'd need to implement.
+Contributions are welcome — especially new chip ports and transport implementations. If you're thinking about adding support for a new MCU family, the [Porting to a New MCU Family](#porting-to-a-new-mcu-family) section above covers the trait surface you'd need to implement.
 
 Please [open an issue](https://github.com/OpenServoCore/tinyboot/issues) before starting a large PR so we can discuss the approach.
 

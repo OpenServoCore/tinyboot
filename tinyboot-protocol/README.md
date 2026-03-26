@@ -38,6 +38,7 @@ Total frame size = 12 bytes overhead + payload. Maximum payload is 64 bytes (`MA
 | 0x02 | Write  | Host to Device | Write data at address                                                      |
 | 0x03 | Verify | Host to Device | Compute CRC16 over `addr` bytes of app, store checksum + state in OB       |
 | 0x04 | Reset  | Host to Device | Reset the device                                                           |
+| 0x05 | Flush  | Host to Device | Flush buffered writes to storage                                           |
 
 ### Info response
 
@@ -63,9 +64,22 @@ Request payload (2 bytes via `EraseData`):
 | ------ | ------- | ---------- | --------------------------------- |
 | 0      | 2 bytes | byte_count | Number of bytes to erase (u16 LE) |
 
+### Flush
+
+The host must send a Flush command to commit any partial page still buffered on the device. Flush is required:
+
+- **After the final Write** — otherwise the last partial page may not be written to flash, causing Verify to fail.
+- **Before skipping an address range** — if the host advances the write address (e.g. skipping a gap between segments), it must Flush first to commit the buffered data at the previous address.
+
+### Write alignment
+
+Write payloads must be padded to a 4-byte boundary. The device writes to flash 4 bytes at a time, so unaligned payloads will fail.
+
 ### Verify
 
 The `addr` field carries the application size in bytes. The device computes CRC16 over the first `addr` bytes of flash (the actual firmware, not the full region), stores the checksum and app size in OB metadata, and transitions to Validating state.
+
+If Verify returns `CrcMismatch`, check that all Write payloads were padded to 4 bytes and that Flush was sent after the last Write (and before any address skips).
 
 Response returns 2 bytes via the `VerifyData` struct:
 
@@ -127,6 +141,9 @@ Device -> Ok
 Host  -> Write addr=0x0040 data=[64 bytes]
 Device -> Ok
 ...
+
+Host  -> Flush
+Device -> Ok
 
 Host  -> Verify addr=5110 (app_size)
 Device -> Ok crc=0x1234

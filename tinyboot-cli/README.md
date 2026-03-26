@@ -62,7 +62,7 @@ tinyboot bin firmware.elf -o firmware.bin
 
 ## Auto-detection
 
-If `--port` is omitted, the CLI probes all available serial ports by sending an Info command. Both the bootloader and apps running `poll()` respond to Info, so auto-detection works in either mode.
+If `--port` is omitted, the CLI probes USB serial ports (usbmodem, ttyACM, ttyUSB) by sending an Info command with a 100ms timeout. Non-USB serial ports are skipped. Both the bootloader and apps running `poll()` respond to Info, so auto-detection works in either mode.
 
 ## ELF handling
 
@@ -72,7 +72,14 @@ Raw binary files (no ELF magic) are used as-is.
 
 ## Logging
 
-Set `RUST_LOG` for protocol-level diagnostics:
+Use `-v` (debug) or `-vv` (trace) for protocol-level diagnostics:
+
+```sh
+tinyboot -v flash firmware.elf
+tinyboot -vv flash firmware.elf
+```
+
+Or set `RUST_LOG` directly:
 
 ```sh
 RUST_LOG=debug tinyboot flash firmware.elf
