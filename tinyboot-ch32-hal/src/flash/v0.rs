@@ -53,14 +53,21 @@ pub fn usr_erase(addr: u32) {
     wait_busy();
 }
 
-/// Write up to one page (64 bytes) to flash at `addr`.
-/// `data` must be aligned to 4 bytes in length.
+/// Write `data` to flash at `addr`. Must not cross a page boundary.
+/// `data` length must be a multiple of 4 bytes, `addr` must be 4-byte aligned.
 pub fn usr_write(addr: u32, data: &[u8]) {
+    let page_base = addr & !(PAGE_SIZE as u32 - 1);
+    debug_assert!(
+        (addr as usize & (BUF_LOAD_SIZE - 1)) == 0,
+        "usr_write: addr not word-aligned"
+    );
     debug_assert!(
         data.len().is_multiple_of(BUF_LOAD_SIZE),
-        "usr_write: len {} not aligned to {}",
-        data.len(),
-        BUF_LOAD_SIZE
+        "usr_write: len not word-aligned"
+    );
+    debug_assert!(
+        addr + data.len() as u32 <= page_base + PAGE_SIZE as u32,
+        "usr_write: crosses page boundary"
     );
     // FTPG mode + buf reset
     FLASH.ctlr().write(|w| {
@@ -88,7 +95,7 @@ pub fn usr_write(addr: u32, data: &[u8]) {
     }
 
     // Program the page
-    FLASH.addr().write(|w| w.set_addr(addr));
+    FLASH.addr().write(|w| w.set_addr(page_base));
     FLASH.ctlr().write(|w| {
         w.set_obwre(true);
         w.set_page_pg(true);
@@ -114,10 +121,14 @@ pub fn ob_erase() {
     wait_busy();
 }
 
-/// Write option bytes starting at `addr`.
+/// Write option bytes starting at `addr`. Must not cross a page boundary.
 /// Each byte in `data` is written as a halfword at stride-2 addresses
 /// (hardware auto-generates complement bytes).
 pub fn ob_write(addr: u32, data: &[u8]) {
+    debug_assert!(
+        (addr as usize & 1) == 0,
+        "ob_write: addr not halfword-aligned"
+    );
     FLASH.ctlr().write(|w| {
         w.set_obwre(true);
         w.set_obpg(true);
