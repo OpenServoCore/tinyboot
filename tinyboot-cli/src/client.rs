@@ -143,10 +143,9 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
 
         let erase_size = info.erase_size as u32;
 
-        // 2. Erase — page by page
-        let erase_total = fw_size.next_multiple_of(erase_size);
+        // 2. Erase — full region, page by page
         let mut erase_addr = 0u32;
-        while erase_addr < erase_total {
+        while erase_addr < info.capacity {
             self.frame.cmd = Cmd::Erase;
             self.frame.addr = erase_addr;
             self.frame.len = 2;
@@ -155,7 +154,7 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
             };
             self.transact()?;
             erase_addr += erase_size;
-            on_progress("Erasing", erase_addr, erase_total);
+            on_progress("Erasing", erase_addr, info.capacity);
         }
 
         // 3. Write — chunk by MAX_PAYLOAD, pad to 4-byte alignment with 0xFF
