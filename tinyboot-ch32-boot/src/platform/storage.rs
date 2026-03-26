@@ -17,7 +17,6 @@ pub struct StorageConfig {
 pub enum StorageError {
     NotAligned,
     OutOfBounds,
-    Protected,
 }
 
 impl NorFlashError for StorageError {
@@ -25,7 +24,6 @@ impl NorFlashError for StorageError {
         match self {
             StorageError::NotAligned => NorFlashErrorKind::NotAligned,
             StorageError::OutOfBounds => NorFlashErrorKind::OutOfBounds,
-            StorageError::Protected => NorFlashErrorKind::Other,
         }
     }
 }
@@ -60,12 +58,11 @@ impl NorFlash for Storage {
     const ERASE_SIZE: usize = PAGE_SIZE;
 
     fn erase(&mut self, from: u32, to: u32) -> Result<(), Self::Error> {
-        if !(from as usize).is_multiple_of(PAGE_SIZE) || !(to as usize).is_multiple_of(PAGE_SIZE) {
-            return Err(StorageError::NotAligned);
-        }
-        if to as usize > self.app_size {
-            return Err(StorageError::OutOfBounds);
-        }
+        debug_assert!(
+            (from as usize).is_multiple_of(PAGE_SIZE) && (to as usize).is_multiple_of(PAGE_SIZE),
+            "erase alignment: from={from}, to={to}"
+        );
+        debug_assert!(to as usize <= self.app_size, "erase out of bounds");
         let writer = FlashWriter::usr();
         writer.erase_start();
         let mut addr = self.app_base + from;
@@ -75,48 +72,36 @@ impl NorFlash for Storage {
             addr += PAGE_SIZE as u32;
         }
         writer.operation_end();
-        // Write-protection check is debug-only: unlock() disables protection
-        // before the protocol loop, so WRPRTERR should never fire in a correctly
-        // configured system. The verify step catches silent write failures.
-        // Keeping this out of release saves ~40-60 bytes against the 1920-byte budget.
-        #[cfg(debug_assertions)]
-        if writer.check_wrprterr() {
-            return Err(StorageError::Protected);
-        }
         Ok(())
     }
 
     fn write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
-        if !(offset as usize).is_multiple_of(PAGE_SIZE)
-            || bytes.len() > PAGE_SIZE
-            || !bytes.len().is_multiple_of(BUF_LOAD_SIZE)
-        {
-            return Err(StorageError::NotAligned);
-        }
-        if offset as usize + bytes.len() > self.app_size {
-            return Err(StorageError::OutOfBounds);
-        }
-        let base = self.app_base + offset;
-        let mut addr = base;
-        let mut ptr = bytes.as_ptr() as *const u32;
+        debug_assert!(
+            (offset as usize).is_multiple_of(PAGE_SIZE)
+                && bytes.len() <= PAGE_SIZE
+                && bytes.len().is_multiple_of(BUF_LOAD_SIZE),
+            "write alignment: offset={offset}, len={}",
+            bytes.len()
+        );
+        debug_assert!(
+            offset as usize + bytes.len() <= self.app_size,
+            "write out of bounds"
+        );
+        let page_addr = self.app_base + offset;
         let writer = FlashWriter::usr();
         writer.write_start();
         writer.fast_write_buf_reset();
+        let mut addr = page_addr;
+        let mut ptr = bytes.as_ptr() as *const u32;
         for _ in 0..bytes.len() / BUF_LOAD_SIZE {
-            // SAFETY: ptr advances within bounds, read_unaligned handles alignment
-            let word = unsafe { ptr.read_unaligned() };
+            // SAFETY: ptr advances within data bounds; RingBuf is repr(align(4)).
+            let word = unsafe { ptr.read() };
             writer.fast_write_buf_load(addr, word);
             addr += BUF_LOAD_SIZE as u32;
             ptr = unsafe { ptr.add(1) };
         }
-        writer.fast_write_page_program(base);
+        writer.fast_write_page_program(page_addr);
         writer.operation_end();
-
-        // See erase() for rationale on debug-only write-protection check.
-        #[cfg(debug_assertions)]
-        if writer.check_wrprterr() {
-            return Err(StorageError::Protected);
-        }
         Ok(())
     }
 }

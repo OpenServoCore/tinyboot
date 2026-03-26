@@ -64,10 +64,10 @@ impl BootMetaStore {
         w.erase(OB_BASE);
         w.operation_end();
         w.write_start();
-        for (i, &byte) in buf.iter().enumerate() {
-            if byte != 0xFF {
-                w.write(OB_BASE + (i as u32 * 2), byte as u16);
-            }
+        let mut addr = OB_BASE;
+        for &byte in buf.iter() {
+            w.write(addr, byte as u16);
+            addr += 2;
         }
         w.operation_end();
     }

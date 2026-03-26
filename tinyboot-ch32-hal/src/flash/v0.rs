@@ -5,6 +5,10 @@ const FLASH: ch32_metapac::flash::Flash = ch32_metapac::FLASH;
 #[inline(always)]
 fn wait_busy() {
     while FLASH.statr().read().bsy() {}
+    debug_assert!(
+        !FLASH.statr().read().wrprterr(),
+        "flash write protection error"
+    );
 }
 
 /// Unlock flash controller for all operations (KEYR + MODEKEYR + OBKEYR).
@@ -67,19 +71,6 @@ impl FlashWriter {
         }
     }
 
-    /// check for write protection error
-    pub fn check_wrprterr(&self) -> bool {
-        let statr = FLASH.statr().read();
-        if statr.wrprterr() {
-            FLASH.statr().write(|w| w.set_wrprterr(true));
-            return true;
-        }
-        if statr.eop() {
-            FLASH.statr().write(|w| w.set_eop(true));
-        }
-        false
-    }
-
     /// Start write operation
     #[inline(always)]
     pub fn write_start(&self) {
@@ -105,6 +96,7 @@ impl FlashWriter {
     }
 
     /// Erase (64-byte page for flash, full OB erase for option bytes).
+    #[inline(always)]
     pub fn erase(&self, addr: u32) {
         let erase_bit = self.erase_bit as usize;
         let ctlr = (1 << OBWRE) | (1 << erase_bit) | (1 << STRT);
