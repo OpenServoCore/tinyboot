@@ -81,10 +81,11 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
                 } else {
                     0xFFFF
                 };
+                let boot_version = crate::tinyboot_version();
                 self.frame.data.info = InfoData {
                     capacity,
                     erase_size: erase_size as u16,
-                    boot_version: self.platform.boot_version,
+                    boot_version,
                     app_version: app_ver,
                     mode: 0,
                 };

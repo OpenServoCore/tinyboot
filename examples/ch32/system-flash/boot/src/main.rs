@@ -53,7 +53,6 @@ fn main() -> ! {
     let boot_meta = BootMetaStore::default();
     let ctl = BootCtl::new(BootCtlConfig {});
 
-    const BOOT_VER: u16 = tinyboot_ch32_boot::pkg_version!();
-    let platform = Platform::new(transport, storage, boot_meta, ctl, BOOT_VER);
+    let platform = Platform::new(transport, storage, boot_meta, ctl);
     tinyboot_ch32_boot::run(platform);
 }

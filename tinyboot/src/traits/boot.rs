@@ -77,8 +77,6 @@ where
     pub boot_meta: B,
     /// Boot control (reset, boot mode selection).
     pub ctl: C,
-    /// Boot version (packed 5.5.6).
-    pub boot_version: u16,
 }
 
 impl<T, S, B, C> Platform<T, S, B, C>
@@ -90,13 +88,12 @@ where
 {
     /// Assemble a platform from its components.
     #[inline(always)]
-    pub fn new(transport: T, storage: S, boot_meta: B, ctl: C, boot_version: u16) -> Self {
+    pub fn new(transport: T, storage: S, boot_meta: B, ctl: C) -> Self {
         Self {
             transport,
             storage,
             boot_meta,
             ctl,
-            boot_version,
         }
     }
 }

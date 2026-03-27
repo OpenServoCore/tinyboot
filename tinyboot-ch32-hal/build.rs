@@ -29,8 +29,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(not(feature = "system-flash"))]
     {
-        fs::copy("boot_request.x", out.join("boot_request.x"))?;
-        println!("cargo:rerun-if-changed=boot_request.x");
+        fs::copy("tb-user-flash.x", out.join("tb-user-flash.x"))?;
+        println!("cargo:rerun-if-changed=tb-user-flash.x");
     }
 
     println!("cargo:rustc-link-search={}", out.display());

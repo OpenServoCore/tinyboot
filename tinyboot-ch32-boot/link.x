@@ -54,12 +54,6 @@ SECTIONS
 
     _stack_top = ORIGIN(RAM) + LENGTH(RAM);
 
-    /* Boot version at last 2 bytes of boot flash. */
-    .tinyboot_version : AT(ORIGIN(FLASH) + LENGTH(FLASH) - 2)
-    {
-        KEEP(*(.tinyboot_version));
-    } > CODE
-
     .got (INFO) : { KEEP(*(.got .got.*)) }
     .eh_frame (INFO) : { KEEP(*(.eh_frame)) }
     .eh_frame_hdr (INFO) : { *(.eh_frame_hdr) }

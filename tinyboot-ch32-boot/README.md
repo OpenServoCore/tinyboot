@@ -41,12 +41,11 @@ let storage = Storage::new(StorageConfig {
 let boot_meta = BootMetaStore::default();
 let ctl = BootCtl::new(BootCtlConfig {});
 
-const BOOT_VER: u16 = pkg_version!();
-let platform = Platform::new(transport, storage, boot_meta, ctl, BOOT_VER);
+let platform = Platform::new(transport, storage, boot_meta, ctl);
 tinyboot_ch32_boot::run(platform);
 ```
 
-Note: `BOOT_VERSION` is defined as a static in `tinyboot-ch32-boot` itself (placed in the `.tinyboot_version` section), so the `BOOT_VER` local is only used for runtime info responses — the linker-embedded version is handled automatically.
+The boot version is read at runtime from the `__tinyboot_version` linker symbol (placed by `boot_version!()` in the `.tinyboot_version` section).
 
 See [`examples/ch32/system-flash`](../examples/ch32/system-flash/) for a complete bootloader example.
 

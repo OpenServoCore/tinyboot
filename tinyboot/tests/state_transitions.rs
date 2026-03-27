@@ -3,6 +3,10 @@
 //! Tests every row of the state transition table in tinyboot/README.md.
 //! Organized by operation, with each state tested per operation.
 
+// Provide the linker symbol that protocol.rs reads for boot version.
+#[unsafe(no_mangle)]
+static __tinyboot_version: u16 = 0xFFFF;
+
 use embedded_storage::nor_flash;
 use tinyboot::protocol::Dispatcher;
 use tinyboot::traits::boot::{BootCtl, BootMetaStore, Platform, Storage, Transport};
@@ -200,7 +204,6 @@ fn platform(state: BootState) -> TestPlatform {
         MockStorage::new(),
         MockBootMeta::new(state),
         MockBootCtl,
-        0xFFFF,
     )
 }
 

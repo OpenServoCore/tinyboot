@@ -19,9 +19,9 @@ pub use platform::{
 
 // Re-exports so boot examples only need this one crate.
 pub use tinyboot::traits::boot::Platform;
+pub use tinyboot::{boot_version, pkg_version};
 pub use tinyboot_ch32_hal::gpio::Pull;
 pub use tinyboot_ch32_hal::{Pin, UsartMapping};
-pub use tinyboot_protocol::pkg_version;
 
 /// Protocol write buffer size (2 × page size).
 const PROTOCOL_BUF_SIZE: usize = 2 * tinyboot_ch32_hal::flash::PAGE_SIZE;
@@ -30,15 +30,4 @@ const PROTOCOL_BUF_SIZE: usize = 2 * tinyboot_ch32_hal::flash::PAGE_SIZE;
 #[inline(always)]
 pub fn run(platform: Platform<Usart, Storage, BootMetaStore, BootCtl>) -> ! {
     tinyboot::Core::<_, _, _, _, PROTOCOL_BUF_SIZE>::new(platform).run()
-}
-
-/// Define the `.tinyboot_version` static using the calling crate's version.
-/// Place this at module scope in your bootloader binary.
-#[macro_export]
-macro_rules! boot_version {
-    () => {
-        #[unsafe(link_section = ".tinyboot_version")]
-        #[used]
-        static _BOOT_VERSION: u16 = $crate::pkg_version!();
-    };
 }
