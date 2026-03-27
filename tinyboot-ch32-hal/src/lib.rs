@@ -5,7 +5,6 @@
     feature = "ch32v003a4m6",
     feature = "ch32v003f4u6",
     feature = "ch32v003j4m6",
-    feature = "ch32v003x4x6",
 )))]
 compile_error!(
     "No chip variant selected. Enable a chip feature, e.g.: \

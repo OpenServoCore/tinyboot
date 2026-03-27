@@ -1,26 +1,47 @@
-//! System-flash bootloader example for CH32V003.
+//! Bootloader example for CH32V003.
 //!
-//! The bootloader lives in the 1920-byte system flash region, leaving the
-//! entire 16KB user flash available for the application. Because of the tight
-//! size constraint, defmt is not used here.
+//! Two flash modes available via feature flags:
 //!
-//! The `system-flash` feature uses the hardware BOOT_MODE register to signal
-//! boot requests across resets (no RAM reservation needed).
-//! Boot metadata is stored in option bytes (0x1FFFF800).
+//! **system-flash**: Runs from the 1920-byte system flash region, leaving all
+//! 16KB of user flash for the application. No defmt (size constrained).
+//!
+//! **user-flash**: Occupies first 8KB of user flash, with the application in
+//! the remaining 8KB. defmt enabled for debugging.
 
 #![no_std]
 #![no_main]
 
+#[cfg(feature = "system-flash")]
 use panic_halt as _;
+
+#[cfg(feature = "user-flash")]
+use defmt_rtt as _;
+
 tinyboot_ch32_boot::boot_version!();
+
+#[cfg(feature = "user-flash")]
+#[panic_handler]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    defmt::error!("panic: {}", defmt::Display2Format(info));
+    loop {}
+}
 
 use tinyboot_ch32_boot::{
     BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex, Platform, Pull, Storage,
     StorageConfig, Usart, UsartConfig, UsartMapping,
 };
 
+#[cfg(feature = "system-flash")]
 const APP_BASE: u32 = 0x0800_0000;
+#[cfg(feature = "system-flash")]
 const APP_SIZE: usize = 16 * 1024;
+
+#[cfg(feature = "user-flash")]
+const APP_BASE: u32 = 0x0800_2000;
+#[cfg(feature = "user-flash")]
+const APP_ENTRY: u32 = 0x0000_2000;
+#[cfg(feature = "user-flash")]
+const APP_SIZE: usize = 8 * 1024;
 
 #[unsafe(export_name = "main")]
 fn main() -> ! {
@@ -51,7 +72,14 @@ fn main() -> ! {
         app_size: APP_SIZE,
     });
     let boot_meta = BootMetaStore::default();
+
+    #[cfg(feature = "system-flash")]
     let ctl = BootCtl::new(BootCtlConfig {});
+
+    #[cfg(feature = "user-flash")]
+    let ctl = BootCtl::new(BootCtlConfig {
+        app_entry: APP_ENTRY,
+    });
 
     let platform = Platform::new(transport, storage, boot_meta, ctl);
     tinyboot_ch32_boot::run(platform);

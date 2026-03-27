@@ -1,0 +1,31 @@
+[package]
+name = "boot"
+version = "1.2.3"
+edition = "2024"
+
+[dependencies]
+tinyboot-ch32-boot = { path = "../../../tinyboot-ch32-boot", default-features = false }
+panic-halt = "1.0"
+defmt = { version = "1.0", optional = true }
+defmt-rtt = { version = "1.1", optional = true }
+
+[features]
+system-flash = ["tinyboot-ch32-boot/system-flash"]
+user-flash = ["dep:defmt", "dep:defmt-rtt", "tinyboot-ch32-boot/defmt"]
+ch32v003f4p6 = ["tinyboot-ch32-boot/ch32v003f4p6", "tinyboot-ch32-boot/rt"]
+ch32v003a4m6 = ["tinyboot-ch32-boot/ch32v003a4m6", "tinyboot-ch32-boot/rt"]
+ch32v003f4u6 = ["tinyboot-ch32-boot/ch32v003f4u6", "tinyboot-ch32-boot/rt"]
+ch32v003j4m6 = ["tinyboot-ch32-boot/ch32v003j4m6", "tinyboot-ch32-boot/rt"]
+
+[profile.dev]
+opt-level = "z"
+lto = true
+codegen-units = 1
+debug = 2
+debug-assertions = false
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

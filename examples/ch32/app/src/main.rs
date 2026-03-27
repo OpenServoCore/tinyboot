@@ -1,8 +1,10 @@
-//! Example application for the user-flash bootloader.
+//! Example application for the tinyboot bootloader.
 //!
 //! - Timer interrupt blinks LED on PD4 every second
-//! - Main loop listens on USART1 for tinyboot commands,
+//! - Main loop listens on USART1 (TX=PD5, RX=PD6) for tinyboot commands,
 //!   reboots into bootloader on receipt of Reset command
+//!
+//! No async runtime — just a timer interrupt for blink and a blocking main loop.
 
 #![no_std]
 #![no_main]
@@ -18,18 +20,40 @@ use ch32_hal::time::Hertz;
 use ch32_hal::timer::low_level::Timer;
 use ch32_hal::usart::{self, Uart};
 use critical_section::Mutex;
+
+#[cfg(feature = "user-flash")]
 use defmt_rtt as _;
+
+tinyboot_ch32_app::app_version!();
+
+#[cfg(feature = "user-flash")]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     defmt::error!("panic");
     loop {}
 }
-tinyboot_ch32_app::app_version!();
+
+#[cfg(feature = "system-flash")]
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
 
 // --- Flash layout (must match bootloader) ---
+#[cfg(feature = "system-flash")]
+const BOOT_BASE: u32 = 0x1FFF_F000;
+#[cfg(feature = "system-flash")]
+const BOOT_SIZE: u32 = 1920;
+#[cfg(feature = "system-flash")]
+const APP_SIZE: u32 = 16 * 1024;
+
+#[cfg(feature = "user-flash")]
 const BOOT_BASE: u32 = 0x0800_0000;
+#[cfg(feature = "user-flash")]
 const BOOT_SIZE: u32 = 8 * 1024;
+#[cfg(feature = "user-flash")]
 const APP_SIZE: u32 = 8 * 1024;
+
 const ERASE_SIZE: u16 = 64;
 
 type Shared<T> = Mutex<RefCell<Option<T>>>;
@@ -41,6 +65,7 @@ fn TIM2() {
     critical_section::with(|cs| {
         if let Some(ref mut led) = *LED.borrow_ref_mut(cs) {
             led.toggle();
+            #[cfg(feature = "user-flash")]
             if led.is_set_high() {
                 defmt::info!("LED on");
             } else {
@@ -50,6 +75,7 @@ fn TIM2() {
     });
 }
 
+#[cfg(feature = "user-flash")]
 tinyboot_ch32_app::fix_mtvec!();
 
 #[qingke_rt::entry]
@@ -84,6 +110,8 @@ fn main() -> ! {
     // Tinyboot app client
     let mut app = tinyboot_ch32_app::new_app(BOOT_BASE, BOOT_SIZE, APP_SIZE, ERASE_SIZE);
     app.confirm();
+
+    #[cfg(feature = "user-flash")]
     defmt::info!("Boot confirmed, app ready.");
 
     loop {
