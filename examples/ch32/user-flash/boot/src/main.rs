@@ -1,7 +1,7 @@
 //! User-flash bootloader example for CH32V003.
 //!
-//! The bootloader occupies the first 4KB of user flash, with the application
-//! in the remaining 12KB. Boot metadata is stored in option bytes.
+//! The bootloader occupies the first 8KB of user flash, with the application
+//! in the remaining 8KB. Boot metadata is stored in option bytes.
 //!
 //! Because the bootloader runs from user flash, there is no tight size
 //! constraint — defmt logging is enabled for easier debugging.
@@ -14,16 +14,21 @@
 #![no_main]
 
 use defmt_rtt as _;
-use panic_halt as _;
+
+#[panic_handler]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    defmt::error!("panic: {}", defmt::Display2Format(info));
+    loop {}
+}
 
 use tinyboot_ch32_boot::{
     BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex, Platform, Pull, Storage,
     StorageConfig, Usart, UsartConfig, UsartMapping,
 };
 
-const APP_BASE: u32 = 0x0800_1000;
-const APP_ENTRY: u32 = 0x0000_1000;
-const APP_SIZE: usize = 12 * 1024;
+const APP_BASE: u32 = 0x0800_2000;
+const APP_ENTRY: u32 = 0x0000_2000;
+const APP_SIZE: usize = 8 * 1024;
 
 #[unsafe(export_name = "main")]
 fn main() -> ! {

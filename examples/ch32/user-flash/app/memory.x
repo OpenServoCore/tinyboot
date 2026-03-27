@@ -1,18 +1,18 @@
 /* CH32V003 application memory layout for user-flash bootloader.
  *
- * The application occupies the upper 12KB of user flash, starting after the
+ * The application occupies the upper 8KB of user flash, starting after the
  * bootloader+meta region.
  *
  * Flash map (see boot/memory.x for the full picture):
- *   0x0000_0000 .. 0x0000_0FFF  bootloader  4KB
- *   0x0000_1000 .. 0x0000_3FFF  application 12KB
+ *   0x0000_0000 .. 0x0000_1FFF  bootloader  8KB
+ *   0x0000_2000 .. 0x0000_3FFF  application 8KB
  *
  * Note: addresses here use the code-execution alias (0x0000_0000 base).
  * The FPEC programming offset (0x0800_0000) is handled by the HAL.
  */
 MEMORY
 {
-    FLASH : ORIGIN = 0x00001000, LENGTH = 12K
+    FLASH : ORIGIN = 0x00002000, LENGTH = 8K
     RAM   : ORIGIN = 0x20000000, LENGTH = 2K
 }
 

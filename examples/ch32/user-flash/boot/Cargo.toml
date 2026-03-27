@@ -5,7 +5,5 @@ edition = "2024"
 
 [dependencies]
 tinyboot-ch32-boot = { path = "../../../../tinyboot-ch32-boot", features = ["ch32v003f4p6", "rt", "defmt"] }
-panic-halt = "1.0"
-
 defmt = "1.0"
 defmt-rtt = "1.1"

@@ -10,7 +10,5 @@ embedded-io = "0.7"
 critical-section = "1"
 ch32-hal = { git = "https://github.com/ch32-rs/ch32-hal", features = ["ch32v003f4p6", "rt", "memory-x"] }
 qingke-rt = { version = "0.6", features = ["v2"] }
-panic-halt = "1.0"
-
 defmt = "1.0"
 defmt-rtt = "1.1"

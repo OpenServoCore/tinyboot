@@ -19,13 +19,17 @@ use ch32_hal::timer::low_level::Timer;
 use ch32_hal::usart::{self, Uart};
 use critical_section::Mutex;
 use defmt_rtt as _;
-use panic_halt as _;
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    defmt::error!("panic");
+    loop {}
+}
 tinyboot_ch32_app::app_version!();
 
 // --- Flash layout (must match bootloader) ---
 const BOOT_BASE: u32 = 0x0800_0000;
-const BOOT_SIZE: u32 = 4 * 1024;
-const APP_SIZE: u32 = 12 * 1024;
+const BOOT_SIZE: u32 = 8 * 1024;
+const APP_SIZE: u32 = 8 * 1024;
 const ERASE_SIZE: u16 = 64;
 
 type Shared<T> = Mutex<RefCell<Option<T>>>;
