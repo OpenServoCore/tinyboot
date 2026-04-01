@@ -74,12 +74,10 @@ fn main() -> ! {
     let boot_meta = BootMetaStore::default();
 
     #[cfg(feature = "system-flash")]
-    let ctl = BootCtl::new(BootCtlConfig {});
+    let ctl = BootCtl::new(BootCtlConfig);
 
     #[cfg(feature = "user-flash")]
-    let ctl = BootCtl::new(BootCtlConfig {
-        app_entry: APP_ENTRY,
-    });
+    let ctl = BootCtl::new(BootCtlConfig, APP_ENTRY);
 
     let platform = Platform::new(transport, storage, boot_meta, ctl);
     tinyboot_ch32_boot::run(platform);

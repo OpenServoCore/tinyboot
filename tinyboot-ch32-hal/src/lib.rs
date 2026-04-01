@@ -24,5 +24,4 @@ pub mod pfic;
 pub mod rcc;
 pub mod usart;
 
-#[cfg(not(feature = "system-flash"))]
 pub mod boot_request;

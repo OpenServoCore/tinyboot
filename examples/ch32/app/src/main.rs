@@ -108,7 +108,13 @@ fn main() -> ! {
     let mut tx = transport::Tx(tx);
 
     // Tinyboot app client
-    let mut app = tinyboot_ch32_app::new_app(BOOT_BASE, BOOT_SIZE, APP_SIZE, ERASE_SIZE);
+    let mut app = tinyboot_ch32_app::new_app(
+        BOOT_BASE,
+        BOOT_SIZE,
+        APP_SIZE,
+        ERASE_SIZE,
+        tinyboot_ch32_app::BootCtlConfig,
+    );
     app.confirm();
 
     #[cfg(feature = "user-flash")]

@@ -2,6 +2,7 @@ fn main() {
     let out = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
 
     // Re-emit peripheral cfgs from tinyboot-ch32-hal (exposed via its `links` metadata).
+    // This includes boot_pin, flash_v0, etc.
     if let Ok(cfgs) = std::env::var("DEP_TINYBOOT_CH32_HAL_CFGS") {
         for cfg in cfgs.split(',').filter(|s| !s.is_empty()) {
             println!("cargo::rustc-check-cfg=cfg({cfg})");

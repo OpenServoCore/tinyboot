@@ -143,7 +143,7 @@ pub fn ob_write(addr: u32, data: &[u8]) {
     }
 }
 
-pub fn is_boot_mode() -> bool {
+pub fn boot_mode() -> bool {
     FLASH.statr().read().boot_mode()
 }
 

@@ -2,9 +2,10 @@
 
 use tinyboot::traits::BootState;
 use tinyboot::traits::app::BootClient as TBBootClient;
-use tinyboot_ch32_hal::{flash, iwdg, pfic};
+use tinyboot_ch32_hal::{boot_request, flash, iwdg, pfic};
 
 // Re-exports so apps only need this one crate.
+pub use boot_request::Config as BootCtlConfig;
 pub use tinyboot::app::{App, AppConfig};
 pub use tinyboot::traits::app as traits;
 pub use tinyboot::{app_version, pkg_version};
@@ -48,9 +49,11 @@ macro_rules! fix_mtvec {
 }
 
 /// CH32 boot client implementation.
-pub struct Ch32BootClient;
+pub struct BootClient {
+    config: boot_request::Config,
+}
 
-impl TBBootClient for Ch32BootClient {
+impl TBBootClient for BootClient {
     fn confirm(&mut self) {
         critical_section::with(|_| {
             let ob = flash::META_OB_BASE;
@@ -83,10 +86,7 @@ impl TBBootClient for Ch32BootClient {
 
     fn request_update(&mut self) {
         critical_section::with(|_| {
-            #[cfg(feature = "system-flash")]
-            flash::set_boot_mode(true);
-            #[cfg(not(feature = "system-flash"))]
-            tinyboot_ch32_hal::boot_request::set_boot_request(true);
+            boot_request::set_boot_request(&self.config, true);
         });
     }
 
@@ -104,7 +104,9 @@ pub fn new_app(
     boot_size: u32,
     app_size: u32,
     erase_size: u16,
-) -> App<Ch32BootClient> {
+    boot_ctl: boot_request::Config,
+) -> App<BootClient> {
+    boot_request::init(&boot_ctl);
     let boot_ver_addr = (boot_base + boot_size - 2) as *const u16;
     App::new(
         AppConfig {
@@ -113,6 +115,6 @@ pub fn new_app(
             boot_version: unsafe { boot_ver_addr.read_volatile() },
             app_version: tinyboot::tinyboot_version(),
         },
-        Ch32BootClient,
+        BootClient { config: boot_ctl },
     )
 }
