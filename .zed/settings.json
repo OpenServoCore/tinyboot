@@ -8,13 +8,24 @@
     "rust-analyzer": {
       "initialization_options": {
         "cargo": {
-          "target": "riscv32imac-unknown-none-elf",
-          "features": ["ch32v103c8u6", "system-flash"],
+          "target": "riscv32imc-unknown-none-elf",
+          "features": [
+            // "ch32v003f4u6"
+            "ch32v103c8u6",
+            // "user-flash",
+            "system-flash",
+          ],
         },
         "check": {
           "command": "clippy",
           "allTargets": false,
         },
+        "linkedProjects": [
+          "Cargo.toml",
+          // "tinyboot-cli/Cargo.toml",
+          "examples/ch32/boot/Cargo.toml",
+          "examples/ch32/app/Cargo.toml",
+        ],
       },
     },
   },

@@ -85,37 +85,37 @@ jobs:
       - name: Fmt boot
         run: cd examples/ch32/boot && cargo +nightly fmt --all -- --check
       - name: Clippy boot (system-flash)
-        run: cd examples/ch32/boot && cargo +nightly clippy --features "${{ matrix.chip }},system-flash" -- -D warnings
+        run: cd examples/ch32/boot && cargo +nightly clippy --features "${{ matrix.chip }},system-flash" --target $(basename "${{ matrix.target }}") ${{ matrix.target-flags }} -- -D warnings
       - name: Build boot (system-flash)
         run: |
-          cd examples/ch32/boot && cargo +nightly build --features "${{ matrix.chip }},system-flash" --release
-          TARGET_DIR=$(echo "${{ matrix.target }}" | sed 's/\.json//')
-          rust-size "target/$TARGET_DIR/release/boot" | tail -1 | awk '{print "${{ matrix.chip }},boot,system-flash," $1 "," $2 "," $3}' >> /tmp/sizes/sizes.csv
+          cd examples/ch32/boot && cargo +nightly build --features "${{ matrix.chip }},system-flash" --target $(basename "${{ matrix.target }}") ${{ matrix.target-flags }} --release
+          TARGET_DIR=$(basename "${{ matrix.target }}" .json)
+          rust-size "target/$TARGET_DIR/release/boot" | tail -1 | awk '{print "${{ matrix.chip }},boot,system-flash," $4}' >> /tmp/sizes/sizes.csv
       - name: Clippy boot (user-flash)
-        run: cd examples/ch32/boot && cargo +nightly clippy --features "${{ matrix.chip }},user-flash" -- -D warnings
+        run: cd examples/ch32/boot && cargo +nightly clippy --features "${{ matrix.chip }},user-flash" --target $(basename "${{ matrix.target }}") ${{ matrix.target-flags }} -- -D warnings
       - name: Build boot (user-flash)
         run: |
-          cd examples/ch32/boot && cargo +nightly build --features "${{ matrix.chip }},user-flash" --release
-          TARGET_DIR=$(echo "${{ matrix.target }}" | sed 's/\.json//')
-          rust-size "target/$TARGET_DIR/release/boot" | tail -1 | awk '{print "${{ matrix.chip }},boot,user-flash," $1 "," $2 "," $3}' >> /tmp/sizes/sizes.csv
+          cd examples/ch32/boot && cargo +nightly build --features "${{ matrix.chip }},user-flash" --target $(basename "${{ matrix.target }}") ${{ matrix.target-flags }} --release
+          TARGET_DIR=$(basename "${{ matrix.target }}" .json)
+          rust-size "target/$TARGET_DIR/release/boot" | tail -1 | awk '{print "${{ matrix.chip }},boot,user-flash," $4}' >> /tmp/sizes/sizes.csv
       - name: Fmt app
         run: cd examples/ch32/app && cargo +nightly fmt --all -- --check
       - name: Clippy app (system-flash)
-        run: cd examples/ch32/app && cargo +nightly clippy --features "${{ matrix.chip }},system-flash" -- -D warnings
+        run: cd examples/ch32/app && cargo +nightly clippy --features "${{ matrix.chip }},system-flash" --target $(basename "${{ matrix.target }}") ${{ matrix.target-flags }} -- -D warnings
       - name: Build app (system-flash)
         run: |
-          cd examples/ch32/app && cargo +nightly build --features "${{ matrix.chip }},system-flash" --release
-          TARGET_DIR=$(echo "${{ matrix.target }}" | sed 's/\.json//')
-          rust-size "target/$TARGET_DIR/release/app" | tail -1 | awk '{print "${{ matrix.chip }},app,system-flash," $1 "," $2 "," $3}' >> /tmp/sizes/sizes.csv
+          cd examples/ch32/app && cargo +nightly build --features "${{ matrix.chip }},system-flash" --target $(basename "${{ matrix.target }}") ${{ matrix.target-flags }} --release
+          TARGET_DIR=$(basename "${{ matrix.target }}" .json)
+          rust-size "target/$TARGET_DIR/release/app" | tail -1 | awk '{print "${{ matrix.chip }},app,system-flash," $4}' >> /tmp/sizes/sizes.csv
       - name: Clippy app (user-flash)
-        run: cd examples/ch32/app && cargo +nightly clippy --features "${{ matrix.chip }},user-flash" -- -D warnings
+        run: cd examples/ch32/app && cargo +nightly clippy --features "${{ matrix.chip }},user-flash" --target $(basename "${{ matrix.target }}") ${{ matrix.target-flags }} -- -D warnings
       - name: Build app (user-flash)
         run: |
-          cd examples/ch32/app && cargo +nightly build --features "${{ matrix.chip }},user-flash" --release
-          TARGET_DIR=$(echo "${{ matrix.target }}" | sed 's/\.json//')
-          rust-size "target/$TARGET_DIR/release/app" | tail -1 | awk '{print "${{ matrix.chip }},app,user-flash," $1 "," $2 "," $3}' >> /tmp/sizes/sizes.csv
+          cd examples/ch32/app && cargo +nightly build --features "${{ matrix.chip }},user-flash" --target $(basename "${{ matrix.target }}") ${{ matrix.target-flags }} --release
+          TARGET_DIR=$(basename "${{ matrix.target }}" .json)
+          rust-size "target/$TARGET_DIR/release/app" | tail -1 | awk '{print "${{ matrix.chip }},app,user-flash," $4}' >> /tmp/sizes/sizes.csv
       - name: Upload sizes
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sizes-${{ matrix.chip }}
           path: /tmp/sizes/sizes.csv
@@ -129,22 +129,22 @@ jobs:
       pull-requests: write
     steps:
       - name: Download all size artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: sizes-*
-          merge-multiple: true
           path: /tmp/sizes
       - name: Generate size table
         run: |
-          CSV=/tmp/sizes/sizes.csv
+          cat /tmp/sizes/*/sizes.csv | sort -t, -k3,3 -k2,2r -k1,1 > /tmp/all-sizes.csv
+          CSV=/tmp/all-sizes.csv
           {
             echo "## Binary Sizes"
             echo ""
-            echo "| Chip | Example | Mode | Text | Data | BSS |"
-            echo "|------|---------|------|-----:|-----:|----:|"
-            sort "$CSV" | while IFS=, read -r chip crate flash text data bss; do
-              echo "| \`$chip\` | $crate | $flash | $text | $data | $bss |"
-            done
+            echo "| Chip | Example | Mode | Size |"
+            echo "|------|---------|------|-----:|"
+            while IFS=, read -r chip crate flash size; do
+              echo "| \`$chip\` | $crate | $flash | $size |"
+            done < "$CSV"
           } > /tmp/sizes/comment.md
       - name: Post PR comment
         uses: marocchino/sticky-pull-request-comment@v3
