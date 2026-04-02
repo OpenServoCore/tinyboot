@@ -43,34 +43,110 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        chip: [ch32v003f4p6, ch32v003a4m6, ch32v003f4u6, ch32v003j4m6]
+        include:
+          - chip: ch32v003f4p6
+            target: examples/ch32/boot/riscv32ec-unknown-none-elf.json
+            target-flags: -Zbuild-std=core -Zjson-target-spec
+          - chip: ch32v003a4m6
+            target: examples/ch32/boot/riscv32ec-unknown-none-elf.json
+            target-flags: -Zbuild-std=core -Zjson-target-spec
+          - chip: ch32v003f4u6
+            target: examples/ch32/boot/riscv32ec-unknown-none-elf.json
+            target-flags: -Zbuild-std=core -Zjson-target-spec
+          - chip: ch32v003j4m6
+            target: examples/ch32/boot/riscv32ec-unknown-none-elf.json
+            target-flags: -Zbuild-std=core -Zjson-target-spec
+          - chip: ch32v103c6t6
+            target: riscv32imc-unknown-none-elf
+            target-flags: ""
+          - chip: ch32v103c8t6
+            target: riscv32imc-unknown-none-elf
+            target-flags: ""
+          - chip: ch32v103c8u6
+            target: riscv32imc-unknown-none-elf
+            target-flags: ""
+          - chip: ch32v103r8t6
+            target: riscv32imc-unknown-none-elf
+            target-flags: ""
     steps:
       - uses: actions/checkout@v4
       - name: Install toolchain
-        run: rustup toolchain install nightly --profile minimal --component rust-src,rustfmt,clippy
+        run: |
+          rustup toolchain install nightly --profile minimal --component rust-src,rustfmt,clippy
+          rustup +nightly target add ${{ matrix.target }} 2>/dev/null || true
+          mkdir -p /tmp/sizes
       - name: Clippy libraries
-        run: cargo +nightly clippy -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --features ${{ matrix.chip }} --target examples/ch32/boot/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec -- -D warnings
+        run: cargo +nightly clippy -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --features ${{ matrix.chip }} --target ${{ matrix.target }} ${{ matrix.target-flags }} -- -D warnings
       - name: Build libraries
-        run: cargo +nightly build -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --features ${{ matrix.chip }} --target examples/ch32/boot/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --release
+        run: cargo +nightly build -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --features ${{ matrix.chip }} --target ${{ matrix.target }} ${{ matrix.target-flags }} --release
       - name: Doc libraries
-        run: cargo +nightly doc -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --features ${{ matrix.chip }} --target examples/ch32/boot/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --no-deps
+        run: cargo +nightly doc -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --features ${{ matrix.chip }} --target ${{ matrix.target }} ${{ matrix.target-flags }} --no-deps
       - name: Fmt boot
         run: cd examples/ch32/boot && cargo +nightly fmt --all -- --check
       - name: Clippy boot (system-flash)
         run: cd examples/ch32/boot && cargo +nightly clippy --features "${{ matrix.chip }},system-flash" -- -D warnings
       - name: Build boot (system-flash)
-        run: cd examples/ch32/boot && cargo +nightly build --features "${{ matrix.chip }},system-flash" --release
+        run: |
+          cd examples/ch32/boot && cargo +nightly build --features "${{ matrix.chip }},system-flash" --release
+          TARGET_DIR=$(echo "${{ matrix.target }}" | sed 's/\.json//')
+          rust-size "target/$TARGET_DIR/release/boot" | tail -1 | awk '{print "${{ matrix.chip }},boot,system-flash," $1 "," $2 "," $3}' >> /tmp/sizes/sizes.csv
       - name: Clippy boot (user-flash)
         run: cd examples/ch32/boot && cargo +nightly clippy --features "${{ matrix.chip }},user-flash" -- -D warnings
       - name: Build boot (user-flash)
-        run: cd examples/ch32/boot && cargo +nightly build --features "${{ matrix.chip }},user-flash" --release
+        run: |
+          cd examples/ch32/boot && cargo +nightly build --features "${{ matrix.chip }},user-flash" --release
+          TARGET_DIR=$(echo "${{ matrix.target }}" | sed 's/\.json//')
+          rust-size "target/$TARGET_DIR/release/boot" | tail -1 | awk '{print "${{ matrix.chip }},boot,user-flash," $1 "," $2 "," $3}' >> /tmp/sizes/sizes.csv
       - name: Fmt app
         run: cd examples/ch32/app && cargo +nightly fmt --all -- --check
       - name: Clippy app (system-flash)
         run: cd examples/ch32/app && cargo +nightly clippy --features "${{ matrix.chip }},system-flash" -- -D warnings
       - name: Build app (system-flash)
-        run: cd examples/ch32/app && cargo +nightly build --features "${{ matrix.chip }},system-flash" --release
+        run: |
+          cd examples/ch32/app && cargo +nightly build --features "${{ matrix.chip }},system-flash" --release
+          TARGET_DIR=$(echo "${{ matrix.target }}" | sed 's/\.json//')
+          rust-size "target/$TARGET_DIR/release/app" | tail -1 | awk '{print "${{ matrix.chip }},app,system-flash," $1 "," $2 "," $3}' >> /tmp/sizes/sizes.csv
       - name: Clippy app (user-flash)
         run: cd examples/ch32/app && cargo +nightly clippy --features "${{ matrix.chip }},user-flash" -- -D warnings
       - name: Build app (user-flash)
-        run: cd examples/ch32/app && cargo +nightly build --features "${{ matrix.chip }},user-flash" --release
+        run: |
+          cd examples/ch32/app && cargo +nightly build --features "${{ matrix.chip }},user-flash" --release
+          TARGET_DIR=$(echo "${{ matrix.target }}" | sed 's/\.json//')
+          rust-size "target/$TARGET_DIR/release/app" | tail -1 | awk '{print "${{ matrix.chip }},app,user-flash," $1 "," $2 "," $3}' >> /tmp/sizes/sizes.csv
+      - name: Upload sizes
+        uses: actions/upload-artifact@v4
+        with:
+          name: sizes-${{ matrix.chip }}
+          path: /tmp/sizes/sizes.csv
+
+  size-report:
+    name: Size Report
+    if: github.event_name == 'pull_request'
+    needs: ch32
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download all size artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sizes-*
+          merge-multiple: true
+          path: /tmp/sizes
+      - name: Generate size table
+        id: table
+        run: |
+          CSV=/tmp/sizes/sizes.csv
+          {
+            echo "## Binary Sizes"
+            echo ""
+            echo "| Chip | Example | Mode | Text | Data | BSS |"
+            echo "|------|---------|------|-----:|-----:|----:|"
+            sort "$CSV" | while IFS=, read -r chip crate flash text data bss; do
+              echo "| \`$chip\` | $crate | $flash | $text | $data | $bss |"
+            done
+          } > /tmp/sizes/comment.md
+      - name: Post PR comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: /tmp/sizes/comment.md

@@ -12,7 +12,7 @@ pub fn set_usart_remap(n: u8, remap: u8) {
             .modify(|w| w.set_usart2_rm(remap & 1 != 0)),
         3 => ch32_metapac::AFIO
             .pcfr1()
-            .modify(|w| w.set_usart3_rm(remap as u8)),
+            .modify(|w| w.set_usart3_rm(remap)),
         _ => {}
     }
 }

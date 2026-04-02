@@ -12,6 +12,10 @@ fn main() {
         "CARGO_FEATURE_CH32V003A4M6",
         "CARGO_FEATURE_CH32V003F4U6",
         "CARGO_FEATURE_CH32V003J4M6",
+        "CARGO_FEATURE_CH32V103C6T6",
+        "CARGO_FEATURE_CH32V103C8T6",
+        "CARGO_FEATURE_CH32V103C8U6",
+        "CARGO_FEATURE_CH32V103R8T6",
     ];
     let selected: Vec<&str> = chips.iter().filter(|c| cfg_has(c)).copied().collect();
     if selected.len() != 1 {

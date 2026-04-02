@@ -30,6 +30,10 @@ ch32v003f4p6 = ["ch32-metapac/ch32v003f4p6"]
 ch32v003a4m6 = ["ch32-metapac/ch32v003a4m6"]
 ch32v003f4u6 = ["ch32-metapac/ch32v003f4u6"]
 ch32v003j4m6 = ["ch32-metapac/ch32v003j4m6"]
+ch32v103c6t6 = ["ch32-metapac/ch32v103c6t6"]
+ch32v103c8t6 = ["ch32-metapac/ch32v103c8t6"]
+ch32v103c8u6 = ["ch32-metapac/ch32v103c8u6"]
+ch32v103r8t6 = ["ch32-metapac/ch32v103r8t6"]
 
 # Bootloader runs from system flash (uses BOOT_MODE register for boot request).
 # When disabled, bootloader runs from user flash (uses RAM magic word for boot request).

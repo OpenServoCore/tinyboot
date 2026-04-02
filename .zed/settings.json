@@ -1,21 +1,21 @@
 {
   "languages": {
     "Rust": {
-      "format_on_save": "on"
-    }
+      "format_on_save": "on",
+    },
   },
   "lsp": {
     "rust-analyzer": {
       "initialization_options": {
         "cargo": {
           "target": "riscv32imac-unknown-none-elf",
-          "features": ["ch32v003f4p6", "system-flash"]
+          "features": ["ch32v103c8u6", "system-flash"],
         },
         "check": {
           "command": "clippy",
-          "allTargets": false
-        }
-      }
-    }
-  }
+          "allTargets": false,
+        },
+      },
+    },
+  },
 }

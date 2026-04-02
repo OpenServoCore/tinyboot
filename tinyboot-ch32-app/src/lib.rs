@@ -9,6 +9,7 @@ pub use boot_request::Config as BootCtlConfig;
 pub use tinyboot::app::{App, AppConfig};
 pub use tinyboot::traits::app as traits;
 pub use tinyboot::{app_version, pkg_version};
+pub use tinyboot_ch32_hal::Pin;
 
 #[doc(hidden)]
 pub use qingke;

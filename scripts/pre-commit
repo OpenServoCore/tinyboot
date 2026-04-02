@@ -8,16 +8,25 @@ cargo test -p tinyboot -p tinyboot-protocol
 
 # --- CH32 libraries (embedded target, needs nightly + build-std) ---
 TARGET_JSON=examples/ch32/boot/riscv32ec-unknown-none-elf.json
-CHIP=ch32v003f4p6
+
+# V003 (rv32ec — custom target, needs build-std)
 cargo +nightly clippy -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app \
-  --features $CHIP \
+  --features ch32v003f4p6 \
   --target $TARGET_JSON \
   -Zbuild-std=core -Zjson-target-spec \
   -- -D warnings
 
+# V103 (rv32imc — built-in target)
+cargo +nightly clippy -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app \
+  --features ch32v103c8t6 \
+  --target riscv32imc-unknown-none-elf \
+  -- -D warnings
+
 # --- Examples ---
-for crate in boot app; do
-  for flash in system-flash user-flash; do
-    (cd examples/ch32/$crate && cargo +nightly clippy --features "ch32v003f4p6,$flash" -- -D warnings)
+for chip in ch32v003f4p6 ch32v103c8t6; do
+  for crate in boot app; do
+    for flash in system-flash user-flash; do
+      (cd examples/ch32/$crate && cargo +nightly clippy --features "$chip,$flash" -- -D warnings)
+    done
   done
 done

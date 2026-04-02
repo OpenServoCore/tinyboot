@@ -8,8 +8,8 @@ pub fn system_reset() -> ! {
     // Clear reset status flags (RMVF) — required for boot mode transition
     ch32_metapac::RCC.rstsckr().write(|w| w.0 = 1 << 24);
     ch32_metapac::PFIC.cfgr().write(|w| {
-        w.set_keycode(0xBEEF);
-        w.set_resetsys(true);
+        w.set_keycode(ch32_metapac::pfic::vals::Keycode(0xBEEF));
+        w.set_sysreset(ch32_metapac::pfic::vals::Sysreset::RESET);
     });
     loop {
         core::hint::spin_loop();

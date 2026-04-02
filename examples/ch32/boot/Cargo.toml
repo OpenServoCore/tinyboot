@@ -16,6 +16,10 @@ ch32v003f4p6 = ["tinyboot-ch32-boot/ch32v003f4p6", "tinyboot-ch32-boot/rt"]
 ch32v003a4m6 = ["tinyboot-ch32-boot/ch32v003a4m6", "tinyboot-ch32-boot/rt"]
 ch32v003f4u6 = ["tinyboot-ch32-boot/ch32v003f4u6", "tinyboot-ch32-boot/rt"]
 ch32v003j4m6 = ["tinyboot-ch32-boot/ch32v003j4m6", "tinyboot-ch32-boot/rt"]
+ch32v103c6t6 = ["tinyboot-ch32-boot/ch32v103c6t6", "tinyboot-ch32-boot/rt"]
+ch32v103c8t6 = ["tinyboot-ch32-boot/ch32v103c8t6", "tinyboot-ch32-boot/rt"]
+ch32v103c8u6 = ["tinyboot-ch32-boot/ch32v103c8u6", "tinyboot-ch32-boot/rt"]
+ch32v103r8t6 = ["tinyboot-ch32-boot/ch32v103r8t6", "tinyboot-ch32-boot/rt"]
 
 [profile.dev]
 opt-level = "z"
