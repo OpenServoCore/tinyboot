@@ -1,6 +1,8 @@
+use core::slice::{from_raw_parts, from_raw_parts_mut};
+
 use tinyboot::traits::BootState;
 use tinyboot::traits::boot::BootMetaStore as TBBootMetaStore;
-use tinyboot_ch32_hal::flash::{self, META_OB_BASE, OB_BASE};
+use tinyboot_ch32_hal::flash;
 
 #[derive(Debug)]
 pub enum BootMetaError {
@@ -8,10 +10,9 @@ pub enum BootMetaError {
     TrialsExhausted,
 }
 
-/// CH32 boot metadata backed by option bytes.
+/// CH32 boot metadata stored in user flash.
 ///
-/// Layout mirrors OB meta halfwords (data bytes at even addresses,
-/// complement bytes skipped). Cached at construction, write-through on mutation.
+/// Address defined by `__tinyboot_meta_start` linker symbol (see memory.x).
 #[repr(C)]
 pub struct BootMetaStore {
     state: u8,
@@ -21,56 +22,42 @@ pub struct BootMetaStore {
 }
 
 impl Default for BootMetaStore {
-    /// Unlock flash and read all OB metadata from option bytes.
+    /// Create a cached instance of boot metadata by reading from user flash.
+    // TODO: unlock here because `step_down()` may write before
+    // `Storage::unlock()` runs in the protocol loop. Move to a
+    // proper HAL init path when one exists.
     #[inline(always)]
     fn default() -> Self {
-        tinyboot_ch32_hal::flash::unlock();
-        let mut meta = core::mem::MaybeUninit::<Self>::uninit();
-        let ptr = meta.as_mut_ptr() as *mut u8;
-        for i in 0..8 {
-            unsafe {
-                *ptr.add(i) = core::ptr::read_volatile((META_OB_BASE + i as u32 * 2) as *const u8);
-            }
-        }
-        unsafe { meta.assume_init() }
+        flash::unlock();
+        unsafe { core::ptr::read_volatile(flash::meta_addr() as *const Self) }
     }
 }
 
 impl BootMetaStore {
-    /// Erase OB and rewrite chip config + cached meta bytes.
-    fn write(&self) {
-        let mut buf = core::mem::MaybeUninit::<[u32; 4]>::uninit();
-        let ptr = buf.as_mut_ptr() as *mut u8;
-        // Read 8 chip config bytes from OB (stride-2 volatile reads)
-        for i in 0..8 {
-            unsafe {
-                *ptr.add(i) = core::ptr::read_volatile((OB_BASE + i as u32 * 2) as *const u8);
-            }
-        }
-        // Copy 8 meta struct bytes as two word copies
-        let meta = self as *const Self as *const u32;
-        let dst = unsafe { ptr.add(8) as *mut u32 };
-        unsafe {
-            *dst = *meta;
-            *dst.add(1) = *meta.add(1);
-        }
-        let buf = unsafe { &*(buf.as_ptr() as *const [u8; 16]) };
-
-        flash::ob_erase();
-        flash::ob_write(OB_BASE, buf);
+    fn as_bytes(&self) -> &[u8] {
+        unsafe { from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) }
     }
 
-    /// Bit-clear step down on a single OB byte. Updates cache + OB.
+    fn as_bytes_mut(&mut self) -> &mut [u8] {
+        unsafe { from_raw_parts_mut(self as *mut Self as *mut u8, size_of::<Self>()) }
+    }
+
+    /// Erase meta page and rewrite cached metadata via FTPG.
+    fn write(&self) {
+        let addr = flash::meta_addr();
+        flash::erase(addr);
+        flash::write(addr, self.as_bytes());
+    }
+
+    /// Bit-clear step down on a single byte. Updates cache + flash via FTPG.
     fn step_down(&mut self, offset: usize, floor: u8) -> Option<u8> {
-        let ptr = self as *mut Self as *mut u8;
-        let current = unsafe { *ptr.add(offset) };
-        if current <= floor {
+        let bytes = self.as_bytes_mut();
+        if bytes[offset] <= floor {
             return None;
         }
-        let next = current & (current >> 1);
-        flash::ob_write(META_OB_BASE + offset as u32 * 2, &[next]);
-        unsafe { *ptr.add(offset) = next };
-        Some(next)
+        bytes[offset] &= bytes[offset] >> 1;
+        flash::write(flash::meta_addr(), bytes);
+        Some(bytes[offset])
     }
 }
 

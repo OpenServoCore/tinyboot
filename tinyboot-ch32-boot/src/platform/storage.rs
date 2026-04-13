@@ -69,7 +69,7 @@ impl NorFlash for Storage {
         let mut addr = self.app_base + from;
         let end = self.app_base + to;
         while addr < end {
-            flash::usr_erase(addr);
+            flash::erase(addr);
             addr += PAGE_SIZE as u32;
         }
         Ok(())
@@ -86,7 +86,7 @@ impl NorFlash for Storage {
             offset as usize + bytes.len() <= self.app_size,
             "write out of bounds"
         );
-        flash::usr_write(self.app_base + offset, bytes);
+        flash::write(self.app_base + offset, bytes);
         Ok(())
     }
 }
