@@ -120,13 +120,13 @@ impl Frame {
         self.sync = Sync::valid();
         let body_len = 10 + self.len as usize;
         let crc = crc16(CRC_INIT, self.as_bytes(0, body_len)).to_le_bytes();
-        // SAFETY: len <= MAX_PAYLOAD (64), data is 64 bytes, so len+1 < 64 holds
-        // as long as len < 63. Frame::read validates len <= MAX_PAYLOAD and our
-        // responses never exceed 12 bytes of data.
-        let len = self.len as usize;
+        // Place CRC immediately after payload for a contiguous write.
+        // SAFETY: Frame is #[repr(C)] so offset 10+len is within the struct
+        // (inside `data` when len < MAX_PAYLOAD, or at `crc` field when len == MAX_PAYLOAD).
         unsafe {
-            *self.data.raw.get_unchecked_mut(len) = crc[0];
-            *self.data.raw.get_unchecked_mut(len + 1) = crc[1];
+            let base = self as *mut Self as *mut u8;
+            *base.add(10 + self.len as usize) = crc[0];
+            *base.add(10 + self.len as usize + 1) = crc[1];
         }
         w.write_all(self.as_bytes(0, body_len + 2))
     }
