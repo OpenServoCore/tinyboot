@@ -13,14 +13,12 @@ fn wait_busy() {
     );
 }
 
-/// Unlock flash controller for all operations (KEYR + MODEKEYR + OBKEYR).
+/// Unlock flash controller (KEYR + MODEKEYR).
 pub fn unlock() {
     FLASH.keyr().write(|w| w.set_keyr(KEY1));
     FLASH.keyr().write(|w| w.set_keyr(KEY2));
     FLASH.modekeyr().write(|w| w.set_modekeyr(KEY1));
     FLASH.modekeyr().write(|w| w.set_modekeyr(KEY2));
-    FLASH.obkeyr().write(|w| w.set_optkey(KEY1));
-    FLASH.obkeyr().write(|w| w.set_optkey(KEY2));
 }
 
 /// Lock flash controller.
@@ -41,14 +39,10 @@ const BUF_LOAD_SIZE: usize = 4;
 // --- User flash (fast page erase/write) ---
 
 /// Erase a single 64-byte page at `addr`.
-pub fn usr_erase(addr: u32) {
-    FLASH.ctlr().write(|w| {
-        w.set_obwre(true);
-        w.set_page_er(true);
-    });
+pub fn erase(addr: u32) {
+    FLASH.ctlr().write(|w| w.set_page_er(true));
     FLASH.addr().write(|w| w.set_addr(addr));
     FLASH.ctlr().write(|w| {
-        w.set_obwre(true);
         w.set_page_er(true);
         w.set_strt(true);
     });
@@ -57,7 +51,7 @@ pub fn usr_erase(addr: u32) {
 
 /// Write `data` to flash at `addr`. Must not cross a page boundary.
 /// `data` length must be a multiple of 4 bytes, `addr` must be 4-byte aligned.
-pub fn usr_write(addr: u32, data: &[u8]) {
+pub fn write(addr: u32, data: &[u8]) {
     let page_base = addr & !(PAGE_SIZE as u32 - 1);
     tb_assert!(
         (addr as usize & (BUF_LOAD_SIZE - 1)) == 0,
@@ -71,9 +65,9 @@ pub fn usr_write(addr: u32, data: &[u8]) {
         addr + data.len() as u32 <= page_base + PAGE_SIZE as u32,
         "usr_write: crosses page boundary"
     );
+
     // FTPG mode + buf reset
     FLASH.ctlr().write(|w| {
-        w.set_obwre(true);
         w.set_page_pg(true);
         w.set_bufrst(true);
     });
@@ -87,7 +81,6 @@ pub fn usr_write(addr: u32, data: &[u8]) {
         let word = unsafe { ptr.read() };
         unsafe { core::ptr::write_volatile(buf_addr as *mut u32, word) };
         FLASH.ctlr().write(|w| {
-            w.set_obwre(true);
             w.set_page_pg(true);
             w.set_bufload(true);
         });
@@ -99,48 +92,10 @@ pub fn usr_write(addr: u32, data: &[u8]) {
     // Program the page
     FLASH.addr().write(|w| w.set_addr(page_base));
     FLASH.ctlr().write(|w| {
-        w.set_obwre(true);
         w.set_page_pg(true);
         w.set_strt(true);
     });
     wait_busy();
-}
-
-// --- Option bytes (standard 2-byte erase/write) ---
-
-/// Erase all option bytes.
-pub fn ob_erase() {
-    FLASH.ctlr().write(|w| {
-        w.set_obwre(true);
-        w.set_ober(true);
-    });
-    FLASH.addr().write(|w| w.set_addr(super::OB_BASE));
-    FLASH.ctlr().write(|w| {
-        w.set_obwre(true);
-        w.set_ober(true);
-        w.set_strt(true);
-    });
-    wait_busy();
-}
-
-/// Write option bytes starting at `addr`. Must not cross a page boundary.
-/// Each byte in `data` is written as a halfword at stride-2 addresses
-/// (hardware auto-generates complement bytes).
-pub fn ob_write(addr: u32, data: &[u8]) {
-    tb_assert!(
-        (addr as usize & 1) == 0,
-        "ob_write: addr not halfword-aligned"
-    );
-    FLASH.ctlr().write(|w| {
-        w.set_obwre(true);
-        w.set_obpg(true);
-    });
-    let mut ob_addr = addr;
-    for &byte in data {
-        unsafe { core::ptr::write_volatile(ob_addr as *mut u16, byte as u16) };
-        wait_busy();
-        ob_addr += 2;
-    }
 }
 
 pub fn is_boot_mode() -> bool {
