@@ -139,7 +139,7 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
                 } else {
                     let addr = self.frame.addr;
                     if addr + data_len as u32 > capacity
-                        || !addr.is_multiple_of(write_size)
+                        || (self.next_addr.is_none() && !addr.is_multiple_of(write_size))
                         || self.next_addr.is_some_and(|n| n != addr)
                     {
                         self.frame.status = Status::AddrOutOfBounds;
