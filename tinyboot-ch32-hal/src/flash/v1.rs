@@ -11,6 +11,9 @@ fn wait_busy() {
         !FLASH.statr().read().wrprterr(),
         "flash write protection error"
     );
+    // Clear EOP flag (W1C) — V103 RM requires this
+    // after every BUFRST, BUFLOAD, and STRT operation.
+    FLASH.statr().write(|w| w.set_eop(true));
 }
 
 /// Unlock flash controller for all operations (KEYR + MODEKEYR + OBKEYR).
@@ -33,14 +36,14 @@ pub fn lock() {
 }
 
 /// Flash page size in bytes (erase and fast-write granularity).
-pub const PAGE_SIZE: usize = 256;
+pub const PAGE_SIZE: usize = 128;
 
 /// Fast-write buffer load size in bytes.
-const BUF_LOAD_SIZE: usize = 4;
+const BUF_LOAD_SIZE: usize = 16;
 
 // --- User flash (fast page erase/write) ---
 
-/// Erase a single 256-byte page at `addr`.
+/// Erase a single 128-byte page at `addr`.
 pub fn usr_erase(addr: u32) {
     FLASH.ctlr().write(|w| {
         w.set_obwre(true);
@@ -56,22 +59,22 @@ pub fn usr_erase(addr: u32) {
 }
 
 /// Write `data` to flash at `addr`. Must not cross a page boundary.
-/// `data` length must be a multiple of 4 bytes, `addr` must be 4-byte aligned.
+/// `addr` must be 4-byte aligned. Trailing bytes are padded to the
+/// next BUF_LOAD_SIZE boundary with 0xFF internally.
 pub fn usr_write(addr: u32, data: &[u8]) {
     let page_base = addr & !(PAGE_SIZE as u32 - 1);
-    tb_assert!(
-        (addr as usize & (BUF_LOAD_SIZE - 1)) == 0,
-        "usr_write: addr not word-aligned"
-    );
-    tb_assert!(
-        data.len().is_multiple_of(BUF_LOAD_SIZE),
-        "usr_write: len not word-aligned"
-    );
+    tb_assert!((addr as usize & 3) == 0, "usr_write: addr not word-aligned");
     tb_assert!(
         addr + data.len() as u32 <= page_base + PAGE_SIZE as u32,
         "usr_write: crosses page boundary"
     );
-    // FTPG mode + buf reset
+
+    // RM §24.4.6: FTPG must be set alone, then BUFRST separately.
+    // BUFRST clears the 128-byte page buffer to 0xFF.
+    FLASH.ctlr().write(|w| {
+        w.set_obwre(true);
+        w.set_ftpg(true);
+    });
     FLASH.ctlr().write(|w| {
         w.set_obwre(true);
         w.set_ftpg(true);
@@ -79,24 +82,37 @@ pub fn usr_write(addr: u32, data: &[u8]) {
     });
     wait_busy();
 
-    // Load words into buffer
-    let mut buf_addr = addr;
-    let mut ptr = data.as_ptr() as *const u32;
-    for _ in 0..data.len() / BUF_LOAD_SIZE {
-        // SAFETY: ptr advances within data bounds; caller ensures 4-byte alignment.
-        let word = unsafe { ptr.read() };
-        unsafe { core::ptr::write_volatile(buf_addr as *mut u32, word) };
-        FLASH.ctlr().write(|w| {
-            w.set_obwre(true);
-            w.set_ftpg(true);
-            w.set_bufload(true);
-        });
-        wait_busy();
-        buf_addr += BUF_LOAD_SIZE as u32;
-        ptr = unsafe { ptr.add(1) };
+    // Fill the page buffer in BUF_LOAD_SIZE (16-byte) groups.
+    // Each group: write 4 words to the flash address space (the write
+    // address sets the position within the page), then BUFLOAD commits
+    // the group into the page buffer. Repeat for each group.
+    let load_len = (data.len() + BUF_LOAD_SIZE - 1) & !(BUF_LOAD_SIZE - 1);
+    let mut addr = addr;
+    let mut pos = 0;
+    while pos < load_len {
+        // Build word byte-by-byte; 0xFF fills any bytes past data end.
+        let mut buf = [0xFFu8; 4];
+        let mut j = 0;
+        while j < 4 && pos + j < data.len() {
+            buf[j] = data[pos + j];
+            j += 1;
+        }
+        unsafe { core::ptr::write_volatile(addr as *mut u32, u32::from_le_bytes(buf)) };
+        addr += 4;
+        pos += 4;
+
+        // Commit this 16-byte group to the page buffer.
+        if pos % BUF_LOAD_SIZE == 0 {
+            FLASH.ctlr().write(|w| {
+                w.set_obwre(true);
+                w.set_ftpg(true);
+                w.set_bufload(true);
+            });
+            wait_busy();
+        }
     }
 
-    // Program the page
+    // Program the entire page buffer to flash.
     FLASH.addr().write(|w| w.set_far(page_base));
     FLASH.ctlr().write(|w| {
         w.set_obwre(true);
