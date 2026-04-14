@@ -45,14 +45,14 @@ const BOOT_BASE: u32 = 0x1FFF_F000;
 #[cfg(feature = "system-flash")]
 const BOOT_SIZE: u32 = 1920;
 #[cfg(feature = "system-flash")]
-const APP_SIZE: u32 = 16 * 1024;
+const APP_SIZE: u32 = 16 * 1024 - 64;
 
 #[cfg(feature = "user-flash")]
 const BOOT_BASE: u32 = 0x0800_0000;
 #[cfg(feature = "user-flash")]
 const BOOT_SIZE: u32 = 8 * 1024;
 #[cfg(feature = "user-flash")]
-const APP_SIZE: u32 = 8 * 1024;
+const APP_SIZE: u32 = 8 * 1024 - 64;
 
 const ERASE_SIZE: u16 = 64;
 
