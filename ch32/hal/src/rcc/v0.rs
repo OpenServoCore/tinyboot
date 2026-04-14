@@ -9,10 +9,22 @@ pub fn enable_afio() {
     ch32_metapac::RCC.apb2pcenr().modify(|w| w.set_afioen(true));
 }
 
-pub fn enable_usart1() {
-    ch32_metapac::RCC
-        .apb2pcenr()
-        .modify(|w| w.set_usart1en(true));
+const USART1EN: u32 = 1 << 14;
+
+/// APB2 enable bit for USART `n`, or 0 if not on APB2.
+pub const fn usart_apb2_bit(n: u8) -> u32 {
+    match n {
+        1 => USART1EN,
+        _ => 0,
+    }
+}
+
+/// Enable USART `n` clock on whichever bus it lives on.
+pub fn enable_usart(n: u8) {
+    let bit = usart_apb2_bit(n);
+    if bit != 0 {
+        ch32_metapac::RCC.apb2pcenr().modify(|w| w.0 |= bit);
+    }
 }
 
 /// Batch-enable APB2 peripherals in a single write.

@@ -237,6 +237,19 @@ fn generate_pin_and_usart_mapping(out: &Path) -> Result<(), Box<dyn Error>> {
     }
     writeln!(code, "        }}")?;
     writeln!(code, "    }}")?;
+    writeln!(code)?;
+
+    // peripheral_index() — USART peripheral number (1, 2, 3, ...)
+    writeln!(code, "    pub const fn peripheral_index(self) -> u8 {{")?;
+    writeln!(code, "        match self {{")?;
+    for (peri, remap) in groups.keys() {
+        let variant = format!("{}Remap{}", capitalize_peripheral(peri), remap);
+        // Extract trailing digits from e.g. "USART1" → 1
+        let index: String = peri.chars().filter(|c| c.is_ascii_digit()).collect();
+        writeln!(code, "            UsartMapping::{variant} => {index},")?;
+    }
+    writeln!(code, "        }}")?;
+    writeln!(code, "    }}")?;
 
     writeln!(code, "}}")?;
 
