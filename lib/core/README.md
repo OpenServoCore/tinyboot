@@ -40,7 +40,7 @@ Idle (0xFF) → Updating (0x7F) → Validating (0x3F) → Idle (0xFF)
 
 ### Metadata (stored in reserved flash page)
 
-Address defined by `__tb_meta_start` linker symbol (derived from the `META` region in memory.x).
+Address defined by `__tb_meta_base` linker symbol (derived from the `META` region in memory.x).
 
 | Field    | Offset | Size | Description                                  |
 | -------- | ------ | ---- | -------------------------------------------- |

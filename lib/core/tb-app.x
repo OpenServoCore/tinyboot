@@ -5,7 +5,7 @@
  * Add -Ttb-app.x to linker flags in your application binary. */
 
 /* Symbols derived from memory regions. */
-__tb_meta_start = ORIGIN(META);
+__tb_meta_base = ORIGIN(META);
 __tb_boot_version_addr = ORIGIN(BOOT) + LENGTH(BOOT) - 2;
 __tb_app_capacity = LENGTH(APP);
 

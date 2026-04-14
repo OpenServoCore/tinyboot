@@ -4,13 +4,13 @@ mod family;
 pub use family::*;
 
 /// Boot metadata address (ORIGIN of META region).
-/// Defined by `__tb_meta_start` in tb-boot.x / tb-app.x.
+/// Defined by `__tb_meta_base` in tb-boot.x / tb-app.x.
 #[inline(always)]
 pub fn meta_addr() -> u32 {
     unsafe extern "C" {
-        static __tb_meta_start: u8;
+        static __tb_meta_base: u8;
     }
-    unsafe { &__tb_meta_start as *const u8 as u32 }
+    unsafe { &__tb_meta_base as *const u8 as u32 }
 }
 
 /// App region base address (ORIGIN of APP region).

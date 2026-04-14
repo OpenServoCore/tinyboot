@@ -6,7 +6,7 @@
 /* Symbols derived from memory regions. */
 __tb_app_base = ORIGIN(APP);
 __tb_app_entry = LENGTH(BOOT);
-__tb_meta_start = ORIGIN(META);
+__tb_meta_base = ORIGIN(META);
 
 /* Boot version at last 2 bytes of boot flash.
  * VMA set explicitly so the CODE mirror matches the BOOT LMA. */
