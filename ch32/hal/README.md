@@ -15,7 +15,7 @@ Minimal hardware abstraction layer for tinyboot on CH32 microcontrollers. This i
 | `afio`         | Alternate function I/O and pin remapping              |
 | `pfic`         | Interrupt controller and system reset                 |
 | `iwdg`         | Independent watchdog timer feed                       |
-| `boot_request` | RAM-based boot request signaling (user-flash only)    |
+| `boot_request` | Boot request signaling (reg/ram/gpio, auto-selected)  |
 
 ## Code generation
 
@@ -31,7 +31,8 @@ This keeps the source chip-agnostic while producing zero-overhead accessors.
 | Feature        | Description                                                                   |
 | -------------- | ----------------------------------------------------------------------------- |
 | `ch32v003f4p6` | CH32V003F4P6 chip variant (default, for rust-analyzer; CI uses explicit chip) |
-| `system-flash` | Bootloader runs from system flash (uses BOOT_MODE register for boot requests) |
+| `ch32v103c8t6` | CH32V103C8T6 chip variant                                                     |
+| `system-flash` | Bootloader runs from system flash (boot request scheme auto-selected by chip) |
 
 ## Notes
 

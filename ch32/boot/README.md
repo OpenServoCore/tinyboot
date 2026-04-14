@@ -31,22 +31,32 @@ fn main() -> ! {
         rx_pull: Pull::None,
         tx_en: None,
     });
-    tinyboot_ch32_boot::run(transport);
+    tinyboot_ch32_boot::run(transport, BootCtlConfig);
 }
+```
+
+For chips with a hardware BOOT0 pin (e.g. CH32V103), pass a `BootCtlConfig` with the GPIO pin driving the boot mode selection circuit:
+
+```rust
+tinyboot_ch32_boot::run(transport, BootCtlConfig {
+    pin: Pin::PB1,
+    active_high: true,
+});
 ```
 
 `Storage`, `BootMetaStore`, and `BootCtl` are initialized from linker symbols automatically. The boot version is placed by `boot_version!()` in the `.tb_version` section and read at runtime via the `__tb_version` linker symbol.
 
-See [`examples/ch32/v003/boot`](../../examples/ch32/v003/boot/) for a complete bootloader example.
+See [`examples/ch32/v003/boot`](../../examples/ch32/v003/boot/) and [`examples/ch32/v103/boot`](../../examples/ch32/v103/boot/) for complete examples.
 
 ## Runtime
 
-The bootloader includes a minimal startup assembly (`v2.S`) — GP/SP init and jump to main (~20 bytes). No .data/.bss init since the system-flash bootloader uses no mutable statics.
+The bootloader includes minimal startup assembly — GP/SP init and jump to main (~20 bytes). No .data/.bss init since the system-flash bootloader uses no mutable statics. Separate assembly files per QingKe core version (`v2.S` for V003, `v3.S` for V103).
 
 ## Features
 
 | Feature        | Description                                                          |
 | -------------- | -------------------------------------------------------------------- |
 | `ch32v003f4p6` | CH32V003F4P6 chip variant (default)                                  |
+| `ch32v103c8t6` | CH32V103C8T6 chip variant                                            |
 | `rt`           | Minimal runtime startup (GP/SP init, no vector table or static init) |
 | `system-flash` | Bootloader runs from system flash                                    |
