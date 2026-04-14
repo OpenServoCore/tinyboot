@@ -1,0 +1,16 @@
+[package]
+name = "tinyboot-core"
+description = "Core bootloader library for tinyboot"
+version = "0.2.1"
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords = ["bootloader", "embedded", "firmware", "no-std"]
+categories = ["embedded", "no-std"]
+readme = "README.md"
+
+[dependencies]
+embedded-io = { workspace = true }
+embedded-io-async = { workspace = true }
+embedded-storage = { workspace = true }
+tinyboot-protocol = { workspace = true }

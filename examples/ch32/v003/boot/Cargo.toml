@@ -1,0 +1,17 @@
+[package]
+name = "boot"
+version = "1.2.3"
+edition.workspace = true
+
+[dependencies]
+tinyboot-ch32-boot = { path = "../../../../ch32/boot", default-features = false }
+panic-halt = "1.0"
+
+[features]
+default = ["ch32v003f4p6", "system-flash"]
+system-flash = ["tinyboot-ch32-boot/system-flash"]
+user-flash = []
+ch32v003f4p6 = ["tinyboot-ch32-boot/ch32v003f4p6", "tinyboot-ch32-boot/rt"]
+ch32v003a4m6 = ["tinyboot-ch32-boot/ch32v003a4m6", "tinyboot-ch32-boot/rt"]
+ch32v003f4u6 = ["tinyboot-ch32-boot/ch32v003f4u6", "tinyboot-ch32-boot/rt"]
+ch32v003j4m6 = ["tinyboot-ch32-boot/ch32v003j4m6", "tinyboot-ch32-boot/rt"]

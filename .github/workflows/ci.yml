@@ -12,24 +12,27 @@ jobs:
   libs-core:
     name: Libraries
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lib
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
       - run: cargo fmt --all -- --check
-      - run: cargo clippy -p tinyboot -p tinyboot-protocol --all-targets -- -D warnings
-      - run: cargo build -p tinyboot -p tinyboot-protocol
-      - run: cargo test -p tinyboot -p tinyboot-protocol
-      - run: cargo doc -p tinyboot -p tinyboot-protocol --no-deps
-      - run: cargo build -p tinyboot -p tinyboot-protocol --release
+      - run: cargo clippy -p tinyboot-core -p tinyboot-protocol --all-targets -- -D warnings
+      - run: cargo build -p tinyboot-core -p tinyboot-protocol
+      - run: cargo test -p tinyboot-core -p tinyboot-protocol
+      - run: cargo doc -p tinyboot-core -p tinyboot-protocol --no-deps
+      - run: cargo build -p tinyboot-core -p tinyboot-protocol --release
 
   cli:
     name: CLI
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: tinyboot-cli
+        working-directory: cli
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: sudo apt-get update && sudo apt-get install -y libudev-dev
       - run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
       - run: cargo fmt --all -- --check
@@ -45,32 +48,30 @@ jobs:
       matrix:
         chip: [ch32v003f4p6, ch32v003a4m6, ch32v003f4u6, ch32v003j4m6]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install toolchain
         run: rustup toolchain install nightly --profile minimal --component rust-src,rustfmt,clippy
       - name: Clippy libraries
-        run: cargo +nightly clippy -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --features ${{ matrix.chip }} --target examples/ch32/boot/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec -- -D warnings
+        run: cd ch32 && cargo +nightly clippy -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v003/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec -- -D warnings
       - name: Build libraries
-        run: cargo +nightly build -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --features ${{ matrix.chip }} --target examples/ch32/boot/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --release
+        run: cd ch32 && cargo +nightly build -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v003/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --release
       - name: Doc libraries
-        run: cargo +nightly doc -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --features ${{ matrix.chip }} --target examples/ch32/boot/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --no-deps
-      - name: Fmt boot
-        run: cd examples/ch32/boot && cargo +nightly fmt --all -- --check
+        run: cd ch32 && cargo +nightly doc -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v003/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --no-deps
+      - name: Fmt examples
+        run: cd examples/ch32/v003 && cargo +nightly fmt --all -- --check
       - name: Clippy boot (system-flash)
-        run: cd examples/ch32/boot && cargo +nightly clippy --features "${{ matrix.chip }},system-flash" -- -D warnings
+        run: cd examples/ch32/v003 && cargo +nightly clippy -p boot --no-default-features --features "${{ matrix.chip }},system-flash" -- -D warnings
       - name: Build boot (system-flash)
-        run: cd examples/ch32/boot && cargo +nightly build --features "${{ matrix.chip }},system-flash" --release
+        run: cd examples/ch32/v003 && cargo +nightly build -p boot --no-default-features --features "${{ matrix.chip }},system-flash" --release
       - name: Clippy boot (user-flash)
-        run: cd examples/ch32/boot && cargo +nightly clippy --features "${{ matrix.chip }},user-flash" -- -D warnings
+        run: cd examples/ch32/v003 && cargo +nightly clippy -p boot --no-default-features --features "${{ matrix.chip }},user-flash" -- -D warnings
       - name: Build boot (user-flash)
-        run: cd examples/ch32/boot && cargo +nightly build --features "${{ matrix.chip }},user-flash" --release
-      - name: Fmt app
-        run: cd examples/ch32/app && cargo +nightly fmt --all -- --check
+        run: cd examples/ch32/v003 && cargo +nightly build -p boot --no-default-features --features "${{ matrix.chip }},user-flash" --release
       - name: Clippy app (system-flash)
-        run: cd examples/ch32/app && cargo +nightly clippy --features "${{ matrix.chip }},system-flash" -- -D warnings
+        run: cd examples/ch32/v003 && cargo +nightly clippy -p app --no-default-features --features "${{ matrix.chip }},system-flash" -- -D warnings
       - name: Build app (system-flash)
-        run: cd examples/ch32/app && cargo +nightly build --features "${{ matrix.chip }},system-flash" --release
+        run: cd examples/ch32/v003 && cargo +nightly build -p app --no-default-features --features "${{ matrix.chip }},system-flash" --release
       - name: Clippy app (user-flash)
-        run: cd examples/ch32/app && cargo +nightly clippy --features "${{ matrix.chip }},user-flash" -- -D warnings
+        run: cd examples/ch32/v003 && cargo +nightly clippy -p app --no-default-features --features "${{ matrix.chip }},user-flash" -- -D warnings
       - name: Build app (user-flash)
-        run: cd examples/ch32/app && cargo +nightly build --features "${{ matrix.chip }},user-flash" --release
+        run: cd examples/ch32/v003 && cargo +nightly build -p app --no-default-features --features "${{ matrix.chip }},user-flash" --release

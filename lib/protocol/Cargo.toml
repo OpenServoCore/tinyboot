@@ -1,0 +1,14 @@
+[package]
+name = "tinyboot-protocol"
+description = "Protocol implementation for tinyboot bootloader"
+version = "0.2.1"
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords = ["bootloader", "embedded", "firmware", "protocol", "no-std"]
+categories = ["embedded", "no-std"]
+readme = "README.md"
+
+[dependencies]
+embedded-io = { workspace = true }
+embedded-io-async = { workspace = true }

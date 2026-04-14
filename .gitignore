@@ -7,5 +7,5 @@ target
 /tmp
 
 Cargo.lock
-!tinyboot-cli/Cargo.lock
+!cli/Cargo.lock
 !examples/**/Cargo.lock

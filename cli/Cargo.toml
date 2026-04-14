@@ -1,0 +1,25 @@
+[package]
+name = "tinyboot"
+description = "CLI firmware flasher for tinyboot bootloader"
+version = "0.2.1"
+edition = "2024"
+repository = "https://github.com/OpenServoCore/tinyboot"
+license = "MIT OR Apache-2.0"
+keywords = ["bootloader", "embedded", "firmware", "flasher", "serial"]
+categories = ["command-line-utilities", "embedded", "development-tools"]
+readme = "README.md"
+
+[[bin]]
+name = "tinyboot"
+path = "src/main.rs"
+
+[dependencies]
+tinyboot-protocol = { version = "0.2.1", path = "../lib/protocol" }
+embedded-io = "0.7"
+serialport = "4"
+clap = { version = "4", features = ["derive"] }
+thiserror = "2"
+indicatif = "0.17"
+object = { version = "0.36", default-features = false, features = ["read", "elf"] }
+log = "0.4"
+env_logger = "0.11"

@@ -10,9 +10,13 @@
   "lsp": {
     "rust-analyzer": {
       "initialization_options": {
+        "linkedProjects": [
+          "lib/Cargo.toml",
+          "ch32/Cargo.toml",
+          "examples/ch32/v003/Cargo.toml"
+        ],
         "cargo": {
-          "target": "riscv32imac-unknown-none-elf",
-          "features": ["ch32v003f4p6", "system-flash"]
+          "target": "riscv32imc-unknown-none-elf"
         },
         "check": {
           "command": "clippy",

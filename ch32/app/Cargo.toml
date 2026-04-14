@@ -1,0 +1,26 @@
+[package]
+name = "tinyboot-ch32-app"
+description = "App-side library for tinyboot on CH32 microcontrollers"
+version = "0.2.1"
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords = ["bootloader", "embedded", "ch32", "risc-v", "no-std"]
+categories = ["embedded", "no-std", "hardware-support"]
+readme = "README.md"
+
+[dependencies]
+tinyboot-ch32-hal = { workspace = true, default-features = false }
+tinyboot = { workspace = true, default-features = false }
+tinyboot-protocol = { workspace = true }
+embedded-io = { workspace = true }
+embedded-io-async = { workspace = true }
+critical-section = "1.2"
+qingke = "0.6"
+
+[features]
+ch32v003f4p6 = ["tinyboot-ch32-hal/ch32v003f4p6"]
+ch32v003a4m6 = ["tinyboot-ch32-hal/ch32v003a4m6"]
+ch32v003f4u6 = ["tinyboot-ch32-hal/ch32v003f4u6"]
+ch32v003j4m6 = ["tinyboot-ch32-hal/ch32v003j4m6"]
+system-flash = ["tinyboot-ch32-hal/system-flash"]

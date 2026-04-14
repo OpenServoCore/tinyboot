@@ -1,0 +1,35 @@
+[workspace]
+members = ["hal", "boot", "app"]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+repository = "https://github.com/OpenServoCore/tinyboot"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# Cross-workspace deps (from lib/)
+tinyboot = { package = "tinyboot-core", version = "0.2.1", path = "../lib/core", default-features = false }
+tinyboot-protocol = { version = "0.2.1", path = "../lib/protocol" }
+
+# Internal deps
+tinyboot-ch32-hal = { version = "0.2.1", path = "hal", default-features = false }
+
+# External deps
+embedded-hal = "1"
+embedded-io = "0.7"
+embedded-io-async = "0.7"
+embedded-storage = "0.3"
+
+[profile.dev]
+opt-level = "z"
+lto = true
+codegen-units = 1
+debug = 2
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
