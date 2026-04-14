@@ -30,10 +30,10 @@ This keeps the source chip-agnostic while producing zero-overhead accessors.
 
 | Feature        | Description                                                                   |
 | -------------- | ----------------------------------------------------------------------------- |
-| `ch32v003f4p6` | CH32V003F4P6 chip variant (default)                                           |
+| `ch32v003f4p6` | CH32V003F4P6 chip variant (default, for rust-analyzer; CI uses explicit chip) |
 | `system-flash` | Bootloader runs from system flash (uses BOOT_MODE register for boot requests) |
 
 ## Notes
 
-- `critical-section` is included but implemented as a no-op — the bootloader runs with interrupts disabled.
 - All modules use PAC register access directly for minimal code size.
+- The `default` feature (`ch32v003f4p6`) exists so rust-analyzer can analyze the ch32 workspace without explicit feature flags. Downstream crates use `default-features = false`.

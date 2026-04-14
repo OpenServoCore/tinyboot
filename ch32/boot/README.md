@@ -6,7 +6,7 @@ CH32 platform implementation for the tinyboot bootloader. Provides storage, tran
 
 ## Overview
 
-Implements the `tinyboot::traits::boot::Platform` trait by composing four components:
+Implements the `tinyboot_core::traits::boot::Platform` trait by composing four components:
 
 | Component       | Description                                                                          |
 | --------------- | ------------------------------------------------------------------------------------ |
@@ -18,43 +18,30 @@ Implements the `tinyboot::traits::boot::Platform` trait by composing four compon
 ## Usage
 
 ```rust
-use tinyboot_ch32_boot::{
-    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex,
-    Platform, Pull, Storage, StorageConfig, Usart, UsartConfig, UsartMapping,
-    pkg_version,
-};
+tinyboot_ch32_boot::boot_version!();
 
-let transport = Usart::new(&UsartConfig {
-    duplex: Duplex::Full,
-    baud: BaudRate::B115200,
-    pclk: 8_000_000,
-    mapping: UsartMapping::Usart1Remap0,
-    rx_pull: Pull::None,
-    tx_en: None,
-});
+use tinyboot_ch32_boot::prelude::*;
 
-let storage = Storage::new(StorageConfig {
-    app_base: 0x0800_0000,
-    app_size: 16 * 1024,
-});
-
-let boot_meta = BootMetaStore::default();
-let ctl = BootCtl::new(BootCtlConfig {});
-
-let platform = Platform::new(transport, storage, boot_meta, ctl);
-tinyboot_ch32_boot::run(platform);
+fn main() -> ! {
+    let transport = Usart::new(&UsartConfig {
+        duplex: Duplex::Full,
+        baud: BaudRate::B115200,
+        pclk: 8_000_000,
+        mapping: UsartMapping::Usart1Remap0,
+        rx_pull: Pull::None,
+        tx_en: None,
+    });
+    tinyboot_ch32_boot::run(transport);
+}
 ```
 
-The boot version is read at runtime from the `__tb_version` linker symbol (placed by `boot_version!()` in the `.tb_version` section).
+`Storage`, `BootMetaStore`, and `BootCtl` are initialized from linker symbols automatically. The boot version is placed by `boot_version!()` in the `.tb_version` section and read at runtime via the `__tb_version` linker symbol.
 
-See [`examples/ch32/system-flash`](../examples/ch32/system-flash/) for a complete bootloader example.
+See [`examples/ch32/v003/boot`](../../examples/ch32/v003/boot/) for a complete bootloader example.
 
 ## Runtime
 
-The bootloader includes two startup assembly files, selected by the `defmt` feature:
-
-- **`v2.S`** (default) — minimal startup (GP/SP init + jump to main, ~20 bytes). Omits .data/.bss init since the system-flash bootloader uses no mutable statics.
-- **`v2_full.S`** (`defmt` enabled) — full startup with .data copy and .bss zeroing, required for defmt-rtt and safe app→bootloader resets.
+The bootloader includes a minimal startup assembly (`v2.S`) — GP/SP init and jump to main (~20 bytes). No .data/.bss init since the system-flash bootloader uses no mutable statics.
 
 ## Features
 
@@ -63,4 +50,3 @@ The bootloader includes two startup assembly files, selected by the `defmt` feat
 | `ch32v003f4p6` | CH32V003F4P6 chip variant (default)                                  |
 | `rt`           | Minimal runtime startup (GP/SP init, no vector table or static init) |
 | `system-flash` | Bootloader runs from system flash                                    |
-| `defmt`        | Enable defmt logging                                                 |

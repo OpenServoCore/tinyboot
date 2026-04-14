@@ -15,14 +15,10 @@ tinyboot_ch32_app::app_version!();
 // Not needed for system-flash bootloaders (app starts at 0x0).
 tinyboot_ch32_app::fix_mtvec!();
 
-let mut app = tinyboot_ch32_app::new_app(
-    0x0800_0000, // boot_base
-    4 * 1024,    // boot_size
-    12 * 1024,   // app_size
-    64,          // erase_size
-);
+// All parameters come from linker symbols — no hardcoded addresses needed.
+let mut app = tinyboot_ch32_app::new_app();
 
-// Confirm boot — transitions Validating → Idle in boot metadata
+// Confirm boot — transitions Validating -> Idle in boot metadata
 app.confirm();
 
 // Main loop: poll for tinyboot commands
@@ -35,10 +31,10 @@ loop {
 
 | Function            | Description                                                                                                                                   |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app_version!()`    | Macro that places the crate version (from `Cargo.toml`) in the `.tb_version` linker section                                             |
+| `app_version!()`    | Macro that places the crate version (from `Cargo.toml`) in the `.tb_version` linker section                                                   |
 | `fix_mtvec!()`      | Macro that fixes `mtvec` for apps behind a user-flash bootloader. Requires `--wrap=_setup_interrupts` linker arg. Not needed for system-flash |
-| `new_app()`         | Create an `App` configured for CH32 hardware with boot/app base, sizes, and erase size                                                        |
-| `App::confirm()`    | Confirm trial boot (Validating → Idle), preserving checksum in boot metadata                                                                  |
+| `new_app()`         | Create an `App` configured for CH32 hardware. Reads geometry from linker symbols (`__tb_boot_version_addr`, `__tb_app_capacity`)              |
+| `App::confirm()`    | Confirm trial boot (Validating -> Idle), preserving checksum in boot metadata                                                                 |
 | `App::poll()`       | Poll for and handle one tinyboot command (blocking)                                                                                           |
 | `App::poll_async()` | Async version of `poll()`                                                                                                                     |
 
@@ -55,6 +51,5 @@ All other commands receive `Status::Unsupported`.
 | -------------- | --------------------------------------- |
 | `ch32v003f4p6` | CH32V003F4P6 chip variant (default)     |
 | `system-flash` | App paired with system-flash bootloader |
-| `defmt`        | Enable defmt logging                    |
 
-See [`examples/ch32/system-flash/app`](../examples/ch32/system-flash/app/) for a complete example.
+See [`examples/ch32/v003/app`](../../examples/ch32/v003/app/) for a complete example.
