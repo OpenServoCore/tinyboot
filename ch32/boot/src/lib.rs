@@ -24,9 +24,7 @@ pub use tinyboot_ch32_hal::{Pin, UsartMapping};
 
 /// Common imports for bootloader binaries.
 pub mod prelude {
-    pub use crate::{
-        BaudRate, Duplex, Pin, Pull, TxEnConfig, Usart, UsartConfig, UsartMapping,
-    };
+    pub use crate::{BaudRate, Duplex, Pin, Pull, TxEnConfig, Usart, UsartConfig, UsartMapping};
 }
 
 /// Protocol write buffer size (2 × page size).
