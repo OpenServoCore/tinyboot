@@ -5,7 +5,7 @@
  * while programming requires the physical address (FLASH).
  *
  * This frees all 16KB of user flash (0x08000000) for the application.
- * Boot metadata (state, trial counter) is stored in option bytes (0x1FFFF800).
+ * Boot metadata is stored in the last page of user flash.
  */
 MEMORY
 {
@@ -13,3 +13,5 @@ MEMORY
     FLASH : ORIGIN = 0x1FFFF000, LENGTH = 1920
     RAM   : ORIGIN = 0x20000000, LENGTH = 2K
 }
+
+__tinyboot_meta_start = 0x08000000 + 16K - 64;
