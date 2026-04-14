@@ -17,8 +17,8 @@ pub enum Level {
 
 /// GPIO pin configuration.
 ///
-/// Encodes the 4-bit CFGLR field `[MODE(2) | CNF(2)]` directly.
-/// Bit 7 = set ODR high, bit 6 = set ODR low, bits 3:0 = CFGLR nibble.
+/// Encodes the 4-bit CFGLR/CFGHR field `[MODE(2) | CNF(2)]` directly.
+/// Bit 7 = set ODR high, bit 6 = set ODR low, bits 3:0 = CFG nibble.
 #[derive(Copy, Clone)]
 pub struct PinMode(u8);
 
@@ -47,12 +47,19 @@ pub fn configure(pin: Pin, mode: PinMode) {
     let regs = pin.gpio_regs();
     let n = pin.pin_number();
 
-    let shift = n * 4;
+    let shift = (n % 8) * 4;
     let mask = !(0xFu32 << shift);
     let bits = ((mode.0 & 0x0F) as u32) << shift;
-    let prev = regs.cfglr().read().0;
-    regs.cfglr()
-        .write_value(ch32_metapac::gpio::regs::Cfglr(prev & mask | bits));
+
+    if n < 8 {
+        let prev = regs.cfglr().read().0;
+        regs.cfglr()
+            .write_value(ch32_metapac::gpio::regs::Cfglr(prev & mask | bits));
+    } else {
+        let prev = regs.cfghr().read().0;
+        regs.cfghr()
+            .write_value(ch32_metapac::gpio::regs::Cfghr(prev & mask | bits));
+    }
 
     if mode.0 & 0xC0 != 0 {
         let mut outdr = regs.outdr().read();
