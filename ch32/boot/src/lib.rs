@@ -13,7 +13,8 @@ pub mod platform;
 mod rt;
 
 pub use platform::{
-    BaudRate, BootCtl, BootMetaStore, Duplex, Storage, TxEnConfig, Usart, UsartConfig,
+    BaudRate, BootCtl, BootCtlConfig, BootMetaStore, Duplex, Storage, TxEnConfig, Usart,
+    UsartConfig,
 };
 
 // Re-exports so boot examples only need this one crate.
@@ -24,23 +25,25 @@ pub use tinyboot_ch32_hal::{Pin, UsartMapping};
 
 /// Common imports for bootloader binaries.
 pub mod prelude {
-    pub use crate::{BaudRate, Duplex, Pin, Pull, TxEnConfig, Usart, UsartConfig, UsartMapping};
+    pub use crate::{
+        BaudRate, BootCtlConfig, Duplex, Pin, Pull, TxEnConfig, Usart, UsartConfig, UsartMapping,
+    };
 }
 
 /// Protocol write buffer size (2 × page size).
-const PROTOCOL_BUF_SIZE: usize = 2 * tinyboot_ch32_hal::flash::PAGE_SIZE;
+pub const PAGE_SIZE: usize = tinyboot_ch32_hal::flash::PAGE_SIZE;
 
-/// Run the bootloader with the given transport.
+/// Run the bootloader with the given transport and boot control config.
 ///
 /// Sets up storage, boot metadata, and boot control from linker symbols,
 /// then enters the boot state machine. Does not return.
 #[inline(always)]
-pub fn run(transport: impl tinyboot::traits::boot::Transport) -> ! {
+pub fn run(transport: impl tinyboot::traits::boot::Transport, config: BootCtlConfig) -> ! {
     let platform = Platform::new(
         transport,
         Storage::default(),
         BootMetaStore::default(),
-        BootCtl::default(),
+        BootCtl::new(config),
     );
-    tinyboot::Core::<_, _, _, _, PROTOCOL_BUF_SIZE>::new(platform).run()
+    tinyboot::Core::<_, _, _, _, { 2 * PAGE_SIZE }>::new(platform).run()
 }

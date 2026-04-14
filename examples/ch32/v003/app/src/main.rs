@@ -66,7 +66,7 @@ fn main() -> ! {
     let mut tx = transport::Tx(tx);
 
     // Tinyboot app client
-    let mut app = tinyboot_ch32_app::new_app();
+    let mut app = tinyboot_ch32_app::new_app(tinyboot_ch32_app::BootCtlConfig);
     app.confirm();
 
     defmt::info!("Boot confirmed, app ready.");

@@ -40,5 +40,5 @@ fn main() -> ! {
         rx_pull: Pull::None,
         tx_en: None,
     });
-    tinyboot_ch32_boot::run(transport);
+    tinyboot_ch32_boot::run(transport, BootCtlConfig);
 }

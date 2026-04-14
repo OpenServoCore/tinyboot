@@ -22,10 +22,7 @@ fn main() {
     println!("cargo:rustc-link-search={out_dir}");
     println!("cargo:rerun-if-changed=memory_x");
     println!("cargo:rustc-link-arg=-Ttb-boot.x");
-
-    if user_flash {
-        println!("cargo:rustc-link-arg=-Ttb-user-flash.x");
-    }
+    println!("cargo:rustc-link-arg=-Ttb-boot-req.x");
 }
 
 fn cfg_has(key: &str) -> bool {

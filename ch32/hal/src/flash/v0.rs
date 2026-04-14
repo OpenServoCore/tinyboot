@@ -112,7 +112,7 @@ pub fn write(addr: u32, data: &[u8]) {
     FLASH.ctlr().write(|_| {});
 }
 
-pub fn is_boot_mode() -> bool {
+pub fn boot_mode() -> bool {
     FLASH.statr().read().boot_mode()
 }
 
