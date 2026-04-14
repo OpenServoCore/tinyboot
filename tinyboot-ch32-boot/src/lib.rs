@@ -4,7 +4,7 @@
 //! CH32 bootloader platform implementation.
 //!
 //! Provides storage, transport, boot control, and metadata backed by the
-//! CH32 flash controller and option bytes.
+//! CH32 flash controller.
 
 /// Platform components (storage, transport, boot control, metadata).
 pub mod platform;
@@ -20,6 +20,7 @@ pub use platform::{
 // Re-exports so boot examples only need this one crate.
 pub use tinyboot::traits::boot::Platform;
 pub use tinyboot::{boot_version, pkg_version};
+pub use tinyboot_ch32_hal::flash::meta_addr;
 pub use tinyboot_ch32_hal::gpio::Pull;
 pub use tinyboot_ch32_hal::{Pin, UsartMapping};
 

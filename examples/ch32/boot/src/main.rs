@@ -33,15 +33,11 @@ use tinyboot_ch32_boot::{
 
 #[cfg(feature = "system-flash")]
 const APP_BASE: u32 = 0x0800_0000;
-#[cfg(feature = "system-flash")]
-const APP_SIZE: usize = 16 * 1024;
 
 #[cfg(feature = "user-flash")]
 const APP_BASE: u32 = 0x0800_2000;
 #[cfg(feature = "user-flash")]
 const APP_ENTRY: u32 = 0x0000_2000;
-#[cfg(feature = "user-flash")]
-const APP_SIZE: usize = 8 * 1024;
 
 #[unsafe(export_name = "main")]
 fn main() -> ! {
@@ -67,9 +63,10 @@ fn main() -> ! {
         tx_en: None,
     });
 
+    let app_size = (tinyboot_ch32_boot::meta_addr() - APP_BASE) as usize;
     let storage = Storage::new(StorageConfig {
         app_base: APP_BASE,
-        app_size: APP_SIZE,
+        app_size,
     });
     let boot_meta = BootMetaStore::default();
 
