@@ -12,7 +12,7 @@ pub enum BootMetaError {
 
 /// CH32 boot metadata stored in user flash.
 ///
-/// Address defined by `__tinyboot_meta_start` linker symbol (see memory.x).
+/// Address defined by `__tb_meta_start` linker symbol (see memory.x).
 #[repr(C)]
 pub struct BootMetaStore {
     state: u8,

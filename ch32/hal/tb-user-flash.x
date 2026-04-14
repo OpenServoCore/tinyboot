@@ -7,7 +7,7 @@ SECTIONS
 {
     .boot_request ORIGIN(RAM) (NOLOAD) :
     {
-        __boot_request = .;
+        __tb_boot_request = .;
         . += 4;
     } > RAM
 } INSERT BEFORE .data;

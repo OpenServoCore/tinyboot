@@ -18,4 +18,4 @@ MEMORY
     RAM   : ORIGIN = 0x20000000, LENGTH = 2K
 }
 
-__tinyboot_meta_start = 0x08000000 + 16K - 64;
+__tb_meta_start = 0x08000000 + 16K - 64;

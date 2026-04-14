@@ -5,7 +5,7 @@
 
 // Provide the linker symbol that protocol.rs reads for boot version.
 #[unsafe(no_mangle)]
-static __tinyboot_version: u16 = 0xFFFF;
+static __tb_version: u16 = 0xFFFF;
 
 use embedded_storage::nor_flash;
 use tinyboot_core::protocol::Dispatcher;

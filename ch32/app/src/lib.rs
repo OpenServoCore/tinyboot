@@ -87,7 +87,7 @@ impl TBBootClient for Ch32BootClient {
 /// Create an [`App`] configured for CH32 hardware.
 ///
 /// Reads boot version from flash at `boot_base + boot_size - 2`.
-/// Reads app version from the `__tinyboot_version` linker symbol.
+/// Reads app version from the `__tb_version` linker symbol.
 pub fn new_app(
     boot_base: u32,
     boot_size: u32,

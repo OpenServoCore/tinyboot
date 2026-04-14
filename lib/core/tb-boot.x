@@ -7,9 +7,9 @@
  * VMA set explicitly so the CODE mirror matches the FLASH LMA. */
 SECTIONS
 {
-    .tinyboot_version (ORIGIN(CODE) + LENGTH(CODE) - 2) : AT(ORIGIN(FLASH) + LENGTH(FLASH) - 2)
+    .tb_version (ORIGIN(CODE) + LENGTH(CODE) - 2) : AT(ORIGIN(FLASH) + LENGTH(FLASH) - 2)
     {
-        __tinyboot_version = .;
-        KEEP(*(.tinyboot_version));
+        __tb_version = .;
+        KEEP(*(.tb_version));
     } > CODE
 }

@@ -7,10 +7,10 @@
  * The bootloader reads it at storage[app_size - 2]. */
 SECTIONS
 {
-    .tinyboot_version ALIGN(2) :
+    .tb_version ALIGN(2) :
     {
-        __tinyboot_version = .;
-        KEEP(*(.tinyboot_version));
+        __tb_version = .;
+        KEEP(*(.tb_version));
     } > FLASH
 } INSERT AFTER .data;
 

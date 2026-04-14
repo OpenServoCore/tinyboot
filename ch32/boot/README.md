@@ -45,7 +45,7 @@ let platform = Platform::new(transport, storage, boot_meta, ctl);
 tinyboot_ch32_boot::run(platform);
 ```
 
-The boot version is read at runtime from the `__tinyboot_version` linker symbol (placed by `boot_version!()` in the `.tinyboot_version` section).
+The boot version is read at runtime from the `__tb_version` linker symbol (placed by `boot_version!()` in the `.tb_version` section).
 
 See [`examples/ch32/system-flash`](../examples/ch32/system-flash/) for a complete bootloader example.
 

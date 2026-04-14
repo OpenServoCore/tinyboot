@@ -35,7 +35,7 @@ loop {
 
 | Function            | Description                                                                                                                                   |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app_version!()`    | Macro that places the crate version (from `Cargo.toml`) in the `.tinyboot_version` linker section                                             |
+| `app_version!()`    | Macro that places the crate version (from `Cargo.toml`) in the `.tb_version` linker section                                             |
 | `fix_mtvec!()`      | Macro that fixes `mtvec` for apps behind a user-flash bootloader. Requires `--wrap=_setup_interrupts` linker arg. Not needed for system-flash |
 | `new_app()`         | Create an `App` configured for CH32 hardware with boot/app base, sizes, and erase size                                                        |
 | `App::confirm()`    | Confirm trial boot (Validating → Idle), preserving checksum in boot metadata                                                                  |

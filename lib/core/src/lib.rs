@@ -23,35 +23,35 @@ pub use crate::core::Core;
 #[doc(hidden)]
 pub use tinyboot_protocol::pkg_version;
 
-/// Read the version from the `__tinyboot_version` linker symbol.
+/// Read the version from the `__tb_version` linker symbol.
 ///
 /// This symbol is defined by `tb-boot.x` / `tb-app.x` and points to the
-/// `.tinyboot_version` section populated by [`boot_version!`] or [`app_version!`].
+/// `.tb_version` section populated by [`boot_version!`] or [`app_version!`].
 #[inline(always)]
 pub fn tinyboot_version() -> u16 {
     unsafe extern "C" {
-        static __tinyboot_version: u16;
+        static __tb_version: u16;
     }
-    unsafe { ::core::ptr::read_volatile(&raw const __tinyboot_version) }
+    unsafe { ::core::ptr::read_volatile(&raw const __tb_version) }
 }
 
-/// Define the `.tinyboot_version` static using the calling crate's version.
+/// Define the `.tb_version` static using the calling crate's version.
 /// Place this at module scope in your bootloader binary.
 #[macro_export]
 macro_rules! boot_version {
     () => {
-        #[unsafe(link_section = ".tinyboot_version")]
+        #[unsafe(link_section = ".tb_version")]
         #[used]
         static _BOOT_VERSION: u16 = $crate::pkg_version!();
     };
 }
 
-/// Define the `.tinyboot_version` static using the calling crate's version.
+/// Define the `.tb_version` static using the calling crate's version.
 /// Place this at module scope in your application binary.
 #[macro_export]
 macro_rules! app_version {
     () => {
-        #[unsafe(link_section = ".tinyboot_version")]
+        #[unsafe(link_section = ".tb_version")]
         #[used]
         static _APP_VERSION: u16 = $crate::pkg_version!();
     };
