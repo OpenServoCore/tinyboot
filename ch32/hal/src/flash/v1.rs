@@ -9,8 +9,6 @@ fn wait_busy() {
         !FLASH.statr().read().wrprterr(),
         "flash write protection error"
     );
-    // RM: clear EOP flag (W1C) after every BUFRST, BUFLOAD, and STRT.
-    FLASH.statr().write(|w| w.set_eop(true));
 }
 
 /// Unlock flash controller (KEYR + MODEKEYR).
