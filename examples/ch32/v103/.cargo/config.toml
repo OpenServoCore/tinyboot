@@ -1,0 +1,13 @@
+[build]
+target = "riscv32imc-unknown-none-elf"
+
+[target.riscv32imc-unknown-none-elf]
+rustflags = [
+  "-C", "link-arg=-Tlink.x",
+  "-C", "link-arg=--nmagic",
+]
+runner = "probe-rs run --chip CH32V103"
+
+[env]
+DEFMT_LOG = "trace"
+DEFMT_RTT_BUFFER_SIZE = "128"

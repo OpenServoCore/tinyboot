@@ -158,6 +158,7 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
         }
 
         // 3. Write — chunk by MAX_PAYLOAD, pad to 4-byte alignment with 0xFF
+        let page_size = erase_size as usize;
         let padded_len = firmware.len().next_multiple_of(4);
         let total_chunks = padded_len.div_ceil(MAX_PAYLOAD) as u32;
         let mut offset = 0usize;
@@ -176,7 +177,19 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
             self.frame.cmd = Cmd::Write;
             self.frame.addr = offset as u32;
             self.frame.len = len as u16;
-            self.transact()?;
+            match self.transact() {
+                Ok(()) => {}
+                Err(FlashError::Device(Status::CrcMismatch)) => {
+                    // Response frame corrupted — flush device write buffer
+                    // and restart from the nearest page-aligned offset.
+                    debug!("CRC mismatch at {offset:#X}, retrying from page boundary");
+                    let _ = self.flush();
+                    offset &= !(page_size - 1);
+                    chunk_idx = (offset / MAX_PAYLOAD) as u32;
+                    continue;
+                }
+                Err(e) => return Err(e),
+            }
             offset = end;
             chunk_idx += 1;
             on_progress("Writing", chunk_idx, total_chunks);

@@ -17,21 +17,53 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for p in METADATA.peripherals {
         if let Some(regs) = &p.registers {
             let cfg = format!("{}_{}", regs.kind, regs.version);
-            println!("cargo::rustc-check-cfg=cfg({cfg})");
             println!("cargo:rustc-cfg={cfg}");
             cfgs.push(cfg);
         }
     }
     cfgs.dedup();
+
+    // Chips with a hardware BOOT0 pin (e.g. CH32V103) need an external circuit
+    // (RC or flip-flop) to select boot source. Chips without (e.g. CH32V003)
+    // have a BOOT_MODE register instead.
+    let boot_pin = !cfgs.iter().any(|c| c == "flash_v0");
+    println!("cargo::rustc-check-cfg=cfg(boot_pin)");
+    if boot_pin {
+        println!("cargo:rustc-cfg=boot_pin");
+        cfgs.push("boot_pin".to_string());
+    }
+
+    // Boot request scheme cfgs — which mechanisms are active:
+    //   boot_req_reg:  BOOT_MODE register     (system-flash, no boot_pin)
+    //   boot_req_ram:  RAM magic word          (user-flash OR boot_pin)
+    //   boot_req_gpio: GPIO pin drive          (system-flash + boot_pin)
+    // Note: ram and gpio are both set for system-flash + boot_pin.
+    let system_flash = env::var("CARGO_FEATURE_SYSTEM_FLASH").is_ok();
+    for name in ["boot_req_reg", "boot_req_ram", "boot_req_gpio"] {
+        println!("cargo::rustc-check-cfg=cfg({name})");
+    }
+    if system_flash && !boot_pin {
+        println!("cargo:rustc-cfg=boot_req_reg");
+        cfgs.push("boot_req_reg".to_string());
+    }
+    if !system_flash || boot_pin {
+        println!("cargo:rustc-cfg=boot_req_ram");
+        cfgs.push("boot_req_ram".to_string());
+    }
+    if system_flash && boot_pin {
+        println!("cargo:rustc-cfg=boot_req_gpio");
+        cfgs.push("boot_req_gpio".to_string());
+    }
+
     println!("cargo:cfgs={}", cfgs.join(","));
 
     generate_pin_and_usart_mapping(out)?;
 
-    #[cfg(not(feature = "system-flash"))]
-    {
-        fs::copy("tb-user-flash.x", out.join("tb-user-flash.x"))?;
-        println!("cargo:rerun-if-changed=tb-user-flash.x");
-    }
+    // Boot request RAM magic word linker script.
+    // Always copied (4 bytes NOLOAD — unused by reg scheme but avoids
+    // conditional complexity in downstream build scripts).
+    fs::copy("tb-boot-req.x", out.join("tb-boot-req.x"))?;
+    println!("cargo:rerun-if-changed=tb-boot-req.x");
 
     println!("cargo:rustc-link-search={}", out.display());
     println!("cargo:rerun-if-changed=build.rs");
@@ -202,6 +234,19 @@ fn generate_pin_and_usart_mapping(out: &Path) -> Result<(), Box<dyn Error>> {
             code,
             "            UsartMapping::{variant} => ch32_metapac::{peri_const},"
         )?;
+    }
+    writeln!(code, "        }}")?;
+    writeln!(code, "    }}")?;
+    writeln!(code)?;
+
+    // peripheral_index() — USART peripheral number (1, 2, 3, ...)
+    writeln!(code, "    pub const fn peripheral_index(self) -> u8 {{")?;
+    writeln!(code, "        match self {{")?;
+    for (peri, remap) in groups.keys() {
+        let variant = format!("{}Remap{}", capitalize_peripheral(peri), remap);
+        // Extract trailing digits from e.g. "USART1" → 1
+        let index: String = peri.chars().filter(|c| c.is_ascii_digit()).collect();
+        writeln!(code, "            UsartMapping::{variant} => {index},")?;
     }
     writeln!(code, "        }}")?;
     writeln!(code, "    }}")?;

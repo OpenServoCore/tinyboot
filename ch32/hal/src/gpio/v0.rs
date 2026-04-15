@@ -9,6 +9,12 @@ pub enum Pull {
     Down,
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum Level {
+    Low,
+    High,
+}
+
 /// GPIO pin configuration.
 ///
 /// Encodes the 4-bit CFGLR field `[MODE(2) | CNF(2)]` directly.
@@ -55,14 +61,14 @@ pub fn configure(pin: Pin, mode: PinMode) {
     }
 }
 
-pub fn set_high(pin: Pin) {
-    pin.gpio_regs()
-        .bshr()
-        .write(|w| w.0 = 1 << pin.pin_number());
-}
-
-pub fn set_low(pin: Pin) {
-    pin.gpio_regs().bcr().write(|w| w.0 = 1 << pin.pin_number());
+pub fn set_level(pin: Pin, level: Level) {
+    if level == Level::High {
+        pin.gpio_regs()
+            .bshr()
+            .write(|w| w.0 = 1 << pin.pin_number());
+    } else {
+        pin.gpio_regs().bcr().write(|w| w.0 = 1 << pin.pin_number());
+    }
 }
 
 impl embedded_hal::digital::ErrorType for Pin {
@@ -71,12 +77,12 @@ impl embedded_hal::digital::ErrorType for Pin {
 
 impl embedded_hal::digital::OutputPin for Pin {
     fn set_high(&mut self) -> Result<(), Self::Error> {
-        set_high(*self);
+        set_level(*self, Level::High);
         Ok(())
     }
 
     fn set_low(&mut self) -> Result<(), Self::Error> {
-        set_low(*self);
+        set_level(*self, Level::Low);
         Ok(())
     }
 }

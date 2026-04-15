@@ -1,21 +1,24 @@
 use tinyboot::traits::BootMode;
 use tinyboot::traits::boot::BootCtl as TBBootCtl;
 
-use tinyboot_ch32_hal::pfic;
+use tinyboot_ch32_hal::{boot_request, pfic};
 
 /// CH32 boot control (reset, boot mode selection).
 ///
 /// In user-flash mode, caches the app entry point from `__tb_app_entry` linker symbol.
 pub struct BootCtl {
+    config: boot_request::Config,
     #[cfg(not(feature = "system-flash"))]
     app_entry: u32,
 }
 
-impl Default for BootCtl {
-    /// In user-flash mode, reads `__tb_app_entry` linker symbol for the app entry point.
+impl BootCtl {
+    /// Create boot control with the given boot request configuration.
     #[inline(always)]
-    fn default() -> Self {
+    pub fn new(config: boot_request::Config) -> Self {
+        boot_request::init(&config);
         Self {
+            config,
             #[cfg(not(feature = "system-flash"))]
             app_entry: {
                 unsafe extern "C" {
@@ -29,33 +32,23 @@ impl Default for BootCtl {
 
 impl TBBootCtl for BootCtl {
     fn is_boot_requested(&self) -> bool {
-        #[cfg(feature = "system-flash")]
-        {
-            tinyboot_ch32_hal::flash::is_boot_mode()
-        }
-        #[cfg(not(feature = "system-flash"))]
-        {
-            tinyboot_ch32_hal::boot_request::is_boot_requested()
-        }
+        boot_request::is_boot_requested()
     }
 
     fn system_reset(&mut self, mode: BootMode) -> ! {
         let bootloader = mode == BootMode::Bootloader;
-        #[cfg(feature = "system-flash")]
-        {
-            tinyboot_ch32_hal::flash::set_boot_mode(bootloader);
-            pfic::system_reset()
+        boot_request::set_boot_request(&self.config, bootloader);
+        // Allow time for external boot mode circuit (RC) to settle
+        // before triggering reset. ~1ms at 8MHz = 8000 iterations.
+        for _ in 0..8000u16 {
+            core::hint::spin_loop();
         }
         #[cfg(not(feature = "system-flash"))]
-        {
-            tinyboot_ch32_hal::boot_request::set_boot_request(bootloader);
-            if bootloader {
-                pfic::system_reset()
-            } else {
-                tinyboot_ch32_hal::flash::lock();
-                tinyboot_ch32_hal::rcc::reset_apb2();
-                pfic::jump(self.app_entry)
-            }
+        if !bootloader {
+            tinyboot_ch32_hal::flash::lock();
+            tinyboot_ch32_hal::rcc::reset_apb2();
+            pfic::jump(self.app_entry)
         }
+        pfic::system_reset()
     }
 }

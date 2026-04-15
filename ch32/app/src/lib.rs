@@ -2,55 +2,21 @@
 
 use tinyboot::traits::BootState;
 use tinyboot::traits::app::BootClient as TBBootClient;
-use tinyboot_ch32_hal::{flash, iwdg, pfic};
+use tinyboot_ch32_hal::{boot_request, flash, iwdg, pfic};
 
 // Re-exports so apps only need this one crate.
+pub use boot_request::Config as BootCtlConfig;
 pub use tinyboot::app::{App, AppConfig};
 pub use tinyboot::traits::app as traits;
 pub use tinyboot::{app_version, pkg_version};
-
-#[doc(hidden)]
-pub use qingke;
-
-/// Fix `mtvec` for apps linked at a non-zero flash address (user-flash bootloader).
-///
-/// `qingke-rt` hardcodes `mtvec = 0x0` in its `_setup_interrupts`. This macro
-/// generates a linker `--wrap` override that calls the original setup, then
-/// rewrites `mtvec` to the actual vector table base.
-///
-/// Not needed for system-flash bootloaders (app starts at 0x0).
-///
-/// Place at module scope alongside [`app_version!`]. Requires
-/// `--wrap=_setup_interrupts` in `build.rs`:
-///
-/// ```rust,ignore
-/// // build.rs
-/// println!("cargo:rustc-link-arg=--wrap=_setup_interrupts");
-/// ```
-#[cfg(not(feature = "system-flash"))]
-#[macro_export]
-macro_rules! fix_mtvec {
-    () => {
-        #[unsafe(export_name = "__wrap__setup_interrupts")]
-        unsafe extern "C" fn _tinyboot_setup_interrupts() {
-            use $crate::qingke::register::mtvec::{self, TrapMode};
-
-            unsafe extern "C" {
-                fn __real__setup_interrupts();
-                fn _start();
-            }
-            unsafe {
-                __real__setup_interrupts();
-                mtvec::write(_start as *const () as usize, TrapMode::VectoredAddress);
-            }
-        }
-    };
-}
+pub use tinyboot_ch32_hal::Pin;
 
 /// CH32 boot client implementation.
-pub struct Ch32BootClient;
+pub struct BootClient {
+    config: boot_request::Config,
+}
 
-impl TBBootClient for Ch32BootClient {
+impl TBBootClient for BootClient {
     fn confirm(&mut self) {
         critical_section::with(|_| {
             let addr = flash::meta_addr();
@@ -72,11 +38,12 @@ impl TBBootClient for Ch32BootClient {
 
     fn request_update(&mut self) {
         critical_section::with(|_| {
-            #[cfg(feature = "system-flash")]
-            flash::set_boot_mode(true);
-            #[cfg(not(feature = "system-flash"))]
-            tinyboot_ch32_hal::boot_request::set_boot_request(true);
+            boot_request::set_boot_request(&self.config, true);
         });
+        // Allow time for external boot mode circuit (RC) to settle.
+        for _ in 0..8000u16 {
+            core::hint::spin_loop();
+        }
     }
 
     fn system_reset(&mut self) -> ! {
@@ -88,7 +55,8 @@ impl TBBootClient for Ch32BootClient {
 ///
 /// Reads boot version from `__tb_boot_version_addr`, app capacity from
 /// `__tb_app_capacity`, and erase size from `flash::PAGE_SIZE`.
-pub fn new_app() -> App<Ch32BootClient> {
+pub fn new_app(boot_ctl: boot_request::Config) -> App<BootClient> {
+    boot_request::init(&boot_ctl);
     unsafe extern "C" {
         static __tb_boot_version_addr: u8;
         static __tb_app_capacity: u8;
@@ -102,6 +70,6 @@ pub fn new_app() -> App<Ch32BootClient> {
             boot_version: unsafe { boot_ver_addr.read_volatile() },
             app_version: tinyboot::tinyboot_version(),
         },
-        Ch32BootClient,
+        BootClient { config: boot_ctl },
     )
 }

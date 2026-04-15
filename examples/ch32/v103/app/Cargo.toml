@@ -1,0 +1,22 @@
+[package]
+name = "app"
+version = "3.2.1"
+edition.workspace = true
+
+[dependencies]
+tinyboot-ch32-app = { path = "../../../../ch32/app", default-features = false }
+embedded-io = "0.7"
+critical-section = "1"
+ch32-hal = { git = "https://github.com/ch32-rs/ch32-hal", default-features = false }
+qingke-rt = { version = "0.6", features = ["v3a"] }
+defmt = "1.0"
+defmt-rtt = "1.1"
+
+[features]
+default = ["ch32v103c8t6", "system-flash"]
+system-flash = ["tinyboot-ch32-app/system-flash"]
+user-flash = []
+ch32v103c6t6 = ["tinyboot-ch32-app/ch32v103c6t6", "ch32-hal/ch32v103c6t6", "ch32-hal/rt"]
+ch32v103c8t6 = ["tinyboot-ch32-app/ch32v103c8t6", "ch32-hal/ch32v103c8t6", "ch32-hal/rt"]
+ch32v103c8u6 = ["tinyboot-ch32-app/ch32v103c8u6", "ch32-hal/ch32v103c8u6", "ch32-hal/rt"]
+ch32v103r8t6 = ["tinyboot-ch32-app/ch32v103r8t6", "ch32-hal/ch32v103r8t6", "ch32-hal/rt"]

@@ -6,7 +6,7 @@ Rust bootloader for resource-constrained microcontrollers. Fits in the CH32V003'
 
 ## Chip Compatibility
 
-tinyboot currently supports **UART / RS-485** transport. The table below tracks chip support status.
+tinyboot currently supports **UART / RS-485** transport. The table below tracks chip support status. Chips with hardware boot pins (e.g. BOOT0/BOOT1) require a small external circuit to allow firmware-controlled boot mode switching. Please see [GPIO-Controlled Boot Mode Selection](docs/boot-ctl.md) document for more information.
 
 ✅ Verified | ❓ Untested (same die, likely works — volunteer needed) | 📋 Planned
 
@@ -16,6 +16,10 @@ tinyboot currently supports **UART / RS-485** transport. The table below tracks 
 | CH32V003A4M6 | `ch32v003a4m6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
 | CH32V003F4U6 | `ch32v003f4u6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
 | CH32V003J4M6 | `ch32v003j4m6` | `0x1FFFF000` (1920B)      | ❓     | --                                     |
+| CH32V103C6T6 | `ch32v103c6t6` | `0x1FFFF000` (2048B)      | ❓     | --                                     |
+| CH32V103C8T6 | `ch32v103c8t6` | `0x1FFFF000` (2048B)      | ✅     | --                                     |
+| CH32V103C8U6 | `ch32v103c8u6` | `0x1FFFF000` (2048B)      | ❓     | --                                     |
+| CH32V103R8T6 | `ch32v103r8t6` | `0x1FFFF000` (2048B)      | ❓     | --                                     |
 | CH32V002X4X6 | `ch32v002x4x6` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
 | CH32V004X6X1 | `ch32v004x6x1` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
 | CH32V005X6X6 | `ch32v005x6x6` | `0x1FFF0000` (3KB + 256B) | 📋     | `flash_v00x` HAL ([#29][ch32-data-29]) |
@@ -75,6 +79,7 @@ ch32/                       CH32 implementations
 cli/                        tinyboot — host CLI flasher
 
 examples/ch32/v003/         CH32V003 boot + app examples
+examples/ch32/v103/         CH32V103 boot + app examples
 ```
 
 | Crate                                | Description                                                                                 |
@@ -91,7 +96,7 @@ examples/ch32/v003/         CH32V003 boot + app examples
 The workspaces use **edition 2024**.
 
 - **Library crates and CLI** — stable Rust 1.85+
-- **CH32 examples** (bootloader and app binaries) — nightly, for `-Zbuild-std` on `riscv32ec-unknown-none-elf`
+- **CH32 examples** (bootloader and app binaries) — nightly, for `-Zbuild-std` on `riscv32ec-unknown-none-elf` (V003) or standard `riscv32imc-unknown-none-elf` (V103)
 
 ## Linker Region Contract
 

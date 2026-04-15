@@ -7,16 +7,30 @@ set -e
 (cd lib && cargo test -p tinyboot-core -p tinyboot-protocol)
 
 # --- CH32 libraries (embedded target, needs nightly + build-std) ---
-TARGET_JSON=../examples/ch32/v003/riscv32ec-unknown-none-elf.json
-CHIP=ch32v003f4p6
+V003_JSON=../examples/ch32/v003/riscv32ec-unknown-none-elf.json
+
+# V003
 (cd ch32 && cargo +nightly clippy -p tinyboot-ch32-hal -p tinyboot-ch32-boot -p tinyboot-ch32-app \
-  --no-default-features --features $CHIP \
-  --target $TARGET_JSON \
+  --no-default-features --features ch32v003f4p6 \
+  --target $V003_JSON \
   -Zbuild-std=core -Zjson-target-spec \
   -- -D warnings)
 
+# V103
+(cd ch32 && cargo +nightly clippy -p tinyboot-ch32-hal -p tinyboot-ch32-boot \
+  --no-default-features --features ch32v103c8t6 \
+  --target riscv32imc-unknown-none-elf \
+  -- -D warnings)
+
 # --- Examples ---
+# V003
 for flash in system-flash user-flash; do
   (cd examples/ch32/v003 && cargo +nightly clippy -p boot --no-default-features --features "ch32v003f4p6,$flash" -- -D warnings)
   (cd examples/ch32/v003 && cargo +nightly clippy -p app --no-default-features --features "ch32v003f4p6,$flash" -- -D warnings)
+done
+
+# V103
+for flash in system-flash user-flash; do
+  (cd examples/ch32/v103 && cargo +nightly clippy -p boot --no-default-features --features "ch32v103c8t6,$flash" -- -D warnings)
+  (cd examples/ch32/v103 && cargo +nightly clippy -p app --no-default-features --features "ch32v103c8t6,$flash" -- -D warnings)
 done

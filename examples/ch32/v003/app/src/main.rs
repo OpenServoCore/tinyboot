@@ -23,8 +23,6 @@ use critical_section::Mutex;
 
 use defmt_rtt as _;
 
-#[cfg(feature = "user-flash")]
-tinyboot_ch32_app::fix_mtvec!();
 tinyboot_ch32_app::app_version!();
 
 #[panic_handler]
@@ -66,7 +64,7 @@ fn main() -> ! {
     let mut tx = transport::Tx(tx);
 
     // Tinyboot app client
-    let mut app = tinyboot_ch32_app::new_app();
+    let mut app = tinyboot_ch32_app::new_app(tinyboot_ch32_app::BootCtlConfig);
     app.confirm();
 
     defmt::info!("Boot confirmed, app ready.");

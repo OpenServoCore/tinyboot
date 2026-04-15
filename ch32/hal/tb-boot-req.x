@@ -1,8 +1,9 @@
-/* User-flash boot request word.
+/* Boot request magic word.
  *
  * Reserves 4 bytes at the start of RAM (NOLOAD, preserved across
  * soft resets). Both bootloader and app must link this script.
- * Add -Ttb-user-flash.x to linker flags. */
+ * Used by the ram and gpio boot control schemes.
+ * Add -Ttb-boot-req.x to linker flags. */
 SECTIONS
 {
     .boot_request ORIGIN(RAM) (NOLOAD) :

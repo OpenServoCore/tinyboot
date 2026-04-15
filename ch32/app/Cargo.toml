@@ -16,11 +16,14 @@ tinyboot-protocol = { workspace = true }
 embedded-io = { workspace = true }
 embedded-io-async = { workspace = true }
 critical-section = "1.2"
-qingke = "0.6"
 
 [features]
 ch32v003f4p6 = ["tinyboot-ch32-hal/ch32v003f4p6"]
 ch32v003a4m6 = ["tinyboot-ch32-hal/ch32v003a4m6"]
 ch32v003f4u6 = ["tinyboot-ch32-hal/ch32v003f4u6"]
 ch32v003j4m6 = ["tinyboot-ch32-hal/ch32v003j4m6"]
+ch32v103c6t6 = ["tinyboot-ch32-hal/ch32v103c6t6"]
+ch32v103c8t6 = ["tinyboot-ch32-hal/ch32v103c8t6"]
+ch32v103c8u6 = ["tinyboot-ch32-hal/ch32v103c8u6"]
+ch32v103r8t6 = ["tinyboot-ch32-hal/ch32v103r8t6"]
 system-flash = ["tinyboot-ch32-hal/system-flash"]

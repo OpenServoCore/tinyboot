@@ -40,8 +40,8 @@ jobs:
       - run: cargo build
       - run: cargo build --release
 
-  ch32:
-    name: CH32 (${{ matrix.chip }})
+  ch32-v003:
+    name: CH32V003 (${{ matrix.chip }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -75,3 +75,39 @@ jobs:
         run: cd examples/ch32/v003 && cargo +nightly clippy -p app --no-default-features --features "${{ matrix.chip }},user-flash" -- -D warnings
       - name: Build app (user-flash)
         run: cd examples/ch32/v003 && cargo +nightly build -p app --no-default-features --features "${{ matrix.chip }},user-flash" --release
+
+  ch32-v103:
+    name: CH32V103 (${{ matrix.chip }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chip: [ch32v103c6t6, ch32v103c8t6, ch32v103c8u6, ch32v103r8t6]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install toolchain
+        run: |
+          rustup toolchain install nightly --profile minimal --component rust-src,rustfmt,clippy
+          rustup +nightly target add riscv32imc-unknown-none-elf
+      - name: Clippy libraries
+        run: cd ch32 && cargo +nightly clippy -p tinyboot-ch32-hal -p tinyboot-ch32-boot --no-default-features --features ${{ matrix.chip }} --target riscv32imc-unknown-none-elf -- -D warnings
+      - name: Build libraries
+        run: cd ch32 && cargo +nightly build -p tinyboot-ch32-hal -p tinyboot-ch32-boot --no-default-features --features ${{ matrix.chip }} --target riscv32imc-unknown-none-elf --release
+      - name: Fmt examples
+        run: cd examples/ch32/v103 && cargo +nightly fmt --all -- --check
+      - name: Clippy boot (system-flash)
+        run: cd examples/ch32/v103 && cargo +nightly clippy -p boot --no-default-features --features "${{ matrix.chip }},system-flash" -- -D warnings
+      - name: Build boot (system-flash)
+        run: cd examples/ch32/v103 && cargo +nightly build -p boot --no-default-features --features "${{ matrix.chip }},system-flash" --release
+      - name: Clippy boot (user-flash)
+        run: cd examples/ch32/v103 && cargo +nightly clippy -p boot --no-default-features --features "${{ matrix.chip }},user-flash" -- -D warnings
+      - name: Build boot (user-flash)
+        run: cd examples/ch32/v103 && cargo +nightly build -p boot --no-default-features --features "${{ matrix.chip }},user-flash" --release
+      - name: Clippy app (system-flash)
+        run: cd examples/ch32/v103 && cargo +nightly clippy -p app --no-default-features --features "${{ matrix.chip }},system-flash" -- -D warnings
+      - name: Build app (system-flash)
+        run: cd examples/ch32/v103 && cargo +nightly build -p app --no-default-features --features "${{ matrix.chip }},system-flash" --release
+      - name: Clippy app (user-flash)
+        run: cd examples/ch32/v103 && cargo +nightly clippy -p app --no-default-features --features "${{ matrix.chip }},user-flash" -- -D warnings
+      - name: Build app (user-flash)
+        run: cd examples/ch32/v103 && cargo +nightly build -p app --no-default-features --features "${{ matrix.chip }},user-flash" --release
