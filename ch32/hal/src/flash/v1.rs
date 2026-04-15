@@ -30,6 +30,25 @@ pub fn lock() {
     });
 }
 
+/// Undocumented flash controller register at offset 0x34.
+/// Not in the RM; used by WCH's HAL for read-cache invalidation.
+///
+/// See: https://github.com/openwch/ch32v103/blob/f99a84c4c42b6fb676560a9b8b7c737401efe0ad/EVT/EXAM/SRC/Peripheral/src/ch32v10x_flash.c#L210
+const FLASH_RDCACHE_REG: *mut u32 = 0x4002_2034 as *mut u32;
+
+/// XOR mask used to read from a 4 KB-distant flash address, forcing eviction
+/// of the prefetch/read pipeline entry for the page just written or erased.
+const RDCACHE_XOR_MASK: u32 = 0x0000_1000;
+
+/// Invalidate the flash read cache for `addr`.
+///
+/// `addr` must be word-aligned (callers always pass page-aligned addresses).
+fn invalidate_read_cache(addr: u32) {
+    let src = addr ^ RDCACHE_XOR_MASK;
+    let val = unsafe { core::ptr::read_volatile(src as *const u32) };
+    unsafe { core::ptr::write_volatile(FLASH_RDCACHE_REG, val) };
+}
+
 /// Flash page size in bytes (erase and fast-write granularity).
 pub const PAGE_SIZE: usize = 128;
 
@@ -55,6 +74,7 @@ pub fn erase(addr: u32) {
     wait_busy();
     // Clear FTER
     FLASH.ctlr().write(|_| {});
+    invalidate_read_cache(addr);
 }
 
 /// Write `data` to flash at `addr` (RM §24.4.6).
@@ -119,4 +139,5 @@ pub fn write(addr: u32, data: &[u8]) {
     wait_busy();
     // Step 14: clear FTPG
     FLASH.ctlr().write(|_| {});
+    invalidate_read_cache(page_base);
 }
