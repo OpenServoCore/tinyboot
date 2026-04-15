@@ -11,44 +11,6 @@ pub use tinyboot::traits::app as traits;
 pub use tinyboot::{app_version, pkg_version};
 pub use tinyboot_ch32_hal::Pin;
 
-#[doc(hidden)]
-pub use qingke;
-
-/// Fix `mtvec` for apps linked at a non-zero flash address (user-flash bootloader).
-///
-/// `qingke-rt` hardcodes `mtvec = 0x0` in its `_setup_interrupts`. This macro
-/// generates a linker `--wrap` override that calls the original setup, then
-/// rewrites `mtvec` to the actual vector table base.
-///
-/// Not needed for system-flash bootloaders (app starts at 0x0).
-///
-/// Place at module scope alongside [`app_version!`]. Requires
-/// `--wrap=_setup_interrupts` in `build.rs`:
-///
-/// ```rust,ignore
-/// // build.rs
-/// println!("cargo:rustc-link-arg=--wrap=_setup_interrupts");
-/// ```
-#[cfg(not(feature = "system-flash"))]
-#[macro_export]
-macro_rules! fix_mtvec {
-    () => {
-        #[unsafe(export_name = "__wrap__setup_interrupts")]
-        unsafe extern "C" fn _tinyboot_setup_interrupts() {
-            use $crate::qingke::register::mtvec::{self, TrapMode};
-
-            unsafe extern "C" {
-                fn __real__setup_interrupts();
-                fn _start();
-            }
-            unsafe {
-                __real__setup_interrupts();
-                mtvec::write(_start as *const () as usize, TrapMode::VectoredAddress);
-            }
-        }
-    };
-}
-
 /// CH32 boot client implementation.
 pub struct BootClient {
     config: boot_request::Config,

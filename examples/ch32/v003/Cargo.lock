@@ -463,8 +463,7 @@ dependencies = [
 [[package]]
 name = "qingke"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10318bf64fc0befbcd09d7a9a62d8b99972ba3dfdd4a94695f63fd892f47e14e"
+source = "git+https://github.com/OpenServoCore/qingke?branch=main#44d490b2ff429ed4689bd7dd1653146f4fff506a"
 dependencies = [
  "bit_field",
  "cfg-if",
@@ -475,8 +474,7 @@ dependencies = [
 [[package]]
 name = "qingke-rt"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8ba56c91dd9a044bd519778bcf70644d1d936fee4ea20fdc2d0e3bac8f75fb9"
+source = "git+https://github.com/OpenServoCore/qingke?branch=main#44d490b2ff429ed4689bd7dd1653146f4fff506a"
 dependencies = [
  "qingke",
  "qingke-rt-macros",
@@ -485,8 +483,7 @@ dependencies = [
 [[package]]
 name = "qingke-rt-macros"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54edcd0e9b8b5c3c83d313c93869325bfcd969d30d9cef1a1015b0970b21be81"
+source = "git+https://github.com/OpenServoCore/qingke?branch=main#44d490b2ff429ed4689bd7dd1653146f4fff506a"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -634,7 +631,6 @@ dependencies = [
  "critical-section",
  "embedded-io 0.7.1",
  "embedded-io-async 0.7.0",
- "qingke",
  "tinyboot-ch32-hal",
  "tinyboot-core",
  "tinyboot-protocol",

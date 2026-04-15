@@ -23,8 +23,6 @@ use critical_section::Mutex;
 
 use defmt_rtt as _;
 
-#[cfg(feature = "user-flash")]
-tinyboot_ch32_app::fix_mtvec!();
 tinyboot_ch32_app::app_version!();
 
 #[panic_handler]

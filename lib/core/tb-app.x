@@ -32,12 +32,3 @@ SECTIONS
     } > CODE
 } INSERT AFTER .tb_vectors;
 
-/* qingke-rt's link.x doesn't define a .uninit section.
- * defmt-rtt places its buffer in .uninit.* and expects NOLOAD. */
-SECTIONS
-{
-    .uninit (NOLOAD) : ALIGN(4)
-    {
-        *(.uninit .uninit.*);
-    } > RAM
-} INSERT AFTER .bss;

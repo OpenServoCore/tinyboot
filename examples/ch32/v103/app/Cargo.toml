@@ -8,7 +8,7 @@ tinyboot-ch32-app = { path = "../../../../ch32/app", default-features = false }
 embedded-io = "0.7"
 critical-section = "1"
 ch32-hal = { git = "https://github.com/ch32-rs/ch32-hal", default-features = false }
-qingke-rt = { version = "0.6", features = ["v3"] }
+qingke-rt = { version = "0.6", features = ["v3a"] }
 defmt = "1.0"
 defmt-rtt = "1.1"
 

@@ -16,7 +16,6 @@ tinyboot-protocol = { workspace = true }
 embedded-io = { workspace = true }
 embedded-io-async = { workspace = true }
 critical-section = "1.2"
-qingke = "0.6"
 
 [features]
 ch32v003f4p6 = ["tinyboot-ch32-hal/ch32v003f4p6"]

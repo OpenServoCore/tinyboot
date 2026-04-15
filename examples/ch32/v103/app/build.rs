@@ -25,9 +25,6 @@ fn main() {
     println!("cargo:rustc-link-arg=-Ttb-boot-req.x");
     println!("cargo:rustc-link-arg=-Tdefmt.x");
 
-    if user_flash {
-        println!("cargo:rustc-link-arg=--wrap=_setup_interrupts");
-    }
 }
 
 fn cfg_has(key: &str) -> bool {
