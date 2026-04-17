@@ -3,7 +3,7 @@
 //! Handles boot confirmation and responds to host commands (Info, Reset)
 //! so the CLI can query and reset the device without physical access.
 
-use crate::traits::BootClient;
+use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode};
 use tinyboot_protocol::frame::{Frame, InfoData};
 use tinyboot_protocol::{Cmd, Status};
 
@@ -20,26 +20,35 @@ pub struct AppConfig {
 }
 
 /// App-side tinyboot client. Handles Info/Reset commands and boot confirmation.
-pub struct App<B: BootClient> {
+pub struct App<C: BootCtl, M: BootMetaStore> {
     frame: Frame,
     config: AppConfig,
-    client: B,
+    ctl: C,
+    meta: M,
 }
 
-impl<B: BootClient> App<B> {
+impl<C: BootCtl, M: BootMetaStore> App<C, M> {
     /// Create a new app client.
-    pub fn new(config: AppConfig, client: B) -> Self {
+    pub fn new(config: AppConfig, ctl: C, meta: M) -> Self {
         Self {
             frame: Frame::default(),
             config,
-            client,
+            ctl,
+            meta,
         }
     }
 
-    /// Confirm boot — transitions Validating to Idle, preserving checksum.
-    /// Call after all peripherals are initialized.
+    /// Transition Validating → Idle. Runs in a critical section;
+    /// feed any active watchdog before calling.
     pub fn confirm(&mut self) {
-        self.client.confirm();
+        critical_section::with(|_| {
+            if self.meta.boot_state() != BootState::Validating {
+                return;
+            }
+            let checksum = self.meta.app_checksum();
+            let app_size = self.meta.app_size();
+            let _ = self.meta.refresh(checksum, BootState::Idle, app_size);
+        });
     }
 
     /// Poll for tinyboot commands (blocking).
@@ -97,9 +106,9 @@ impl<B: BootClient> App<B> {
             }
             Cmd::Reset => {
                 if self.frame.addr == 1 {
-                    self.client.request_update();
+                    self.ctl.set_run_mode(RunMode::Service);
                 }
-                self.client.system_reset();
+                self.ctl.reset();
             }
             _ => {
                 self.frame.len = 0;

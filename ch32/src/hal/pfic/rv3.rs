@@ -4,7 +4,7 @@ pub fn jump(addr: u32) -> ! {
     unsafe { f() }
 }
 
-pub fn system_reset() -> ! {
+pub fn software_reset() -> ! {
     use ch32_metapac::pfic::vals::{Keycode, Sysreset};
 
     // Clear reset status flags (RMVF) — required for boot mode transition

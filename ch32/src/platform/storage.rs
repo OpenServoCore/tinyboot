@@ -90,10 +90,6 @@ impl StorageTrait for Storage {
     fn as_slice(&self) -> &[u8] {
         unsafe { core::slice::from_raw_parts(self.app_ptr(), self.app_size) }
     }
-
-    fn unlock(&mut self) {
-        crate::hal::flash::unlock();
-    }
 }
 
 impl ReadNorFlash for Storage {

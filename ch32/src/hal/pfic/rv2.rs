@@ -4,7 +4,7 @@ pub fn jump(addr: u32) -> ! {
     unsafe { f() }
 }
 
-pub fn system_reset() -> ! {
+pub fn software_reset() -> ! {
     // Clear reset status flags (RMVF) — required for boot mode transition
     ch32_metapac::RCC.rstsckr().write(|w| w.0 = 1 << 24);
     ch32_metapac::PFIC.cfgr().write(|w| {

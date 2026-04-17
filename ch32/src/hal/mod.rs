@@ -13,4 +13,10 @@ pub mod pfic;
 pub mod rcc;
 pub mod usart;
 
-pub mod boot_request;
+/// Busy-loop for `n` CPU cycles.
+#[inline(always)]
+pub fn delay_cycles(n: u32) {
+    for _ in 0..n {
+        core::hint::spin_loop();
+    }
+}

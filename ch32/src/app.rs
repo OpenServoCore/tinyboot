@@ -1,63 +1,20 @@
 //! CH32 app-side tinyboot client.
 
-use tinyboot_core::traits::BootClient as TBBootClient;
-use tinyboot_core::traits::BootState;
-
-use crate::hal::{boot_request, flash, iwdg, pfic};
+use crate::hal::flash;
+use crate::platform::BootMetaStore;
 
 // Re-exports so apps only need this one module.
 pub use crate::hal::Pin;
-pub use boot_request::Config as BootCtlConfig;
+pub use crate::platform::BootCtl;
 pub use tinyboot_core::app::{App, AppConfig};
 pub use tinyboot_core::traits;
 pub use tinyboot_core::{app_version, pkg_version};
-
-/// CH32 boot client implementation.
-pub struct BootClient {
-    config: boot_request::Config,
-}
-
-impl TBBootClient for BootClient {
-    fn confirm(&mut self) {
-        critical_section::with(|_| {
-            let addr = flash::meta_addr();
-            let mut meta = unsafe { core::ptr::read_volatile(addr as *const [u8; 8]) };
-            if BootState::from_u8(meta[0]) != BootState::Validating {
-                return;
-            }
-
-            meta[0] = BootState::Idle as u8;
-            meta[1] = 0xFF;
-
-            flash::unlock();
-            iwdg::feed();
-            flash::erase(addr);
-            flash::write(addr, &meta);
-            flash::lock();
-        });
-    }
-
-    fn request_update(&mut self) {
-        critical_section::with(|_| {
-            boot_request::set_boot_request(&self.config, true);
-        });
-        // Allow time for external boot mode circuit (RC) to settle.
-        for _ in 0..8000u16 {
-            core::hint::spin_loop();
-        }
-    }
-
-    fn system_reset(&mut self) -> ! {
-        pfic::system_reset()
-    }
-}
 
 /// Create an [`App`] configured for CH32 hardware.
 ///
 /// Reads boot version from `__tb_boot_version_addr`, app capacity from
 /// `__tb_app_capacity`, and erase size from `flash::PAGE_SIZE`.
-pub fn new_app(boot_ctl: boot_request::Config) -> App<BootClient> {
-    boot_request::init(&boot_ctl);
+pub fn new_app(ctl: BootCtl) -> App<BootCtl, BootMetaStore> {
     unsafe extern "C" {
         static __tb_boot_version_addr: u8;
         static __tb_app_capacity: u8;
@@ -71,6 +28,7 @@ pub fn new_app(boot_ctl: boot_request::Config) -> App<BootClient> {
             boot_version: unsafe { boot_ver_addr.read_volatile() },
             app_version: tinyboot_core::tinyboot_version(),
         },
-        BootClient { config: boot_ctl },
+        ctl,
+        BootMetaStore::default(),
     )
 }

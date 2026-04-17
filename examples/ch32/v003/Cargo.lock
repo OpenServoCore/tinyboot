@@ -645,6 +645,7 @@ version = "0.3.0"
 name = "tinyboot-core"
 version = "0.3.0"
 dependencies = [
+ "critical-section",
  "embedded-io 0.7.1",
  "embedded-io-async 0.7.0",
  "embedded-storage",

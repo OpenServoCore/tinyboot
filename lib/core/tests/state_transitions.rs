@@ -10,7 +10,7 @@ static __tb_version: u16 = 0xFFFF;
 use embedded_storage::nor_flash;
 use tinyboot_core::Platform;
 use tinyboot_core::protocol::Dispatcher;
-use tinyboot_core::traits::{BootCtl, BootMetaStore, BootMode, BootState, Storage, Transport};
+use tinyboot_core::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
 use tinyboot_protocol::frame::Frame;
 use tinyboot_protocol::{Cmd, Status};
@@ -92,7 +92,6 @@ impl Storage for MockStorage {
     fn as_slice(&self) -> &[u8] {
         &self.data
     }
-    fn unlock(&mut self) {}
 }
 
 impl nor_flash::ErrorType for MockStorage {
@@ -135,11 +134,15 @@ impl nor_flash::NorFlash for MockStorage {
 
 struct MockBootCtl;
 impl BootCtl for MockBootCtl {
-    fn is_boot_requested(&self) -> bool {
-        false
+    fn run_mode(&self) -> RunMode {
+        RunMode::HandOff
     }
-    fn system_reset(&mut self, _mode: BootMode) -> ! {
+    fn set_run_mode(&mut self, _mode: RunMode) {}
+    fn reset(&mut self) -> ! {
         panic!("mock reset")
+    }
+    fn hand_off(&mut self) -> ! {
+        panic!("mock hand_off")
     }
 }
 

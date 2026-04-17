@@ -1,6 +1,6 @@
 use crate::platform::Platform;
 use crate::protocol;
-use crate::traits::{BootCtl, BootMetaStore, BootMode, BootState, Storage, Transport};
+use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
 
 /// Bootloader entry point. Checks boot state, validates the app, and either
 /// boots the application or enters the protocol loop for firmware updates.
@@ -32,32 +32,32 @@ where
     #[inline(always)]
     pub fn run(mut self) -> ! {
         match self.check_boot_state() {
-            Ok(BootMode::App) => self.platform.ctl.system_reset(BootMode::App),
-            Ok(BootMode::Bootloader) | Err(_) => self.enter_bootloader(),
+            Ok(RunMode::HandOff) => self.platform.ctl.hand_off(),
+            Ok(RunMode::Service) | Err(_) => self.enter_bootloader(),
         }
     }
 
-    fn check_boot_state(&mut self) -> Result<BootMode, B::Error> {
-        if self.platform.ctl.is_boot_requested() {
-            return Ok(BootMode::Bootloader);
+    fn check_boot_state(&mut self) -> Result<RunMode, B::Error> {
+        if self.platform.ctl.run_mode() == RunMode::Service {
+            return Ok(RunMode::Service);
         }
 
         match self.platform.boot_meta.boot_state() {
             BootState::Idle => {}
-            BootState::Updating => return Ok(BootMode::Bootloader),
+            BootState::Updating => return Ok(RunMode::Service),
             BootState::Validating => {
                 if !self.platform.boot_meta.has_trials() {
-                    return Ok(BootMode::Bootloader);
+                    return Ok(RunMode::Service);
                 }
                 self.platform.boot_meta.consume_trial()?;
             }
         }
 
         if !self.validate_app() {
-            return Ok(BootMode::Bootloader);
+            return Ok(RunMode::Service);
         }
 
-        Ok(BootMode::App)
+        Ok(RunMode::HandOff)
     }
 
     /// Validate the app image. The CRC covers only `app_size` bytes
@@ -81,8 +81,6 @@ where
 
     #[inline(always)]
     fn enter_bootloader(&mut self) -> ! {
-        self.platform.storage.unlock();
-
         let mut d = protocol::Dispatcher::<_, _, _, _, BUF>::new(&mut self.platform);
 
         loop {

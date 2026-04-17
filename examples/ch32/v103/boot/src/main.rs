@@ -36,16 +36,14 @@ fn main() -> ! {
     });
 
     // V103 system-flash: configure GPIO pin driving the external BOOT0
-    // control circuit (RC or flip-flop). Adjust pin to your hardware.
+    // control circuit (RC or flip-flop). Adjust pin + reset delay to your
+    // hardware (RC: ~1ms settle at 8MHz = 8000 cycles; flip-flop: 0).
     #[cfg(feature = "system-flash")]
-    let config = BootCtlConfig {
-        pin: Pin::PB1,     // adjust to your BOOT0 control pin
-        active_high: true, // RC circuit: HIGH = system flash
-    };
+    let ctl = BootCtl::new(Pin::PB1, true, 8000);
 
     // V103 user-flash: no GPIO boot control needed, uses RAM magic word.
     #[cfg(not(feature = "system-flash"))]
-    let config = BootCtlConfig;
+    let ctl = BootCtl::new();
 
-    tinyboot_ch32::boot::run(transport, config);
+    tinyboot_ch32::boot::run(transport, ctl);
 }

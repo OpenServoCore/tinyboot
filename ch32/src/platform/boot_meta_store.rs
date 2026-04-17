@@ -23,12 +23,8 @@ pub struct BootMetaStore {
 
 impl Default for BootMetaStore {
     /// Create a cached instance of boot metadata by reading from user flash.
-    // TODO: unlock here because `step_down()` may write before
-    // `Storage::unlock()` runs in the protocol loop. Move to a
-    // proper HAL init path when one exists.
     #[inline(always)]
     fn default() -> Self {
-        flash::unlock();
         unsafe { core::ptr::read_volatile(flash::meta_addr() as *const Self) }
     }
 }

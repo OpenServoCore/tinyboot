@@ -12,7 +12,7 @@ fn wait_busy() {
 }
 
 /// Unlock flash controller (KEYR + MODEKEYR).
-pub fn unlock() {
+fn unlock() {
     FLASH.keyr().write(|w| w.set_keyr(KEY1));
     FLASH.keyr().write(|w| w.set_keyr(KEY2));
     FLASH.modekeyr().write(|w| w.set_modekeyr(KEY1));
@@ -21,7 +21,7 @@ pub fn unlock() {
 
 /// Lock flash controller.
 #[inline(always)]
-pub fn lock() {
+fn lock() {
     FLASH.ctlr().write(|w| {
         w.set_lock(true);
         w.set_flock(true);
@@ -57,6 +57,7 @@ const BUF_LOAD_SIZE: usize = 16;
 
 /// Erase a single 128-byte page at `addr` (RM §24.4.7).
 pub fn erase(addr: u32) {
+    unlock();
     // Step 4: set FTER
     FLASH.ctlr().write(|w| {
         w.set_fter(true);
@@ -73,6 +74,7 @@ pub fn erase(addr: u32) {
     // Clear FTER
     FLASH.ctlr().write(|_| {});
     invalidate_read_cache(addr);
+    lock();
 }
 
 /// Write `data` to flash at `addr` (RM §24.4.6).
@@ -87,6 +89,7 @@ pub fn write(addr: u32, data: &[u8]) {
         "write: crosses page boundary"
     );
 
+    unlock();
     // Step 4: set FTPG alone
     FLASH.ctlr().write(|w| {
         w.set_ftpg(true);
@@ -138,4 +141,5 @@ pub fn write(addr: u32, data: &[u8]) {
     // Step 14: clear FTPG
     FLASH.ctlr().write(|_| {});
     invalidate_read_cache(page_base);
+    lock();
 }

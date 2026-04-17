@@ -1,6 +1,6 @@
 use crate::platform::Platform;
 use crate::ringbuf::RingBuf;
-use crate::traits::{BootCtl, BootMetaStore, BootMode, BootState, Storage, Transport};
+use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
 use tinyboot_protocol::frame::{Frame, InfoData, VerifyData};
 use tinyboot_protocol::{Cmd, ReadError, Status};
@@ -185,11 +185,12 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
             Cmd::Reset => {
                 let _ = self.frame.send(&mut self.platform.transport);
                 let mode = if self.frame.addr == 1 {
-                    BootMode::Bootloader
+                    RunMode::Service
                 } else {
-                    BootMode::App
+                    RunMode::HandOff
                 };
-                self.platform.ctl.system_reset(mode);
+                self.platform.ctl.set_run_mode(mode);
+                self.platform.ctl.reset();
             }
             Cmd::Flush => {
                 if let Some(next) = self.next_addr {

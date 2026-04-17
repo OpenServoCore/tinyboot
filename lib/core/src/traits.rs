@@ -1,12 +1,12 @@
 //! Platform abstraction traits.
 
-/// Boot target after a system reset.
+/// What tinyboot does after reset.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum BootMode {
-    /// Boot the application.
-    App,
-    /// Enter the bootloader.
-    Bootloader,
+pub enum RunMode {
+    /// Hand off to the application.
+    HandOff,
+    /// Stay in the bootloader and service commands.
+    Service,
 }
 
 /// Current stage in the firmware update lifecycle.
@@ -52,18 +52,21 @@ pub trait Storage:
 {
     /// Direct read access to the app region (zero-copy).
     fn as_slice(&self) -> &[u8];
-
-    /// Unlock flash for erase/write. Called once before entering the protocol loop.
-    fn unlock(&mut self);
 }
 
-/// Trait for system boot control.
+/// Boot control primitives exposed to the core state machine.
 pub trait BootCtl {
-    /// Returns true if the bootloader was explicitly requested (e.g. via boot mode register).
-    fn is_boot_requested(&self) -> bool;
+    /// Read the persistent run-mode intent.
+    fn run_mode(&self) -> RunMode;
 
-    /// Reset the system into the specified boot mode.
-    fn system_reset(&mut self, mode: BootMode) -> !;
+    /// Write the run-mode intent for the next reset.
+    fn set_run_mode(&mut self, mode: RunMode);
+
+    /// Software reset.
+    fn reset(&mut self) -> !;
+
+    /// Transfer control to the application.
+    fn hand_off(&mut self) -> !;
 }
 
 /// Persistent boot metadata storage.
@@ -97,23 +100,4 @@ pub trait BootMetaStore {
         state: BootState,
         app_size: u32,
     ) -> Result<(), Self::Error>;
-}
-
-/// App-side boot client interface.
-///
-/// Provides the operations an application needs from the bootloader:
-/// confirming a successful trial boot, requesting bootloader entry
-/// for a firmware update, and performing a system reset.
-pub trait BootClient {
-    /// Confirm a successful boot.
-    ///
-    /// If the boot state is `Validating`, refreshes metadata back to Idle.
-    /// Otherwise does nothing (already confirmed or no update in progress).
-    fn confirm(&mut self);
-
-    /// Set the boot request flag so the next reset enters the bootloader.
-    fn request_update(&mut self);
-
-    /// Reset the system. This function does not return.
-    fn system_reset(&mut self) -> !;
 }

@@ -3,7 +3,6 @@ mod boot_meta_store;
 mod storage;
 mod transport;
 
-pub use crate::hal::boot_request::Config as BootCtlConfig;
 pub use crate::hal::gpio::Pull;
 pub use crate::hal::{Pin, UsartMapping};
 pub use boot_ctl::BootCtl;
