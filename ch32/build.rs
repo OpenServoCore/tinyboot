@@ -33,37 +33,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cfgs.push("boot_pin".to_string());
     }
 
-    // Boot request scheme cfgs — which mechanisms are active:
-    //   boot_req_reg:  BOOT_MODE register     (system-flash, no boot_pin)
-    //   boot_req_ram:  RAM magic word          (user-flash OR boot_pin)
-    //   boot_req_gpio: GPIO pin drive          (system-flash + boot_pin)
-    // Note: ram and gpio are both set for system-flash + boot_pin.
+    // Run-mode persistence: how Service/HandOff intent survives reset.
+    //   run_mode_mode: BOOT_MODE register (system-flash + !boot_pin, i.e. V003+sys)
+    //   run_mode_ram:  RAM magic word     (everything else)
+    // Future slots: run_mode_mscratch (CSR), run_mode_bkp (backup domain).
+    //
+    // Boot-source latch: which image the factory ROM dispatches to next reset.
+    // Only emitted when running from system flash.
+    //   boot_src_mode: BOOT_MODE register         (V003 + system-flash)
+    //   boot_src_gpio: GPIO + external RC circuit (V103 + system-flash)
     let system_flash = env::var("CARGO_FEATURE_SYSTEM_FLASH").is_ok();
-    for name in ["boot_req_reg", "boot_req_ram", "boot_req_gpio"] {
+    for name in [
+        "run_mode_mode",
+        "run_mode_ram",
+        "boot_src_mode",
+        "boot_src_gpio",
+    ] {
         println!("cargo::rustc-check-cfg=cfg({name})");
     }
+
     if system_flash && !boot_pin {
-        println!("cargo:rustc-cfg=boot_req_reg");
-        cfgs.push("boot_req_reg".to_string());
+        println!("cargo:rustc-cfg=run_mode_mode");
+        cfgs.push("run_mode_mode".to_string());
+    } else {
+        println!("cargo:rustc-cfg=run_mode_ram");
+        cfgs.push("run_mode_ram".to_string());
     }
-    if !system_flash || boot_pin {
-        println!("cargo:rustc-cfg=boot_req_ram");
-        cfgs.push("boot_req_ram".to_string());
-    }
-    if system_flash && boot_pin {
-        println!("cargo:rustc-cfg=boot_req_gpio");
-        cfgs.push("boot_req_gpio".to_string());
+
+    if system_flash {
+        if boot_pin {
+            println!("cargo:rustc-cfg=boot_src_gpio");
+            cfgs.push("boot_src_gpio".to_string());
+        } else {
+            println!("cargo:rustc-cfg=boot_src_mode");
+            cfgs.push("boot_src_mode".to_string());
+        }
     }
 
     println!("cargo:cfgs={}", cfgs.join(","));
 
     generate_pin_and_usart_mapping(out)?;
 
-    // Boot request RAM magic word linker script.
-    // Always copied (4 bytes NOLOAD — unused by reg scheme but avoids
+    // Run-mode RAM magic word linker script.
+    // Always copied (4 bytes NOLOAD — unused by run_mode_mode but avoids
     // conditional complexity in downstream build scripts).
-    fs::copy("tb-boot-req.x", out.join("tb-boot-req.x"))?;
-    println!("cargo:rerun-if-changed=tb-boot-req.x");
+    fs::copy("tb-run-mode.x", out.join("tb-run-mode.x"))?;
+    println!("cargo:rerun-if-changed=tb-run-mode.x");
 
     println!("cargo:rustc-link-search={}", out.display());
     println!("cargo:rerun-if-changed=build.rs");

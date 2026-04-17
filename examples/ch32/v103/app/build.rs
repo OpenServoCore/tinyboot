@@ -22,7 +22,7 @@ fn main() {
     println!("cargo:rustc-link-search={out_dir}");
     println!("cargo:rerun-if-changed=memory_x");
     println!("cargo:rustc-link-arg=-Ttb-app.x");
-    println!("cargo:rustc-link-arg=-Ttb-boot-req.x");
+    println!("cargo:rustc-link-arg=-Ttb-run-mode.x");
     println!("cargo:rustc-link-arg=-Tdefmt.x");
 }
 
