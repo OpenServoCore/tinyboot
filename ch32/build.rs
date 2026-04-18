@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // boot_pin: chips with a hardware BOOT0 pin (V103) need an external
     // RC/flip-flop; others (V003) select via the BOOT_MODE register.
-    let boot_pin = !cfgs.iter().any(|c| c == "flash_v0");
+    let boot_pin = !cfgs.iter().any(|c| c == "flash_v0" || c == "flash_v00x");
     println!("cargo::rustc-check-cfg=cfg(boot_pin)");
     if boot_pin {
         println!("cargo:rustc-cfg=boot_pin");
