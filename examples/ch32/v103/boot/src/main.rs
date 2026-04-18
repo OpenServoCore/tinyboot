@@ -1,13 +1,9 @@
 //! Bootloader example for CH32V103.
 //!
-//! Two flash modes available via feature flags:
-//!
-//! **system-flash**: Runs from the 2048-byte system flash region, leaving all
-//! 64KB of user flash for the application. Requires external BOOT0 control
-//! circuit (RC or flip-flop) on the configured GPIO pin.
-//!
-//! **user-flash**: Occupies first 8KB of user flash, with the application in
-//! the remaining 56KB.
+//! Flash-mode features:
+//! - `system-flash`: runs from 2048-byte system flash; all 64 KB user flash free for the app.
+//!   Requires an external BOOT0 control circuit (RC or flip-flop) on the configured GPIO.
+//! - `user-flash`: occupies first 8 KB of user flash; app gets the remaining 56 KB.
 
 #![no_std]
 #![no_main]
@@ -21,11 +17,9 @@ use tinyboot_ch32::boot::prelude::*;
 
 #[unsafe(export_name = "main")]
 fn main() -> ! {
-    // USART1 transport for firmware updates.
-    //
-    // Remap options (CH32V103):
-    //   Remap0: TX=PA9, RX=PA10 (default)
-    //   Remap1: TX=PB6, RX=PB7
+    // USART1 transport. Remap options (CH32V103):
+    //   Remap0 (default): TX=PA9, RX=PA10
+    //   Remap1:           TX=PB6, RX=PB7
     let transport = Usart::new(&UsartConfig {
         duplex: Duplex::Full,
         baud: BaudRate::B115200,
@@ -35,11 +29,10 @@ fn main() -> ! {
         tx_en: None,
     });
 
-    // V103 system-flash: GPIO drives the external BOOT0 control circuit
-    // (RC or flip-flop). Adjust pin + reset delay to your hardware
-    // (RC: ~1ms settle at 8MHz = 8000 cycles; flip-flop: 0). The level argument
-    // is the pin state that selects the system-flash bootloader.
-    // V103 user-flash: no GPIO boot control needed, uses RAM magic word.
+    // system-flash: GPIO drives the external BOOT0 circuit. The Level arg is
+    // the pin state that selects the system-flash bootloader; delay is
+    // circuit settle time in CPU cycles (RC ~1ms @ 8MHz = 8000; flip-flop: 0).
+    // user-flash: no GPIO needed — run-mode lives in a RAM magic word.
     let ctl = core::cfg_select! {
         feature = "system-flash" => BootCtl::new(Pin::PB1, Level::High, 8000),
         _ => BootCtl::new(),

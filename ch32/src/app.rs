@@ -3,7 +3,6 @@
 use crate::hal::flash;
 use crate::platform::BootMetaStore;
 
-// Re-exports so apps only need this one module.
 pub use crate::hal::Pin;
 pub use crate::hal::gpio::Level;
 pub use crate::platform::BootCtl;
@@ -12,9 +11,6 @@ pub use tinyboot_core::traits;
 pub use tinyboot_core::{app_version, pkg_version};
 
 /// Create an [`App`] configured for CH32 hardware.
-///
-/// Reads boot version from `__tb_boot_version_addr`, app capacity from
-/// `__tb_app_capacity`, and erase size from `flash::PAGE_SIZE`.
 pub fn new_app(ctl: BootCtl) -> App<BootCtl, BootMetaStore> {
     unsafe extern "C" {
         static __tb_boot_version_addr: u8;

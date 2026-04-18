@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** merged `tinyboot-ch32-hal`, `tinyboot-ch32-boot`, and `tinyboot-ch32-app` into a single `tinyboot-ch32` crate. Use `tinyboot_ch32::boot` in bootloader binaries and `tinyboot_ch32::app` in applications; `tinyboot_ch32::hal` is the HAL module. Chip features (`ch32v003f4p6`, `ch32v103c8t6`, …) and `system-flash` move to the unified crate.
+- **Breaking:** extracted the minimal bootloader startup into a new `tinyboot-ch32-rt` crate. Bootloader binaries now depend on `tinyboot-ch32-rt` (e.g. `use tinyboot_ch32_rt as _;`); apps keep using `qingke-rt`.
+- **Breaking:** `tinyboot_core::traits` flattened into a single module. `tinyboot_core::traits::app::BootClient` is gone; app-side behaviour now lives in `tinyboot_core::app::App`. `Platform` moved to `tinyboot_core::Platform` (re-export kept at crate root).
+- **Breaking:** replaced `BootMode` with `RunMode { HandOff, Service }` to separate "what to do after reset" from "which image the ROM dispatches next boot".
+- **Breaking:** reshaped `BootCtl`. Was `is_boot_requested()` + `system_reset(BootMode)`; now `run_mode()` / `set_run_mode(RunMode)` for persisted intent, `reset()` for software reset, and `hand_off()` for transferring control to the app.
+- **Breaking:** removed `Storage::unlock()`. Flash unlock/lock is now scoped to each operation inside the CH32 HAL, so storage is self-locking.
+- **Breaking:** CH32 `BootCtl::new` on V103 + `system-flash` takes `(Pin, Level, u32)` for the external BOOT0 circuit — the GPIO pin, the level that selects the system-flash bootloader, and a reset delay (CPU cycles) that lets the RC/flip-flop settle before reset. Other combinations stay unit-arg.
+- CH32 `platform::boot_ctl` restructured into orthogonal `run_mode`, `boot_src`, and `hand_off` submodules dispatched via `core::cfg_select!` based on chip and flash mode.
+- Run-mode persistence now uses variant-specific backends: `BOOT_MODE` register (V003 + system-flash) or a RAM magic word elsewhere. The magic-word linker script (`tb-run-mode.x`) ships from `tinyboot-ch32` and is linked by both bootloader and app.
+- Converted non-HAL `bool` parameters to enums for clarity (`Duplex`, `Level`, `Pull`, `RunMode`, `BootSrc`).
+- Renamed `boot_state.rs` → `boot_meta_store.rs` in the CH32 platform for consistency with the `BootMetaStore` trait.
+- Aliased crate names removed — crates are now referenced by their package name everywhere.
+
+### Added
+
+- `tinyboot-ch32-rt` crate: tiny `_start` + `link.x` for bootloader binaries that can't afford full `qingke-rt` (critical on system-flash targets).
+- README for `tinyboot-ch32` and `tinyboot-ch32-rt` covering module layout, usage, and linker-script conventions.
+
 ## [0.3.0] - 2026-04-15
 
 ### Added

@@ -7,26 +7,25 @@ use tinyboot_protocol::{Cmd, ReadError, Status};
 
 /// Protocol dispatcher with write buffering.
 ///
-/// Incoming write data is accumulated in a ring buffer and flushed to storage
-/// in page-sized chunks using fast page programming. The host must send a
-/// `Flush` command to commit any remaining partial page before `Verify`,
-/// or before skipping to a non-sequential address.
+/// Writes are accumulated in a ring buffer and flushed a page at a time.
+/// The host must `Flush` before `Verify` or before skipping to a non-sequential
+/// address, otherwise the trailing partial page is lost.
 pub struct Dispatcher<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usize>
 {
-    /// Mutable reference to the platform peripherals.
+    /// Platform peripherals.
     pub platform: &'a mut Platform<T, S, B, C>,
     /// Reusable frame buffer.
     pub frame: Frame,
-    /// Write buffer. Sized for 2 × page size.
+    /// 2 × page size.
     buf: RingBuf<BUF>,
-    /// Expected address of the next sequential write. `None` = accept any.
+    /// Expected address of the next sequential write; `None` accepts any.
     next_addr: Option<u32>,
 }
 
 impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usize>
     Dispatcher<'a, T, S, B, C, BUF>
 {
-    /// Create a new dispatcher for the given platform.
+    /// Create a new dispatcher over the given platform.
     pub fn new(platform: &'a mut Platform<T, S, B, C>) -> Self {
         Self {
             platform,
@@ -36,7 +35,6 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
         }
     }
 
-    /// Write `n` bytes from the buffer to storage, deriving the address from `next_addr`.
     fn write_buf(&mut self, next: u32, n: usize) {
         let addr = next - self.buf.len() as u32;
         let data = self.buf.peek(n);
@@ -46,9 +44,8 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
         self.buf.consume(n);
     }
 
-    /// Read a frame, dispatch the command, and send the response.
-    /// Returns Err only for transport IO errors. Frame-level errors
-    /// (bad CRC, invalid frame) are silently skipped.
+    /// Read a frame, dispatch, send the response. Err only on transport IO;
+    /// frame-level errors (bad CRC) are silently skipped.
     pub fn dispatch(&mut self) -> Result<(), ReadError> {
         let status = self.frame.read(&mut self.platform.transport)?;
 
@@ -74,8 +71,7 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
                 self.frame.len = 12;
                 let app_sz = self.platform.boot_meta.app_size();
                 let app_ver = if app_sz != 0xFFFF_FFFF {
-                    // SAFETY: app_size != 0xFFFFFFFF means meta was previously written
-                    // by a Verify that validated app_size against capacity.
+                    // SAFETY: non-default app_size implies Verify bounded it.
                     let base = self.platform.storage.as_slice().as_ptr();
                     unsafe { base.add(app_sz as usize - 2).cast::<u16>().read_volatile() }
                 } else {
@@ -100,15 +96,14 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
                 {
                     self.frame.status = Status::AddrOutOfBounds;
                 } else {
-                    // State transitions for erase
                     match state {
-                        // Idle → Updating: step down state byte
+                        // Idle → Updating via bit-clear.
                         BootState::Idle => {
                             if self.platform.boot_meta.advance().is_err() {
                                 self.frame.status = Status::WriteError;
                             }
                         }
-                        // Validating → Updating: app failed, reflashing
+                        // Validating → Updating (app failed, reflashing).
                         BootState::Validating => {
                             if self
                                 .platform
@@ -119,7 +114,6 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
                                 self.frame.status = Status::WriteError;
                             }
                         }
-                        // Updating → Updating: no state change
                         BootState::Updating => {}
                     }
                     if self.frame.status == Status::Ok
@@ -149,7 +143,6 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
                             .push(unsafe { self.frame.data.raw.get_unchecked(..data_len) });
                         let next = addr + data_len as u32;
                         self.next_addr = Some(next);
-                        // Flush full page
                         if self.buf.len() >= S::WRITE_SIZE {
                             self.write_buf(next, S::WRITE_SIZE);
                         }
@@ -165,7 +158,7 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
                     if sz == 0 || sz > capacity as usize {
                         self.frame.status = Status::AddrOutOfBounds;
                     } else {
-                        // SAFETY: sz bounds-checked against capacity above.
+                        // SAFETY: sz bounded against capacity above.
                         let crc = crc16(CRC_INIT, unsafe {
                             self.platform.storage.as_slice().get_unchecked(..sz)
                         });

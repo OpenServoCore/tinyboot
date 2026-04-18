@@ -1,8 +1,6 @@
-//! Boot source latched in the flash BOOT_MODE register (V003 + system-flash).
-//!
-//! BOOT_MODE=1 keeps the ROM in the system-flash bootloader; BOOT_MODE=0
-//! sends it to user flash. Sole writer of the register on this target;
-//! paired with [`super::super::run_mode::ModeRunModeCtl`] (read-only).
+//! Boot source via the flash BOOT_MODE register (V003 + system-flash).
+//! BOOT_MODE=1 → system flash; 0 → user flash. Sole writer of the register;
+//! paired with the read-only `ModeRunModeCtl`.
 
 use super::BootSrc;
 use crate::hal::flash;

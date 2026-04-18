@@ -15,23 +15,21 @@ pub enum Level {
     High,
 }
 
-/// GPIO pin configuration.
+/// Packed pin config: `[ODR_HIGH(1) | ODR_LOW(1) | _(2) | CNF(2) | MODE(2)]`.
 ///
-/// Encodes the 4-bit CFGLR/CFGHR field `[MODE(2) | CNF(2)]` directly.
-/// Bit 7 = set ODR high, bit 6 = set ODR low, bits 3:0 = CFG nibble.
+/// Bits 3:0 = CFGLR/CFGHR nibble (MODE low, CNF high). Bits 7/6 set ODR high/low.
+/// MODE: INPUT=00, OUTPUT_10MHZ=01. CNF<<2: PP=00, FLOAT/OD=01, PULL/AF_PP=10, AF_OD=11.
 #[derive(Copy, Clone)]
 pub struct PinMode(u8);
 
-// MODE bits: INPUT=0b00, OUTPUT_10MHZ=0b01
-// CNF bits (shifted <<2): ANALOG/PP=0b0000, FLOAT/OD=0b0100, PULL/AF_PP=0b1000, AF_OD=0b1100
 impl PinMode {
-    pub const INPUT_FLOATING: Self = Self(0b0100); // MODE=00 CNF=01
-    pub const INPUT_PULL_UP: Self = Self(0b1000 | 0x80); // MODE=00 CNF=10, ODR=1
-    pub const INPUT_PULL_DOWN: Self = Self(0b1000 | 0x40); // MODE=00 CNF=10, ODR=0
-    pub const OUTPUT_PUSH_PULL: Self = Self(0b0001); // MODE=01 CNF=00
-    pub const OUTPUT_OPEN_DRAIN: Self = Self(0b0101); // MODE=01 CNF=01
-    pub const AF_PUSH_PULL: Self = Self(0b1001); // MODE=01 CNF=10
-    pub const AF_OPEN_DRAIN: Self = Self(0b1101); // MODE=01 CNF=11
+    pub const INPUT_FLOATING: Self = Self(0b0100);
+    pub const INPUT_PULL_UP: Self = Self(0b1000 | 0x80);
+    pub const INPUT_PULL_DOWN: Self = Self(0b1000 | 0x40);
+    pub const OUTPUT_PUSH_PULL: Self = Self(0b0001);
+    pub const OUTPUT_OPEN_DRAIN: Self = Self(0b0101);
+    pub const AF_PUSH_PULL: Self = Self(0b1001);
+    pub const AF_OPEN_DRAIN: Self = Self(0b1101);
 
     pub fn input_pull(pull: Pull) -> Self {
         match pull {

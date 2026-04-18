@@ -7,7 +7,7 @@ pub fn jump(addr: u32) -> ! {
 pub fn software_reset() -> ! {
     use ch32_metapac::pfic::vals::{Keycode, Sysreset};
 
-    // Clear reset status flags (RMVF) — required for boot mode transition
+    // RMVF: required for boot mode transition.
     ch32_metapac::RCC.rstsckr().write(|w| w.0 = 1 << 24);
     ch32_metapac::PFIC.cfgr().write(|w| {
         w.set_keycode(Keycode(0xBEEF));

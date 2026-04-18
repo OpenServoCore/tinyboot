@@ -1,10 +1,8 @@
-//! CH32 boot control: run-mode intent, boot-source latch, hand-off to app.
+//! CH32 boot control. Composes three orthogonal concerns:
 //!
-//! Composes three orthogonal concerns:
-//! - [`run_mode`]: how run-mode intent survives a reset (mode/ram).
-//! - [`boot_src`]: which image the factory ROM dispatches to next reset
-//!   (mode/gpio). Only present under `feature = "system-flash"`.
-//! - [`hand_off`]: how control transfers to the app (software reset vs jump).
+//! - [`run_mode`]: persist Service/HandOff intent across reset.
+//! - [`boot_src`]: pick which image the factory ROM dispatches (system-flash only).
+//! - [`hand_off`]: transfer control to the app (reset vs direct jump).
 
 use tinyboot_core::traits::{BootCtl as TBBootCtl, RunMode};
 
@@ -80,8 +78,7 @@ impl TBBootCtl for BootCtl {
 
     #[inline(always)]
     fn hand_off(&mut self) -> ! {
-        // Persist HandOff and latch the ROM toward user flash before executing,
-        // so a power cycle after this path still boots the app.
+        // Latch before executing so a power cycle here still boots the app.
         self.run_mode.write(RunMode::HandOff);
         #[cfg(feature = "system-flash")]
         self.boot_src.set(BootSrc::UserFlash);

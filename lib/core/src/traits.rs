@@ -1,37 +1,31 @@
 //! Platform abstraction traits.
 
-/// What tinyboot does after reset.
+/// Tinyboot's post-reset action.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RunMode {
-    /// Hand off to the application.
+    /// Boot the application.
     HandOff,
-    /// Stay in the bootloader and service commands.
+    /// Stay in the bootloader, service protocol commands.
     Service,
 }
 
-/// Current stage in the firmware update lifecycle.
+/// Firmware-update lifecycle stage. Encoded as contiguous 1-bit runs so
+/// advancing is a 1→0 bit-clear: `next = state & (state >> 1)`.
 ///
-/// Each state is a contiguous run of 1-bits from bit 0.
-/// Advancing clears the MSB: `next = state & (state >> 1)`.
-///
-/// ```text
-/// 0xFF  Idle        (8 ones)
-/// 0x7F  Updating    (7 ones)
-/// 0x3F  Validating  (6 ones)
-/// ```
+/// `0xFF` Idle → `0x7F` Updating → `0x3F` Validating.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
 pub enum BootState {
-    /// No update in progress. Normal app boot. Erased flash default.
+    /// No update in progress (erased flash default).
     Idle = 0xFF,
     /// Firmware transfer in progress.
     Updating = 0x7F,
-    /// New firmware written, trial booting the app.
+    /// New firmware written, trial booting.
     Validating = 0x3F,
 }
 
 impl BootState {
-    /// Parse a raw byte into a [`BootState`]. Unrecognised values default to [`Idle`](BootState::Idle).
+    /// Parse a raw byte. Unrecognised values decay to [`Idle`](BootState::Idle).
     pub fn from_u8(v: u8) -> Self {
         match v {
             0xFF | 0x7F | 0x3F => unsafe { core::mem::transmute::<u8, BootState>(v) },
@@ -40,26 +34,24 @@ impl BootState {
     }
 }
 
-/// Trait for firmware transfer protocol.
+/// Firmware transfer transport.
 pub trait Transport: embedded_io::Read + embedded_io::Write {}
 
-/// Trait for reading and writing firmware to persistent storage.
-///
-/// Flash is memory-mapped, so [`as_slice`](Storage::as_slice) provides
-/// zero-copy read access to the app region.
+/// App-region flash. [`as_slice`](Storage::as_slice) gives zero-copy reads
+/// (flash is memory-mapped on supported chips).
 pub trait Storage:
     embedded_storage::nor_flash::NorFlash + embedded_storage::nor_flash::ReadNorFlash
 {
-    /// Direct read access to the app region (zero-copy).
+    /// Zero-copy read access to the app region.
     fn as_slice(&self) -> &[u8];
 }
 
-/// Boot control primitives exposed to the core state machine.
+/// Boot control primitives.
 pub trait BootCtl {
-    /// Read the persistent run-mode intent.
+    /// Read persisted run mode.
     fn run_mode(&self) -> RunMode;
 
-    /// Write the run-mode intent for the next reset.
+    /// Set run mode for the next reset.
     fn set_run_mode(&mut self, mode: RunMode);
 
     /// Software reset.
@@ -69,31 +61,30 @@ pub trait BootCtl {
     fn hand_off(&mut self) -> !;
 }
 
-/// Persistent boot metadata storage.
+/// Persistent boot metadata.
 pub trait BootMetaStore {
-    /// Error type for metadata operations.
+    /// Error returned by mutating methods.
     type Error: core::fmt::Debug;
 
-    /// Current boot lifecycle state.
+    /// Current lifecycle state.
     fn boot_state(&self) -> BootState;
 
-    /// Returns true if any trial boots remain.
+    /// Any trials left?
     fn has_trials(&self) -> bool;
 
-    /// Stored CRC16 of the application firmware.
+    /// Stored app CRC16.
     fn app_checksum(&self) -> u16;
 
-    /// Stored application size in bytes.
+    /// Stored app size in bytes.
     fn app_size(&self) -> u32;
 
-    /// Step state down by one (1→0 bit clear).
+    /// Advance state (1→0 bit clear).
     fn advance(&mut self) -> Result<BootState, Self::Error>;
 
-    /// Consume one trial boot (clears one bit in the trials field).
+    /// Clear one bit of the trials counter.
     fn consume_trial(&mut self) -> Result<(), Self::Error>;
 
-    /// Erase meta and rewrite with given checksum, state, and app_size.
-    /// Trials return to erased default (full).
+    /// Erase and rewrite meta. Trials reset to the erased default.
     fn refresh(
         &mut self,
         checksum: u16,

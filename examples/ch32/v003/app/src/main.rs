@@ -1,10 +1,8 @@
-//! Example application for the tinyboot bootloader.
+//! Example app for the tinyboot bootloader (CH32V003).
 //!
-//! - Timer interrupt blinks LED on PD4 every second
-//! - Main loop listens on USART1 (TX=PD5, RX=PD6) for tinyboot commands,
-//!   reboots into bootloader on receipt of Reset command
-//!
-//! No async runtime — just a timer interrupt for blink and a blocking main loop.
+//! - TIM2 interrupt blinks LED on PD4 at 1 Hz.
+//! - Main loop listens on USART1 (TX=PD5, RX=PD6) and reboots into the
+//!   bootloader when it receives a Reset command.
 
 #![no_std]
 #![no_main]
@@ -50,12 +48,11 @@ fn main() -> ! {
     unsafe { ch32_hal::interrupt::TIM2.enable() };
 
     // USART1 blocking — must match the bootloader's pin mapping.
-    //
-    // Remap options (CH32V003, ch32-hal generic param):
-    //   0 (Remap0): TX=PD5, RX=PD6 (default)
-    //   1 (Remap1): TX=PD0, RX=PD1
-    //   2 (Remap2): TX=PD6, RX=PD5
-    //   3 (Remap3): TX=PC0, RX=PC1
+    // ch32-hal generic param picks the remap:
+    //   0 (default): TX=PD5, RX=PD6
+    //   1: TX=PD0, RX=PD1
+    //   2: TX=PD6, RX=PD5
+    //   3: TX=PC0, RX=PC1
     let mut uart_config = usart::Config::default();
     uart_config.baudrate = 115200;
     let uart = Uart::new_blocking::<0>(p.USART1, p.PD6, p.PD5, uart_config).unwrap();
@@ -63,7 +60,6 @@ fn main() -> ! {
     let mut rx = transport::Rx(rx);
     let mut tx = transport::Tx(tx);
 
-    // Tinyboot app client
     let mut app = tinyboot_ch32::app::new_app(tinyboot_ch32::app::BootCtl::new());
     app.confirm();
 

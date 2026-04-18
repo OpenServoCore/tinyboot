@@ -1,18 +1,6 @@
-    # =========================================================================
-    # Minimal bootloader runtime.
-    #
-    # Omits .data copy, .bss zeroing, and interrupt vector table to save space
-    # — critical when the bootloader must fit in ~2 KB of system flash.
-    #
-    # Safe because the bootloader:
-    #   - Has no initialized statics (no .data)
-    #   - Has no zero-init statics (no .bss)
-    #   - Never enables interrupts (polling only)
-    #   - Only runs from power-on reset (SRAM is undefined anyway)
-    #
-    # Applications should use the full qingke-rt runtime instead, which
-    # includes .data/.bss init.
-    # =========================================================================
+    # Minimal bootloader runtime: no .data/.bss init, no vector table.
+    # Safe because the bootloader has no mutable statics, no interrupts,
+    # and only runs from power-on reset. Apps must use qingke-rt instead.
 
     .section .init, "ax"
     .global _start

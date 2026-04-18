@@ -1,8 +1,6 @@
-//! App hand-off strategies.
-//!
-//! Exactly one variant compiles per build, selected by the `system-flash` feature:
-//! - [`system`]: software reset; factory ROM re-reads the boot request and dispatches.
-//! - [`user`]: reset APB2 peripherals, then jump directly to the app's reset vector.
+//! App hand-off strategies (one per build, gated on `system-flash`):
+//! - `system`: software reset — ROM re-dispatches based on the latch.
+//! - `user`: reset APB2 peripherals, then jump to the app reset vector.
 
 core::cfg_select! {
     feature = "system-flash" => {

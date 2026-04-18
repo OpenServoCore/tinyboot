@@ -1,13 +1,9 @@
 //! CH32 bootloader entry point.
-//!
-//! Wires the CH32 [`crate::platform`] implementations into
-//! [`tinyboot_core::Core`] and exposes a minimal [`run`] helper.
 
 use crate::platform::{BootMetaStore, Storage};
 
 pub use crate::platform::{BaudRate, BootCtl, Duplex, TxEnConfig, Usart, UsartConfig};
 
-// Re-exports so boot examples only need this one module.
 pub use crate::hal::gpio::{Level, Pull};
 pub use crate::hal::{Pin, UsartMapping};
 pub use tinyboot_core::Platform;
@@ -20,7 +16,6 @@ pub mod prelude {
     };
 }
 
-/// Protocol write buffer size (2 × page size).
 pub const PAGE_SIZE: usize = crate::hal::flash::PAGE_SIZE;
 
 /// Run the bootloader. Does not return.

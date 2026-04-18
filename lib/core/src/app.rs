@@ -1,7 +1,5 @@
-//! App-side tinyboot client.
-//!
-//! Handles boot confirmation and responds to host commands (Info, Reset)
-//! so the CLI can query and reset the device without physical access.
+//! App-side tinyboot client. Handles boot confirmation and responds to
+//! Info/Reset commands so the CLI can drive updates without physical access.
 
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode};
 use tinyboot_protocol::frame::{Frame, InfoData};
@@ -13,13 +11,13 @@ pub struct AppConfig {
     pub capacity: u32,
     /// Erase page size in bytes.
     pub erase_size: u16,
-    /// Boot version (read from flash by the caller).
+    /// Boot version (caller reads it from flash).
     pub boot_version: u16,
-    /// App version (typically from `pkg_version!()`).
+    /// App version, typically `pkg_version!()`.
     pub app_version: u16,
 }
 
-/// App-side tinyboot client. Handles Info/Reset commands and boot confirmation.
+/// App-side tinyboot client.
 pub struct App<C: BootCtl, M: BootMetaStore> {
     frame: Frame,
     config: AppConfig,
@@ -38,8 +36,7 @@ impl<C: BootCtl, M: BootMetaStore> App<C, M> {
         }
     }
 
-    /// Transition Validating → Idle. Runs in a critical section;
-    /// feed any active watchdog before calling.
+    /// Validating → Idle. Runs in a critical section; feed the watchdog first.
     pub fn confirm(&mut self) {
         critical_section::with(|_| {
             if self.meta.boot_state() != BootState::Validating {
@@ -51,7 +48,7 @@ impl<C: BootCtl, M: BootMetaStore> App<C, M> {
         });
     }
 
-    /// Poll for tinyboot commands (blocking).
+    /// Poll for one command (blocking).
     pub fn poll<R: embedded_io::Read, W: embedded_io::Write>(&mut self, rx: &mut R, tx: &mut W) {
         let status = match self.frame.read(rx) {
             Ok(s) => s,
@@ -69,7 +66,7 @@ impl<C: BootCtl, M: BootMetaStore> App<C, M> {
         }
     }
 
-    /// Poll for tinyboot commands (async).
+    /// Poll for one command (async).
     pub async fn poll_async<R: embedded_io_async::Read, W: embedded_io_async::Write>(
         &mut self,
         rx: &mut R,

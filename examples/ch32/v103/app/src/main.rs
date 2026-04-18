@@ -1,8 +1,8 @@
-//! Example application for the tinyboot bootloader (CH32V103).
+//! Example app for the tinyboot bootloader (CH32V103).
 //!
-//! - Timer interrupt blinks LED on PC13 every second
-//! - Main loop listens on USART1 (TX=PA9, RX=PA10) for tinyboot commands,
-//!   reboots into bootloader on receipt of Reset command
+//! - TIM2 interrupt blinks LED on PC13 at 1 Hz.
+//! - Main loop listens on USART1 (TX=PA9, RX=PA10) and reboots into the
+//!   bootloader when it receives a Reset command.
 
 #![no_std]
 #![no_main]
@@ -48,10 +48,9 @@ fn main() -> ! {
     unsafe { ch32_hal::interrupt::TIM2.enable() };
 
     // USART1 blocking — must match the bootloader's pin mapping.
-    //
-    // Remap options (CH32V103, ch32-hal generic param):
-    //   0 (Remap0): TX=PA9, RX=PA10 (default)
-    //   1 (Remap1): TX=PB6, RX=PB7
+    // ch32-hal generic param picks the remap:
+    //   0 (default): TX=PA9, RX=PA10
+    //   1: TX=PB6, RX=PB7
     let mut uart_config = usart::Config::default();
     uart_config.baudrate = 115200;
     let uart = Uart::new_blocking::<0>(p.USART1, p.PA10, p.PA9, uart_config).unwrap();
@@ -59,12 +58,13 @@ fn main() -> ! {
     let mut rx = transport::Rx(rx);
     let mut tx = transport::Tx(tx);
 
-    // Tinyboot app client
+    // system-flash: pass BOOT0 pin, the level that selects system flash,
+    // and the reset delay in cycles (RC ~1ms @ 8MHz = 8000; flip-flop: 0).
     let mut app = tinyboot_ch32::app::new_app(core::cfg_select! {
         feature = "system-flash" => tinyboot_ch32::app::BootCtl::new(
-            tinyboot_ch32::app::Pin::PB1,             // adjust to your BOOT0 control pin
-            tinyboot_ch32::app::Level::High,          // pin level that selects system flash
-            8000,                                     // reset_delay_cycles (~1ms @ 8MHz for RC settle)
+            tinyboot_ch32::app::Pin::PB1,
+            tinyboot_ch32::app::Level::High,
+            8000,
         ),
         _ => tinyboot_ch32::app::BootCtl::new(),
     });

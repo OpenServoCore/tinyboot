@@ -2,9 +2,8 @@
 
 use crate::traits::{BootCtl, BootMetaStore, Storage, Transport};
 
-/// Concrete platform holding all boot-time peripherals.
-///
-/// Constructed by the board-specific crate and passed to [`Core::new`](crate::Core::new).
+/// Boot-time peripherals. Constructed by the board crate and passed to
+/// [`Core::new`](crate::Core::new).
 pub struct Platform<T, S, B, C>
 where
     T: Transport,
@@ -14,11 +13,11 @@ where
 {
     /// UART / RS-485 transport.
     pub transport: T,
-    /// Flash storage for reading and writing firmware.
+    /// App-region flash storage.
     pub storage: S,
-    /// Persistent boot metadata (state, trials, checksum).
+    /// Persistent boot metadata.
     pub boot_meta: B,
-    /// Boot control (reset, boot mode selection).
+    /// Boot control (reset, run mode, hand-off).
     pub ctl: C,
 }
 

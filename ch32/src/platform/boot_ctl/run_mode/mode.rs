@@ -1,11 +1,8 @@
-//! Run-mode inferred from the flash BOOT_MODE register bit.
+//! Run-mode inferred from the flash BOOT_MODE register (V003 + system-flash).
 //!
-//! V003 + system-flash only. The bootloader is reached only when the ROM saw
-//! BOOT_MODE=1, so the register doubles as the boot-source latch
-//! ([`super::super::boot_src::ModeBootSrcCtl`]) and the run-mode store.
-//! To avoid a redundant flash-unlock+write in [`write`](Self::write), the
-//! physical register write is owned by `ModeBootSrcCtl::set`; this type's
-//! `write` is a no-op. `read` still reports the current register state.
+//! The register doubles as boot-source latch and run-mode store. Writes are
+//! owned by `ModeBootSrcCtl` to avoid redundant flash unlock cycles; `write`
+//! here is a no-op. `read` reports the current register state.
 
 use tinyboot_core::traits::RunMode;
 
@@ -31,6 +28,6 @@ impl ModeRunModeCtl {
 
     #[inline(always)]
     pub fn write(&mut self, _mode: RunMode) {
-        // No-op: ModeBootSrcCtl owns the BOOT_MODE register write.
+        // ModeBootSrcCtl owns the register write.
     }
 }

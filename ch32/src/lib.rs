@@ -3,10 +3,10 @@
 
 //! tinyboot bootloader and app library for CH32 microcontrollers.
 //!
-//! - [`hal`]      — chip-level register access (flash, gpio, usart, …).
-//! - [`platform`] — tinyboot-core trait impls (storage, transport, boot control, metadata).
-//! - [`boot`]     — bootloader-side entry point.
-//! - [`app`]      — app-side tinyboot client.
+//! - [`hal`] — chip registers (flash, gpio, usart, …).
+//! - [`platform`] — tinyboot-core trait impls.
+//! - [`boot`] — bootloader entry point.
+//! - [`app`] — app-side client.
 
 #[cfg(not(any(
     feature = "ch32v003f4p6",

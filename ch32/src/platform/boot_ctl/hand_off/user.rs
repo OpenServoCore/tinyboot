@@ -1,9 +1,8 @@
-//! User-flash hand-off: reset APB2 peripherals, then jump to the app's reset
-//! vector at the `__tb_app_entry` linker symbol.
+//! User-flash hand-off: reset APB2 peripherals, jump to `__tb_app_entry`.
 //!
-//! The symbol is read inside [`execute`](Self::execute) (not at construction)
-//! so the app binary — which never hands off to itself — does not pull in an
-//! unresolved reference. In the app, LTO drops `execute` entirely.
+//! The symbol is loaded inside `execute` (not at construction) so the app —
+//! which never hands off to itself — doesn't pull in an unresolved reference;
+//! LTO drops the whole method from the app binary.
 
 use crate::hal::{pfic, rcc};
 

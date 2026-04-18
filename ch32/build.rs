@@ -10,9 +10,8 @@ use ch32_metapac::metadata::METADATA;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
-    // Emit peripheral variant cfgs (e.g. pfic_rv2, flash_v0).
-    // Also expose them via `links` metadata so dependent crates can read
-    // DEP_TINYBOOT_CH32_CFGS and re-emit them without duplicating the metapac query.
+    // Emit peripheral variant cfgs (e.g. pfic_rv2, flash_v0) and expose them
+    // via `links` metadata so dependent crates can read DEP_TINYBOOT_CH32_CFGS.
     let mut cfgs = Vec::new();
     for p in METADATA.peripherals {
         if let Some(regs) = &p.registers {
@@ -23,9 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     cfgs.dedup();
 
-    // Chips with a hardware BOOT0 pin (e.g. CH32V103) need an external circuit
-    // (RC or flip-flop) to select boot source. Chips without (e.g. CH32V003)
-    // have a BOOT_MODE register instead.
+    // boot_pin: chips with a hardware BOOT0 pin (V103) need an external
+    // RC/flip-flop; others (V003) select via the BOOT_MODE register.
     let boot_pin = !cfgs.iter().any(|c| c == "flash_v0");
     println!("cargo::rustc-check-cfg=cfg(boot_pin)");
     if boot_pin {
@@ -33,15 +31,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cfgs.push("boot_pin".to_string());
     }
 
-    // Run-mode persistence: how Service/HandOff intent survives reset.
-    //   run_mode_mode: BOOT_MODE register (system-flash + !boot_pin, i.e. V003+sys)
-    //   run_mode_ram:  RAM magic word     (everything else)
-    // Future slots: run_mode_mscratch (CSR), run_mode_bkp (backup domain).
+    // run_mode_*: where Service/HandOff persists across reset.
+    //   run_mode_mode → BOOT_MODE register (V003 + system-flash)
+    //   run_mode_ram  → RAM magic word (everything else)
     //
-    // Boot-source latch: which image the factory ROM dispatches to next reset.
-    // Only emitted when running from system flash.
-    //   boot_src_mode: BOOT_MODE register         (V003 + system-flash)
-    //   boot_src_gpio: GPIO + external RC circuit (V103 + system-flash)
+    // boot_src_*: system-flash only; which image the factory ROM dispatches.
+    //   boot_src_mode → BOOT_MODE register (V003)
+    //   boot_src_gpio → external GPIO circuit (V103)
     let system_flash = env::var("CARGO_FEATURE_SYSTEM_FLASH").is_ok();
     for name in [
         "run_mode_mode",
@@ -74,9 +70,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     generate_pin_and_usart_mapping(out)?;
 
-    // Run-mode RAM magic word linker script.
-    // Always copied (4 bytes NOLOAD — unused by run_mode_mode but avoids
-    // conditional complexity in downstream build scripts).
+    // Always copy tb-run-mode.x (4-byte NOLOAD). Unused by run_mode_mode but
+    // keeps downstream build scripts free of conditional logic.
     fs::copy("tb-run-mode.x", out.join("tb-run-mode.x"))?;
     println!("cargo:rerun-if-changed=tb-run-mode.x");
 
@@ -86,8 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Port letter to port_index used by `ch32_metapac::GPIO(n)`.
-/// A=0, B=1, C=2, D=3, ...
+/// Port letter → index: A=0, B=1, C=2, D=3, ...
 fn port_index(port: char) -> usize {
     (port as usize) - ('A' as usize)
 }
@@ -95,10 +89,8 @@ fn port_index(port: char) -> usize {
 fn generate_pin_and_usart_mapping(out: &Path) -> Result<(), Box<dyn Error>> {
     let mut code = String::new();
 
-    // ── Pin enum ──────────────────────────────────────────────────────
-    // Discriminant = (port_index << 5) | pin_number, so methods are
-    // bit arithmetic instead of match tables. 5 bits for pin supports
-    // up to 32 pins/port (covers gpio_v0=8, v3=16, x0=24).
+    // Pin enum: discriminant = (port_index << 5) | pin_number so accessors
+    // are bit arithmetic. 5 bits fits up to 32 pins/port (v0=8, v3=16, x0=24).
     let mut pins: Vec<(char, u8)> = Vec::new();
     for p in METADATA.peripherals {
         if let Some(regs) = &p.registers
@@ -150,8 +142,7 @@ fn generate_pin_and_usart_mapping(out: &Path) -> Result<(), Box<dyn Error>> {
     writeln!(code, "}}")?;
     writeln!(code)?;
 
-    // ── UsartMapping enum ─────────────────────────────────────────────
-    // Group USART peripheral pins by (peripheral_name, remap_value).
+    // UsartMapping: one variant per (peripheral, remap_value).
     struct RemapGroup {
         peripheral_name: String,
         tx_pin: Option<String>,

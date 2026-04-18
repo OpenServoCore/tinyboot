@@ -1,10 +1,6 @@
-//! Run-mode intent persisted across reset.
-//!
-//! Exactly one variant is selected per build by `build.rs` cfgs:
-//! - [`mode`]: flash BOOT_MODE register (V003 + system-flash).
-//! - [`ram`]:  magic word in RAM (everything else).
-//!
-//! Future variants (unimplemented): `mscratch` (CSR), `bkp` (backup domain).
+//! Run-mode persisted across reset. Variants (one per build):
+//! - `mode`: flash BOOT_MODE register (V003 + system-flash).
+//! - `ram`: magic word in RAM (everything else).
 
 core::cfg_select! {
     run_mode_mode => {

@@ -1,4 +1,4 @@
-//! Run-mode persisted in a RAM magic word at the `__tb_run_mode` linker symbol.
+//! Run-mode persisted in a RAM magic word at `__tb_run_mode`.
 
 use tinyboot_core::traits::RunMode;
 

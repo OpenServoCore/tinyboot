@@ -1,8 +1,6 @@
-//! Boot-source latch: selects which image the factory ROM dispatches to next.
-//!
-//! Only compiled when `feature = "system-flash"`. Exactly one variant:
-//! - [`mode`]: BOOT_MODE register           (V003 + system-flash).
-//! - [`gpio`]: GPIO + external BOOT0 circuit (V103 + system-flash).
+//! Boot-source latch (system-flash only). Variants:
+//! - `mode`: flash BOOT_MODE register (V003).
+//! - `gpio`: GPIO driving external BOOT0 circuit (V103).
 
 /// Which image the factory ROM should dispatch to on the next reset.
 #[derive(Copy, Clone, PartialEq, Eq)]

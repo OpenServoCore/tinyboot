@@ -20,17 +20,13 @@ impl NorFlashError for StorageError {
     }
 }
 
-/// CH32 flash storage implementing [`NorFlash`] and the tinyboot [`Storage`](tinyboot_core::traits::Storage) trait.
-///
-/// Geometry comes from linker symbols (`__tb_app_base`, `__tb_meta_base`),
-/// cached in struct fields to avoid repeated address loads.
+/// CH32 flash storage. Geometry cached from `__tb_app_base` / `__tb_meta_base`.
 pub struct Storage {
     app_base: u32,
     app_size: usize,
 }
 
 impl Default for Storage {
-    /// Reads `__tb_app_base` and `__tb_meta_base` linker symbols to determine the app region.
     #[inline(always)]
     fn default() -> Self {
         let app_base = flash::app_base();

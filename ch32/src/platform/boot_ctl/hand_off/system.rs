@@ -1,5 +1,4 @@
-//! System-flash hand-off: software reset into the factory ROM, which reads
-//! the BOOT_MODE register and dispatches to user flash when cleared.
+//! System-flash hand-off: software reset; ROM dispatches on BOOT_MODE.
 
 use crate::hal::pfic;
 

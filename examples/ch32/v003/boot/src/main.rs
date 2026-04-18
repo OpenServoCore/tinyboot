@@ -1,12 +1,8 @@
 //! Bootloader example for CH32V003.
 //!
-//! Two flash modes available via feature flags:
-//!
-//! **system-flash**: Runs from the 1920-byte system flash region, leaving all
-//! 16KB of user flash for the application.
-//!
-//! **user-flash**: Occupies first 2KB of user flash, with the application in
-//! the remaining 14KB.
+//! Flash-mode features:
+//! - `system-flash`: runs from 1920-byte system flash; all 16 KB user flash free for the app.
+//! - `user-flash`: occupies first 2 KB of user flash; app gets the remaining 14 KB.
 
 #![no_std]
 #![no_main]
@@ -20,17 +16,15 @@ use tinyboot_ch32::boot::prelude::*;
 
 #[unsafe(export_name = "main")]
 fn main() -> ! {
-    // USART1 transport for firmware updates.
+    // USART1 transport. Remap options (CH32V003):
+    //   Remap0 (default): TX=PD5, RX=PD6
+    //   Remap1:           TX=PD0, RX=PD1
+    //   Remap2:           TX=PD6, RX=PD5
+    //   Remap3:           TX=PC0, RX=PC1
     //
-    // Remap options (CH32V003):
-    //   Remap0: TX=PD5, RX=PD6 (default)
-    //   Remap1: TX=PD0, RX=PD1
-    //   Remap2: TX=PD6, RX=PD5
-    //   Remap3: TX=PC0, RX=PC1
+    // rx_pull: Pull::Up for floating lines; Pull::None if externally pulled up.
     //
-    // rx_pull: Pull::Up for floating RX lines, Pull::None if external pullup present.
-    //
-    // For RS-485 half-duplex with a transceiver DE pin:
+    // RS-485 half-duplex with DE pin:
     //   duplex: Duplex::Half,
     //   tx_en: Some(TxEnConfig { pin: Pin::PC2, tx_level: Level::High }),
     let transport = Usart::new(&UsartConfig {

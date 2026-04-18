@@ -2,13 +2,12 @@ pub use ch32_metapac::usart::Usart as Regs;
 
 #[inline(always)]
 pub fn init(r: Regs, pclk: u32, baud: u32, half_duplex: bool) {
-    // 8N1: write zeroes all bits (M=0, PCE=0, STOP=0b00), then set TE+RE
+    // CTLR1 default (M=0, PCE=0, STOP=00) gives 8N1; just set TE+RE.
     r.ctlr1().write(|w| {
         w.set_te(true);
         w.set_re(true);
     });
 
-    // RTSE=0, CTSE=0 are default; only touch CTLR3 for half-duplex
     if half_duplex {
         r.ctlr3().write(|w| w.set_hdsel(true));
     }

@@ -2,8 +2,8 @@ use crate::platform::Platform;
 use crate::protocol;
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
 
-/// Bootloader entry point. Checks boot state, validates the app, and either
-/// boots the application or enters the protocol loop for firmware updates.
+/// Bootloader entry point. Validates the app and either hands off or enters
+/// the protocol loop.
 pub struct Core<T, S, B, C, const BUF: usize>
 where
     T: Transport,
@@ -21,14 +21,13 @@ where
     B: BootMetaStore,
     C: BootCtl,
 {
-    /// Create a new bootloader core from a platform implementation.
+    /// Wrap a platform in a bootloader core.
     #[inline(always)]
     pub fn new(platform: Platform<T, S, B, C>) -> Self {
         Core { platform }
     }
 
-    /// Run the bootloader. Checks boot state, validates the app, and either
-    /// boots the application or enters the protocol loop. Does not return.
+    /// Run the bootloader. Does not return.
     #[inline(always)]
     pub fn run(mut self) -> ! {
         match self.check_boot_state() {
@@ -60,20 +59,20 @@ where
         Ok(RunMode::HandOff)
     }
 
-    /// Validate the app image. The CRC covers only `app_size` bytes
-    /// (the actual firmware), not the entire flash region.
+    /// Check the app image. CRC covers `app_size` bytes only, not the
+    /// full region.
     fn validate_app(&self) -> bool {
         let stored = self.platform.boot_meta.app_checksum();
         if stored != 0xFFFF {
             use tinyboot_protocol::crc::{CRC_INIT, crc16};
             let sz = self.platform.boot_meta.app_size() as usize;
-            // SAFETY: checksum != 0xFFFF means meta was previously written
-            // by a Verify that validated app_size against capacity.
+            // SAFETY: stored checksum implies Verify previously bounded app_size.
             return crc16(CRC_INIT, unsafe {
                 self.platform.storage.as_slice().get_unchecked(..sz)
             }) == stored;
         }
-        // No CRC stored (virgin/debugger-flashed) — check if app exists
+        // No CRC stored (virgin / debugger-flashed) — require at least one
+        // non-0xFF word to treat the app as present.
         let data = self.platform.storage.as_slice();
         data.len() >= 4
             && unsafe { core::ptr::read_volatile(data.as_ptr() as *const u32) } != 0xFFFF_FFFF

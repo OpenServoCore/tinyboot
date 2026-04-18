@@ -8,6 +8,7 @@ license.workspace = true
 keywords = ["bootloader", "embedded", "ch32", "risc-v", "no-std"]
 categories = ["embedded", "no-std", "hardware-support"]
 links = "tinyboot-ch32"
+readme = "README.md"
 
 [dependencies]
 tinyboot-core = { workspace = true, default-features = false }

@@ -10,9 +10,7 @@ pub enum BootMetaError {
     TrialsExhausted,
 }
 
-/// CH32 boot metadata stored in user flash.
-///
-/// Address defined by `__tb_meta_base` linker symbol (see memory.x).
+/// CH32 boot metadata cached from flash at `__tb_meta_base`.
 #[repr(C)]
 pub struct BootMetaStore {
     state: u8,
@@ -22,7 +20,6 @@ pub struct BootMetaStore {
 }
 
 impl Default for BootMetaStore {
-    /// Create a cached instance of boot metadata by reading from user flash.
     #[inline(always)]
     fn default() -> Self {
         unsafe { core::ptr::read_volatile(flash::meta_addr() as *const Self) }
@@ -38,14 +35,13 @@ impl BootMetaStore {
         unsafe { from_raw_parts_mut(self as *mut Self as *mut u8, size_of::<Self>()) }
     }
 
-    /// Erase meta page and rewrite cached metadata via FTPG.
     fn write(&self) {
         let addr = flash::meta_addr();
         flash::erase(addr);
         flash::write(addr, self.as_bytes());
     }
 
-    /// Bit-clear step down on a single byte. Updates cache + flash via FTPG.
+    /// 1→0 bit-clear on one byte; updates cache and flash in place.
     fn step_down(&mut self, offset: usize, floor: u8) -> Option<u8> {
         let bytes = self.as_bytes_mut();
         if bytes[offset] <= floor {

@@ -2,8 +2,9 @@
 
 [![CI](https://github.com/OpenServoCore/tinyboot/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenServoCore/tinyboot/actions/workflows/ci.yml)
 [![tinyboot](https://img.shields.io/crates/v/tinyboot?label=tinyboot)](https://crates.io/crates/tinyboot)
-[![tinyboot-ch32-boot](https://img.shields.io/crates/v/tinyboot-ch32-boot?label=tinyboot-ch32-boot)](https://crates.io/crates/tinyboot-ch32-boot)
-[![tinyboot-ch32-app](https://img.shields.io/crates/v/tinyboot-ch32-app?label=tinyboot-ch32-app)](https://crates.io/crates/tinyboot-ch32-app)
+[![tinyboot-core](https://img.shields.io/crates/v/tinyboot-core?label=tinyboot-core)](https://crates.io/crates/tinyboot-core)
+[![tinyboot-ch32](https://img.shields.io/crates/v/tinyboot-ch32?label=tinyboot-ch32)](https://crates.io/crates/tinyboot-ch32)
+[![tinyboot-ch32-rt](https://img.shields.io/crates/v/tinyboot-ch32-rt?label=tinyboot-ch32-rt)](https://crates.io/crates/tinyboot-ch32-rt)
 [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE-MIT)
 [![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE-APACHE)
 
@@ -74,14 +75,13 @@ tinyboot currently supports **UART / RS-485** transport. The table below tracks 
 ## Project Structure
 
 ```
-lib/                        Core (arch-independent)
+lib/                        Platform-agnostic core
   core/                     tinyboot-core — boot state machine, protocol dispatcher
   protocol/                 tinyboot-protocol — wire protocol, frame format, CRC16
 
-ch32/                       CH32 implementations
-  hal/                      tinyboot-ch32-hal — minimal HAL (flash, GPIO, USART)
-  boot/                     tinyboot-ch32-boot — bootloader platform
-  app/                      tinyboot-ch32-app — app-side boot client
+ch32/                       CH32 implementation
+  src/                      tinyboot-ch32 — HAL + platform (boot + app)
+  rt/                       tinyboot-ch32-rt — tiny bootloader runtime
 
 cli/                        tinyboot — host CLI flasher
 
@@ -89,14 +89,13 @@ examples/ch32/v003/         CH32V003 boot + app examples
 examples/ch32/v103/         CH32V103 boot + app examples
 ```
 
-| Crate                                | Description                                                                                 |
-| ------------------------------------ | ------------------------------------------------------------------------------------------- |
-| [`tinyboot-core`](lib/core/)         | Platform-agnostic bootloader core (protocol dispatcher, boot state machine, app validation) |
-| [`tinyboot-protocol`](lib/protocol/) | Wire protocol (frame format, CRC16, commands)                                               |
-| [`tinyboot-ch32-hal`](ch32/hal/)     | Minimal HAL (flash, GPIO, USART, RCC)                                                       |
-| [`tinyboot-ch32-boot`](ch32/boot/)   | Bootloader platform (storage, boot control, boot metadata)                                  |
-| [`tinyboot-ch32-app`](ch32/app/)     | App-side boot client (confirm, request update)                                              |
-| [`tinyboot`](cli/)                   | CLI firmware flasher over UART                                                              |
+| Crate                                    | Description                                                                                         |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [`tinyboot-core`](lib/core/)             | Platform-agnostic bootloader core (protocol dispatcher, boot state machine, app validation)         |
+| [`tinyboot-protocol`](lib/protocol/)     | Wire protocol (frame format, CRC16, commands)                                                       |
+| [`tinyboot-ch32`](ch32/)                 | CH32 HAL and tinyboot platform — use `boot` for bootloader binaries, `app` for application binaries |
+| [`tinyboot-ch32-rt`](ch32/rt/)           | Minimal CH32 runtime for bootloader binaries that can't afford full `qingke-rt`                     |
+| [`tinyboot`](cli/)                       | CLI firmware flasher over UART                                                                      |
 
 ## Rust Version
 
@@ -119,42 +118,34 @@ All memory.x files define five standard regions: `CODE`, `BOOT`, `APP`, `META`, 
 
 ## Porting to a New MCU Family
 
-Adding a new chip within an existing family (e.g. another CH32 variant) is straightforward — add the register definitions to the existing HAL crate and a feature flag. No new crates needed.
+Adding a new chip within an existing family (e.g. another CH32 variant) is straightforward — add the register definitions to the existing HAL module and a feature flag. No new crates needed.
 
-Porting to an entirely new MCU family (e.g. STM32) requires a parallel set of crates. The core crates (`tinyboot-core`, `tinyboot-protocol`, `tinyboot`) are platform-agnostic — you implement four traits and provide a minimal HAL. Here's what that looks like:
+Porting to an entirely new MCU family (e.g. STM32) requires a parallel crate. The core crates (`tinyboot-core`, `tinyboot-protocol`, `tinyboot`) are platform-agnostic — you implement four traits and provide a minimal HAL. Here's what that looks like:
 
-### 1. Create a HAL crate (`tinyboot-{chip}-hal`)
+### 1. Create a `tinyboot-{chip}` crate
 
-Low-level register access shared between the boot and app crates. Provides the bare minimum operations both sides need:
+Mirror the layout of `tinyboot-ch32`:
 
-- **Flash** — unlock, erase page, write page, lock
-- **GPIO** — configure pin mode, set high/low (for TX-enable if using RS-485)
-- **USART** — init with baud rate, blocking read byte, blocking write byte, flush
-- **RCC/clock** — enable peripheral clocks
-- **Reset** — system reset, and optionally jump-to-address for user-flash bootloaders
+- `src/hal/` — low-level register access: flash (unlock/erase/write/lock), GPIO (configure, set level), USART (init, blocking read/write/flush), RCC (enable peripherals), reset (system reset + optional jump).
+- `src/platform/` — implementations of the four `tinyboot_core::traits` on top of the HAL.
+- `src/boot.rs` and `src/app.rs` — thin bootloader and app entry points exposing the platform to user binaries.
 
-### 2. Create a boot crate (`tinyboot-{chip}-boot`)
-
-Implements the core boot traits using the HAL. Four traits from `tinyboot_core::traits`:
+The four traits from `tinyboot_core::traits`:
 
 | Trait           | What to implement                                                                                                                         |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `Transport`     | Any `embedded_io::Read + Write` stream — UART, RS-485, USB, SPI, even WiFi or Bluetooth. The protocol doesn't care what carries the bytes |
-| `Storage`       | Implement `embedded_storage::NorFlash` (erase, write) and provide `as_slice()` for zero-copy flash reads, plus `unlock()`                 |
-| `BootMetaStore` | Read/write boot state, trial counter, and app checksum from a reserved flash page (address defined by linker symbol)                      |
-| `BootCtl`       | `is_boot_requested()` checks your boot flag (OB bit, RAM magic, GPIO pin, etc.); `system_reset()` resets or jumps to app                  |
+| `Storage`       | `embedded_storage::NorFlash` (erase, write, read), plus `as_slice()` for zero-copy flash reads                                            |
+| `BootMetaStore` | Read/write boot state, trial counter, app checksum, and app size from a reserved flash page (address from linker symbol)                  |
+| `BootCtl`       | `run_mode()`/`set_run_mode()` for Service/HandOff intent across reset, `reset()` for software reset, `hand_off()` to boot the app         |
 
-### 3. Create an app crate (`tinyboot-{chip}-app`)
+### 2. (Optional) Create a `tinyboot-{chip}-rt` crate
 
-Implements `tinyboot_core::traits::BootClient` using the HAL:
+If your chip needs a custom `_start` + linker script to fit a small bootloader (`tinyboot-ch32-rt` exists for this reason on CH32), ship it alongside; otherwise the regular chip runtime is fine for the app.
 
-- `confirm()` — transition boot state from Validating back to Idle
-- `request_update()` — set your boot request flag
-- `system_reset()` — reset the system
+### 3. Create an example workspace
 
-### 4. Create example workspace
-
-Add `examples/{chip}/{variant}/` with a workspace containing boot and app binaries. Each provides a `memory.x` defining the five standard regions (`CODE`, `BOOT`, `APP`, `META`, `RAM`). The crate linker scripts handle the rest.
+Add `examples/{chip}/{variant}/` with boot + app binaries. Each provides a `memory.x` defining the five standard regions (`CODE`, `BOOT`, `APP`, `META`, `RAM`). The core linker scripts (`tb-boot.x`, `tb-app.x`, `tb-run-mode.x`) handle the rest.
 
 ### What you get for free
 
@@ -177,7 +168,7 @@ I took it as a challenge to fit a proper bootloader — with a real protocol, CR
 Beyond the usual Cargo profile tricks (`opt-level = "z"`, LTO, `codegen-units = 1`, `panic = "abort"`), fitting a real bootloader in 1920 bytes required some more deliberate choices:
 
 - **No HAL crates** — bare metal register access via PAC crates only; HAL abstractions are too expensive for this budget
-- **Custom runtime** — no qingke-rt; the system-flash bootloader startup (`v2.S`) is just GP/SP init and a jump to main (20 bytes of assembly instead of ~1.4KB of full runtime)
+- **Custom runtime** — `tinyboot-ch32-rt` replaces qingke-rt in the bootloader; its startup is just GP/SP init and a jump to main (20 bytes of assembly instead of ~1.4KB of full runtime)
 - **Symmetric frame format** — the same `Frame` struct is used for both requests and responses with one shared parse and format path, eliminating code duplication
 - **`repr(C)` frame with union data** — CRC is computed directly over the struct memory via pointer cast; no serialization step, no intermediate buffer
 - **`MaybeUninit` frame buffer** — the 76-byte `Frame` struct is reused every iteration without zero-initialization
@@ -189,7 +180,7 @@ Beyond the usual Cargo profile tricks (`opt-level = "z"`, LTO, `codegen-units = 
 
 ### Design approach
 
-tinyboot is structured as a library, not a monolithic binary. The core logic and protocol are platform-agnostic crates; chip-specific details live in separate `ch32-*` crates. To build your bootloader, you create a small crate with a `main.rs` that wires up your transport and calls `run()` — see the [examples](examples/ch32/v003/) for exactly this. The same split applies on the app side: [`tinyboot-ch32-app`](ch32/app/) integrates into your application so it can confirm a successful boot and reboot into the bootloader on command, enabling fully remote firmware updates without physical access.
+tinyboot is structured as a library, not a monolithic binary. The core logic and protocol live in platform-agnostic crates; chip-specific details live in a single `tinyboot-{chip}` crate (`tinyboot-ch32` for CH32) with a `boot` module for bootloader binaries and an `app` module for applications. To build your bootloader, you create a small crate with a `main.rs` that wires up your transport and calls `boot::run()` — see the [examples](examples/ch32/v003/) for exactly this. The app module plugs into your application so it can confirm a successful boot and reboot into the bootloader on command, enabling fully remote firmware updates without physical access.
 
 ## Safety
 
@@ -200,7 +191,7 @@ The crates use `unsafe` in targeted places, primarily to meet the extreme size c
 - **`transmute`** — enum conversions (boot state) and function pointer cast for jump-to-address
 - **`from_raw_parts`** — zero-copy flash slice access in the storage layer
 - **Linker section attributes** — placing version data and boot metadata at fixed flash addresses
-- **`export_name` / `extern "C"` / linker `--wrap`** — runtime entry points, linker symbol access, and `fix_mtvec!` macro that wraps `_setup_interrupts` to fix interrupt vectors for apps loaded behind a user-flash bootloader
+- **`export_name` / `extern "C"`** — runtime entry points and linker symbol access for chip runtime integration
 
 These are deliberate trade-offs — safe alternatives would pull in extra code that doesn't fit. The unsafe is confined to data layout, memory access, and hardware boundaries; the bootloader state machine and protocol logic are safe Rust.
 

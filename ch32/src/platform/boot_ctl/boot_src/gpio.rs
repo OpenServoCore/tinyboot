@@ -1,16 +1,12 @@
-//! GPIO-driven BOOT0 select (V103 + system-flash).
-//!
-//! Drives an external RC/flip-flop that latches BOOT0 for the next power-on
-//! reset. `reset_delay_cycles` lets the circuit settle before the caller
-//! triggers a software reset.
+//! GPIO-driven BOOT0 select (V103 + system-flash). Drives an external
+//! RC/flip-flop; `reset_delay_cycles` lets it settle before reset.
 
 use super::BootSrc;
 use crate::hal::{Pin, gpio, rcc};
 
 pub struct GpioBootSrcCtl {
     pin: Pin,
-    /// Level to drive for [`BootSrc::SystemFlash`]; the inverse is driven for
-    /// [`BootSrc::UserFlash`].
+    /// Level driven for [`BootSrc::SystemFlash`]; inverse for [`BootSrc::UserFlash`].
     system_flash_level: gpio::Level,
     reset_delay_cycles: u32,
 }
