@@ -196,36 +196,32 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
     pub fn dispatch(&mut self) -> Result<(), ReadError> {
         let status = self.frame.read(&mut self.platform.transport)?;
 
-        if status != Status::Ok {
+        if status == Status::Ok {
+            let data_len = self.frame.len as usize;
+            let addr = self.frame.addr();
+            let flags = self.frame.flags;
+            let capacity = self.platform.storage.capacity() as u32;
+            let state = self.platform.boot_meta.boot_state();
+            self.frame.len = 0;
+            self.frame.status = Status::Ok;
+
+            let cmd = self.frame.cmd;
+            if cmd == Cmd::Write {
+                // SAFETY: cmd is Write, so flags.write is the active variant.
+                self.cmd_write(addr, data_len, unsafe { flags.write }, capacity, state);
+            } else if cmd == Cmd::Erase {
+                self.cmd_erase(addr, capacity, state);
+            } else if cmd == Cmd::Info {
+                self.cmd_info(capacity);
+            } else if cmd == Cmd::Verify {
+                self.cmd_verify(addr, capacity, state);
+            } else {
+                // SAFETY: cmd is Reset, so flags.reset is the active variant.
+                self.cmd_reset(unsafe { flags.reset });
+            }
+        } else {
             self.frame.len = 0;
             self.frame.status = status;
-            return self
-                .frame
-                .send(&mut self.platform.transport)
-                .map_err(|_| ReadError);
-        }
-
-        let data_len = self.frame.len as usize;
-        let addr = self.frame.addr();
-        let flags = self.frame.flags;
-        let capacity = self.platform.storage.capacity() as u32;
-        let state = self.platform.boot_meta.boot_state();
-        self.frame.len = 0;
-        self.frame.status = Status::Ok;
-
-        let cmd = self.frame.cmd;
-        if cmd == Cmd::Write {
-            // SAFETY: cmd is Write, so flags.write is the active variant.
-            self.cmd_write(addr, data_len, unsafe { flags.write }, capacity, state);
-        } else if cmd == Cmd::Erase {
-            self.cmd_erase(addr, capacity, state);
-        } else if cmd == Cmd::Info {
-            self.cmd_info(capacity);
-        } else if cmd == Cmd::Verify {
-            self.cmd_verify(addr, capacity, state);
-        } else {
-            // SAFETY: cmd is Reset, so flags.reset is the active variant.
-            self.cmd_reset(unsafe { flags.reset });
         }
 
         self.frame
