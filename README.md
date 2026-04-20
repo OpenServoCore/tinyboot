@@ -1,10 +1,6 @@
 # tinyboot
 
 [![CI](https://github.com/OpenServoCore/tinyboot/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenServoCore/tinyboot/actions/workflows/ci.yml)
-[![tinyboot](https://img.shields.io/crates/v/tinyboot?label=tinyboot)](https://crates.io/crates/tinyboot)
-[![tinyboot-core](https://img.shields.io/crates/v/tinyboot-core?label=tinyboot-core)](https://crates.io/crates/tinyboot-core)
-[![tinyboot-ch32](https://img.shields.io/crates/v/tinyboot-ch32?label=tinyboot-ch32)](https://crates.io/crates/tinyboot-ch32)
-[![tinyboot-ch32-rt](https://img.shields.io/crates/v/tinyboot-ch32-rt?label=tinyboot-ch32-rt)](https://crates.io/crates/tinyboot-ch32-rt)
 [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE-MIT)
 [![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE-APACHE)
 
@@ -90,13 +86,13 @@ examples/ch32/v00x/         CH32V00x (V002/V004/V005/V006/V007) boot + app examp
 examples/ch32/v103/         CH32V103 boot + app examples
 ```
 
-| Crate                                | Description                                                                                         |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| [`tinyboot-core`](lib/core/)         | Platform-agnostic bootloader core (protocol dispatcher, boot state machine, app validation)         |
-| [`tinyboot-protocol`](lib/protocol/) | Wire protocol (frame format, CRC16, commands)                                                       |
-| [`tinyboot-ch32`](ch32/)             | CH32 HAL and tinyboot platform — use `boot` for bootloader binaries, `app` for application binaries |
-| [`tinyboot-ch32-rt`](ch32/rt/)       | Minimal CH32 runtime for bootloader binaries that can't afford full `qingke-rt`                     |
-| [`tinyboot`](cli/)                   | CLI firmware flasher over UART                                                                      |
+| Crate                                | Description                                                                                                                                                  |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`tinyboot-core`](lib/core/)         | Platform-agnostic bootloader core (protocol dispatcher, boot state machine, app validation)                                                                  |
+| [`tinyboot-protocol`](lib/protocol/) | Wire protocol (frame format, CRC16, commands)                                                                                                                |
+| [`tinyboot-ch32`](ch32/)             | CH32 HAL and tinyboot platform — use `boot` for bootloader binaries, `app` for application binaries. **Git-only** (see [ch32/README.md](ch32/#installation)) |
+| [`tinyboot-ch32-rt`](ch32/rt/)       | Minimal CH32 runtime for bootloader binaries that can't afford full `qingke-rt`                                                                              |
+| [`tinyboot`](cli/)                   | CLI firmware flasher over UART                                                                                                                               |
 
 ## Rust Version
 
