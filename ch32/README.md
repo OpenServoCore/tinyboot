@@ -1,12 +1,12 @@
 # tinyboot-ch32
 
-Part of the [tinyboot](https://github.com/OpenServoCore/tinyboot) project — see the main README to get started.
+Part of the [tinyboot](https://github.com/OpenServoCore/tinyboot) project — start with the [top-level README](https://github.com/OpenServoCore/tinyboot#quick-start-ch32v003) and the [handbook](https://openservocore.github.io/tinyboot/).
 
-CH32 HAL and tinyboot platform for CH32V003, CH32V00x (V002/V004/V005/V006/V007), and CH32V103. Exposes a bootloader-side entry point ([`boot`]) and an app-side client ([`app`]) built on a small in-crate HAL ([`hal`]).
+CH32 HAL and tinyboot platform for CH32V003, CH32V00x (V002 / V004 / V005 / V006 / V007), and CH32V103. Exposes a bootloader-side entry point ([`boot`]) and an app-side client ([`app`]) built on a small in-crate HAL ([`hal`]).
 
 ## Installation
 
-As of v0.4.0, `tinyboot-ch32` is **consumed from git**, not crates.io. It depends on [`ch32-metapac`](https://github.com/ch32-rs/ch32-metapac) as a git-only dependency for CH32V00x flash support, which crates.io does not allow. Add it to your `Cargo.toml` like so:
+As of v0.4.0, `tinyboot-ch32` is **consumed from git**, not crates.io. It depends on [`ch32-metapac`](https://github.com/ch32-rs/ch32-metapac) as a git-only dependency for CH32V00x flash support, which crates.io does not allow.
 
 ```toml
 [dependencies]
@@ -25,7 +25,7 @@ tinyboot-ch32-rt = "0.4"  # optional, bootloader-only; on crates.io
 | `hal`      | Both                 | `flash`, `gpio`, `usart`, `afio`, `rcc`, `pfic`, `iwdg`; auto-generated `Pin` and `UsartMapping` |
 | `platform` | (internal)           | `tinyboot_core::traits` impls for Storage, Transport, BootCtl, BootMetaStore                     |
 
-## Bootloader example
+## Minimal bootloader
 
 ```rust
 use panic_halt as _;
@@ -51,23 +51,9 @@ fn main() -> ! {
 
 `Storage` and `BootMetaStore` are initialized from linker symbols automatically. `boot_version!()` places the crate's `Cargo.toml` version into the `.tb_version` section; the core reads it via `__tb_version`.
 
-For CH32V103 in `system-flash` mode, `BootCtl::new` takes a GPIO pin driving the external BOOT0 circuit, the level that selects system flash, and a reset-delay cycle count (RC settle time):
+For configuring RS-485 half-duplex, DXL TTL, or alternate pin remaps, see the [transports guide](https://openservocore.github.io/tinyboot/transports.html). For CH32V103 in system-flash mode, `BootCtl::new` takes additional arguments for the external BOOT_CTL circuit — see [boot-ctl](https://openservocore.github.io/tinyboot/boot-ctl.html).
 
-```rust
-BootCtl::new(Pin::PB1, Level::High, 8000)
-```
-
-For RS-485 half-duplex with a DE/RE pin:
-
-```rust
-Usart::new(&UsartConfig {
-    duplex: Duplex::Half,
-    tx_en: Some(TxEnConfig { pin: Pin::PC2, tx_level: Level::High }),
-    ..
-})
-```
-
-## App example
+## Minimal app
 
 ```rust
 tinyboot_ch32::app::app_version!();
@@ -80,14 +66,9 @@ loop {
 }
 ```
 
-`app::poll` handles Info and Reset:
+`app::poll` handles `Info` (responds with capacity, erase size, versions, `mode = 1`) and `Reset` (resets the device; `addr = 1` reboots into the bootloader, `addr = 0` reboots into the app). All other commands return `Status::Unsupported`.
 
-- **Info** — responds with capacity, erase size, versions, and `mode=1`.
-- **Reset** — resets the device; `addr=1` reboots into the bootloader, `addr=0` reboots into the app.
-
-All other commands return `Status::Unsupported`.
-
-For CH32V103 `system-flash` apps, pass the same `BootCtl::new(pin, level, delay)` as the bootloader. Apps on V003 or in `user-flash` mode use the unit-arg form `BootCtl::new()`.
+See the [app integration guide](https://openservocore.github.io/tinyboot/app-integration.html) for a complete app including `embedded_io` transport wrapping and peripheral ownership.
 
 ## Features
 
@@ -98,7 +79,9 @@ For CH32V103 `system-flash` apps, pass the same `BootCtl::new(pin, level, delay)
 | `ch32v103c6t6` / `c8t6` / `c8u6` / `r8t6`                          | CH32V103 chip variants                       |
 | `system-flash`                                                     | Build for the system-flash bootloader region |
 
-Complete boot + app examples live in [`examples/ch32/v003`](../examples/ch32/v003/), [`examples/ch32/v00x`](../examples/ch32/v00x/), and [`examples/ch32/v103`](../examples/ch32/v103/).
+See the [flash modes guide](https://openservocore.github.io/tinyboot/flash-modes.html) for when to pick `system-flash` vs user-flash.
+
+Complete boot + app examples live in [`examples/ch32/v003`](https://github.com/OpenServoCore/tinyboot/tree/main/examples/ch32/v003), [`examples/ch32/v00x`](https://github.com/OpenServoCore/tinyboot/tree/main/examples/ch32/v00x), and [`examples/ch32/v103`](https://github.com/OpenServoCore/tinyboot/tree/main/examples/ch32/v103).
 
 ## Linker scripts
 
@@ -109,4 +92,4 @@ cargo:rustc-link-arg=-Ttb-boot.x
 cargo:rustc-link-arg=-Ttb-run-mode.x
 ```
 
-The core linker scripts (`tb-boot.x`, `tb-app.x`) are shipped by `tinyboot-core`.
+The core linker scripts (`tb-boot.x`, `tb-app.x`) are shipped by `tinyboot-core`. For the linker region contract every `memory.x` must satisfy, see the [porting guide](https://openservocore.github.io/tinyboot/porting.html#linker-region-contract).

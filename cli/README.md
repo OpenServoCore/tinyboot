@@ -1,8 +1,8 @@
 # tinyboot
 
-Part of the [tinyboot](https://github.com/OpenServoCore/tinyboot) project — see the main README to get started.
+Part of the [tinyboot](https://github.com/OpenServoCore/tinyboot) project — start with the [top-level README](https://github.com/OpenServoCore/tinyboot#quick-start-ch32v003) and the [handbook](https://openservocore.github.io/tinyboot/).
 
-Host-side CLI for flashing firmware to tinyboot devices over UART/RS-485.
+Host-side CLI for flashing firmware to tinyboot devices over UART / RS-485.
 
 ## Install
 

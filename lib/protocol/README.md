@@ -1,8 +1,8 @@
 # tinyboot-protocol
 
-Part of the [tinyboot](https://github.com/OpenServoCore/tinyboot) project — see the main README to get started.
+Part of the [tinyboot](https://github.com/OpenServoCore/tinyboot) project — start with the [top-level README](https://github.com/OpenServoCore/tinyboot#quick-start-ch32v003) and the [handbook](https://openservocore.github.io/tinyboot/).
 
-Wire protocol for tinyboot. Defines the frame format used between host and device over UART/RS-485.
+Wire protocol for tinyboot. Defines the frame format used between host and device over UART / RS-485. This page is the authoritative wire-format reference; for end-user guides see the [handbook](https://openservocore.github.io/tinyboot/).
 
 ## Frame format
 

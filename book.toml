@@ -1,0 +1,13 @@
+[book]
+title = "tinyboot"
+description = "A Rust bootloader for resource-constrained microcontrollers"
+authors = ["Aaron Qian"]
+src = "docs"
+language = "en"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/OpenServoCore/tinyboot"
+edit-url-template = "https://github.com/OpenServoCore/tinyboot/edit/main/{path}"
+no-section-label = true

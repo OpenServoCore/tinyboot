@@ -1,8 +1,8 @@
 # tinyboot-core
 
-Part of the [tinyboot](https://github.com/OpenServoCore/tinyboot) project — see the main README to get started.
+Part of the [tinyboot](https://github.com/OpenServoCore/tinyboot) project — start with the [top-level README](https://github.com/OpenServoCore/tinyboot#quick-start-ch32v003) and the [handbook](https://openservocore.github.io/tinyboot/).
 
-Platform-agnostic bootloader core: protocol dispatcher, boot state machine, and app validation.
+Platform-agnostic bootloader core: protocol dispatcher, boot state machine, and app validation. This page is the authoritative reference for the boot state machine; most readers will want the [handbook](https://openservocore.github.io/tinyboot/) first.
 
 ## Boot State Machine
 
