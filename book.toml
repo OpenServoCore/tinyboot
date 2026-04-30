@@ -6,7 +6,6 @@ src = "docs"
 language = "en"
 
 [output.html]
-google-analytics = "G-G5D7KJHY31"
 default-theme = "navy"
 preferred-dark-theme = "navy"
 git-repository-url = "https://github.com/OpenServoCore/tinyboot"
