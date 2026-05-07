@@ -76,6 +76,16 @@ When configured, the driver toggles the direction pin around every frame:
 
 This keeps the transceiver in RX the rest of the time, so host bytes can reach the MCU's RX pin without contention.
 
+## Baud rate
+
+`BaudRate` covers the standard ladder from 9600 up to 3 Mbps: `B9600`, `B19200`, `B38400`, `B57600`, `B115200`, `B230400`, `B460800`, `B500000`, `B921600`, `B1000000`, `B1500000`, `B2000000`, `B2500000`, `B3000000`.
+
+The achievable accuracy depends on `pclk`: the USART divisor is `pclk / baud`, so non-integer ratios accumulate framing error. For high baud rates you usually need to bump the core clock — e.g. the V00x example calls `rcc::init_48mhz_hsi_pll()` so PCLK = 48 MHz, which divides exactly to 3 Mbps. The CH32V003's reset-default 8 MHz PCLK is fine up to ~115200 but not for the megabit rates.
+
+## Single-wire buses (DXL daisy chains, RS-485 segments)
+
+On a single-wire bus where the host's TX and RX are also tied to the data line — typical for DXL chains and most RS-485 hookups — the host hears its own request frame echoed back before the device replies. The shipped `tinyboot` CLI handles this automatically by skipping any frame whose status is `Request` (devices never reply with that status). No host-side configuration needed; just match the device's baud and `tx_en` polarity.
+
 ## Pin remaps
 
 `UsartMapping` picks the AFIO remap and selects which physical pins carry TX / RX. Available mappings are codegen'd per chip — check the generated `UsartMapping` enum in `tinyboot-ch32`, and cross-reference against the USART / AFIO sections of your chip's datasheet for the pin assignments.
