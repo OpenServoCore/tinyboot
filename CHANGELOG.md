@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-07
+
+### Added
+
+- `tinyboot-ch32`: re-export `ch32-metapac` as `tinyboot_ch32::pac` so bootloader binaries can do register-level customization (e.g. clock or flash-latency setup before `boot::run`) without a separate metapac dep.
+- `BaudRate` enum extended up to 3 Mbps (`B500000`, `B750000`, `B1000000`, `B1500000`, `B2000000`, `B3000000`).
+
+### Changed
+
+- `tinyboot` (CLI): on a single-wire bus the host hears its own request frame back; the client now skips frames whose status is `Request` so single-wire / DXL TTL setups work without extra flags.
+
 ## [0.4.0] - 2026-04-19
 
 ### Added
