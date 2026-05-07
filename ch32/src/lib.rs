@@ -32,3 +32,5 @@ pub mod app;
 pub mod boot;
 pub mod hal;
 pub mod platform;
+
+pub use ch32_metapac as pac;
