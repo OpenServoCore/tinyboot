@@ -59,10 +59,10 @@ fn main() -> ! {
     let (tx, rx) = uart.split();
     let mut rx = transport::Rx(rx);
 
-    // RS-485 DE/RE on PC2, matching the bootloader. tx_level=Low means idle-RX
-    // drives the pin High (inverse), which tri-states U4A on the V006 dev board
-    // so LinkE UART TX can reach MCU_RX without contention.
-    let tx_level = Level::Low;
+    // RS-485 DE/RE on PC2, matching the bootloader. Active-high DE: pin goes
+    // High during TX so the on-board transceiver drives the DXL-TTL data line,
+    // and Low at idle so the MCU listens.
+    let tx_level = Level::High;
     let tx_en_pin = Output::new(p.PC2, transport::invert(tx_level), Default::default());
     let mut tx = transport::Tx {
         uart: tx,

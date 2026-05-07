@@ -62,6 +62,10 @@ tinyboot bin firmware.elf -o firmware.bin
 
 If `--port` is omitted, the CLI probes USB serial ports (usbmodem, ttyACM, ttyUSB) by sending an Info command with a 100ms timeout. Non-USB serial ports are skipped. Both the bootloader and apps running `poll()` respond to Info, so auto-detection works in either mode.
 
+## Single-wire bus echo
+
+On a single-wire bus where the host's TX and RX are tied to the data line (DXL chains, most RS-485 hookups), the host hears its own request frame before the device replies. The CLI skips any frame whose status is `Request` — devices never reply with that status — so single-wire setups work without extra flags.
+
 ## ELF handling
 
 When given an ELF file, the CLI extracts ALLOC sections using physical addresses (LMA) from PT_LOAD segments. Sections named `.uninit*` are skipped. LMAs below `0x0800_0000` are adjusted by adding the CH32 flash base offset.
