@@ -622,7 +622,7 @@ dependencies = [
 
 [[package]]
 name = "tinyboot-ch32"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "ch32-metapac 0.1.0 (git+https://github.com/ch32-rs/ch32-metapac)",
  "critical-section",
