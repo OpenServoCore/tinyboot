@@ -52,10 +52,22 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
         self.frame
             .send(&mut self.transport)
             .map_err(|_| FlashError::Io)?;
-        let parse_status = self
-            .frame
-            .read(&mut self.transport)
-            .map_err(|_| FlashError::Io)?;
+
+        // On single-wire setups like the OSC-Dev-V006 board — where MCU TX/RX
+        // and the host's TX/RX all land on the same DXL-TTL data line — the
+        // host hears its own request frame before the device replies. Skip
+        // frames whose status is `Request`: those can only be our own echo,
+        // since devices never reply with that status.
+        let parse_status = loop {
+            let s = self
+                .frame
+                .read(&mut self.transport)
+                .map_err(|_| FlashError::Io)?;
+            if s == Status::Ok && self.frame.status == Status::Request {
+                continue;
+            }
+            break s;
+        };
 
         debug!(
             "<< {:?} status={:?} len={}",
