@@ -20,5 +20,6 @@ codegen-units = 1
 panic = "abort"
 
 [patch.crates-io]
-qingke = { git = "https://github.com/OpenServoCore/qingke", branch = "main" }
-qingke-rt = { git = "https://github.com/OpenServoCore/qingke", branch = "main" }
+qingke = { git = "https://github.com/ch32-rs/qingke", branch = "main" }
+qingke-rt = { git = "https://github.com/ch32-rs/qingke", branch = "main" }
+

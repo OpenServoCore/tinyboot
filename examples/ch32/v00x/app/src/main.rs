@@ -34,7 +34,9 @@ static LED: Shared<Output<'static>> = Mutex::new(RefCell::new(None));
 
 #[qingke_rt::entry]
 fn main() -> ! {
-    let p = ch32_hal::init(Default::default());
+    let mut config = ch32_hal::Config::default();
+    config.rcc = ch32_hal::rcc::Config::SYSCLK_FREQ_48MHZ_HSI;
+    let p = ch32_hal::init(config);
 
     // LED blink via TIM2 interrupt (2 Hz toggle = 1 Hz blink)
     critical_section::with(|cs| {
@@ -54,7 +56,7 @@ fn main() -> ! {
     //   2: TX=PD0, RX=PD1
     //   3: TX=PC0, RX=PC1
     let mut uart_config = usart::Config::default();
-    uart_config.baudrate = 115200;
+    uart_config.baudrate = 3_000_000;
     let uart = Uart::new_blocking::<3>(p.USART1, p.PC1, p.PC0, uart_config).unwrap();
     let (tx, rx) = uart.split();
     let mut rx = transport::Rx(rx);
