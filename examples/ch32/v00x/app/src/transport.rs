@@ -1,7 +1,13 @@
 //! embedded_io adapters for ch32-hal blocking UART with optional RS-485 DE/RE.
+//!
+//! RX bypasses ch32-hal's `blocking_read` and polls `STATR.RXNE` / `DATAR`
+//! directly — at 48 MHz with a 3 Mbps line, each byte arrives every ~160
+//! cycles and the per-byte overhead of `check_rx_flags` + the `embedded_io`
+//! adapter chain is enough to overrun.
 
 use ch32_hal::gpio::{Level, Output};
 use ch32_hal::mode::Blocking;
+use ch32_hal::pac;
 use ch32_hal::usart::{Instance, UartRx, UartTx};
 use core::convert::Infallible;
 use embedded_io::{ErrorType, Read, Write};
@@ -17,8 +23,12 @@ impl<T: Instance> Read for Rx<'_, T> {
         if buf.is_empty() {
             return Ok(0);
         }
-        let _ = self.0.blocking_read(&mut buf[..1]);
-        Ok(1)
+        let regs = pac::USART1;
+        for slot in buf.iter_mut() {
+            while !regs.statr().read().rxne() {}
+            *slot = regs.datar().read().dr() as u8;
+        }
+        Ok(buf.len())
     }
 }
 

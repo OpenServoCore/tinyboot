@@ -11,7 +11,9 @@ fn main() {
         match (system_flash, user_flash) {
             (true, false) => "system-flash",
             (false, true) => "user-flash",
-            _ => panic!("Enable exactly one flash mode: `system-flash`, `user-flash`, or `standalone`"),
+            _ => panic!(
+                "Enable exactly one flash mode: `system-flash`, `user-flash`, or `standalone`"
+            ),
         }
     };
 

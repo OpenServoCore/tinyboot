@@ -69,7 +69,7 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 [[package]]
 name = "ch32-hal"
 version = "0.1.0"
-source = "git+https://github.com/ch32-rs/ch32-hal#2ed4f3cab40f42b81d7355f1632ae4cb9ad4d5f1"
+source = "git+https://github.com/ch32-rs/ch32-hal#b15ec6347bb3c59c05ff72924c2ed7e8e49e49e3"
 dependencies = [
  "bitmaps",
  "ch32-metapac 0.1.0 (git+https://github.com/ch32-rs/ch32-metapac?rev=7cd6fb70d07de3a987c63d0d8f5547bb8261e403)",
@@ -468,8 +468,8 @@ dependencies = [
 
 [[package]]
 name = "qingke"
-version = "0.6.1"
-source = "git+https://github.com/OpenServoCore/qingke?branch=main#44d490b2ff429ed4689bd7dd1653146f4fff506a"
+version = "0.7.0"
+source = "git+https://github.com/ch32-rs/qingke?branch=main#2ef31f069bb6d32eb4a129e8075e71e6bbf46c85"
 dependencies = [
  "bit_field",
  "cfg-if",
@@ -479,8 +479,8 @@ dependencies = [
 
 [[package]]
 name = "qingke-rt"
-version = "0.6.1"
-source = "git+https://github.com/OpenServoCore/qingke?branch=main#44d490b2ff429ed4689bd7dd1653146f4fff506a"
+version = "0.7.0"
+source = "git+https://github.com/ch32-rs/qingke?branch=main#2ef31f069bb6d32eb4a129e8075e71e6bbf46c85"
 dependencies = [
  "qingke",
  "qingke-rt-macros",
@@ -488,8 +488,8 @@ dependencies = [
 
 [[package]]
 name = "qingke-rt-macros"
-version = "0.6.1"
-source = "git+https://github.com/OpenServoCore/qingke?branch=main#44d490b2ff429ed4689bd7dd1653146f4fff506a"
+version = "0.7.0"
+source = "git+https://github.com/ch32-rs/qingke?branch=main#2ef31f069bb6d32eb4a129e8075e71e6bbf46c85"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
