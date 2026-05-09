@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `tinyboot-ch32-rt` (0.4.1): trim `link.x` to drop unused vector-table / exception / trap KEEPs the bootloader never produces. Boot binaries are now tolerant of downstream PACs (e.g. `ch32-metapac` with the `rt` feature) emitting `__EXTERNAL_INTERRUPTS` under cargo feature unification — `--gc-sections` drops the unreferenced static. Bootloader flash size is unchanged.
+
 ## [0.4.1] - 2026-05-07
 
 ### Added

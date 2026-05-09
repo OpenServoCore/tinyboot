@@ -8,7 +8,6 @@ target
 
 Cargo.lock
 !cli/Cargo.lock
-!examples/**/Cargo.lock
 
 # mdbook output
 /book
