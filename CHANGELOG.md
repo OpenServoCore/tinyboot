@@ -1,23 +1,29 @@
 # Changelog
 
+Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.1` onwards crates ship independently and headers/tags use the form `<crate> X.Y.Z` / `<crate>-vX.Y.Z`.
+
 ## [Unreleased]
+
+## [tinyboot-ch32-rt 0.4.1] - 2026-05-08
 
 ### Fixed
 
-- `tinyboot-ch32-rt` (0.4.1): trim `link.x` to drop unused vector-table / exception / trap KEEPs the bootloader never produces. Boot binaries are now tolerant of downstream PACs (e.g. `ch32-metapac` with the `rt` feature) emitting `__EXTERNAL_INTERRUPTS` under cargo feature unification — `--gc-sections` drops the unreferenced static. Bootloader flash size is unchanged.
+- Trim `link.x` to drop unused vector-table / exception / trap KEEPs the bootloader never produces. Boot binaries are now tolerant of downstream PACs (e.g. `ch32-metapac` with the `rt` feature) emitting `__EXTERNAL_INTERRUPTS` under cargo feature unification — `--gc-sections` drops the unreferenced static. Bootloader flash size is unchanged.
 
-## [0.4.1] - 2026-05-07
+## [tinyboot-ch32 0.4.1] - 2026-05-07
 
 ### Added
 
-- `tinyboot-ch32`: re-export `ch32-metapac` as `tinyboot_ch32::pac` so bootloader binaries can do register-level customization (e.g. clock or flash-latency setup before `boot::run`) without a separate metapac dep.
+- Re-export `ch32-metapac` as `tinyboot_ch32::pac` so bootloader binaries can do register-level customization (e.g. clock or flash-latency setup before `boot::run`) without a separate metapac dep.
 - `BaudRate` enum extended up to 3 Mbps (`B500000`, `B750000`, `B1000000`, `B1500000`, `B2000000`, `B3000000`).
+
+## [tinyboot 0.4.1] - 2026-05-07
 
 ### Changed
 
-- `tinyboot` (CLI): on a single-wire bus the host hears its own request frame back; the client now skips frames whose status is `Request` so single-wire / DXL TTL setups work without extra flags.
+- On a single-wire bus the host hears its own request frame back; the client now skips frames whose status is `Request` so single-wire / DXL TTL setups work without extra flags.
 
-## [0.4.0] - 2026-04-19
+## [v0.4.0] - 2026-04-19
 
 ### Added
 
@@ -45,7 +51,7 @@
 - Dispatcher now flushes the transport after send — required for RS-485 / DXL TTL half-duplex.
 - Ring buffer properly reset after flush.
 
-## [0.3.0] - 2026-04-15
+## [v0.3.0] - 2026-04-15
 
 ### Added
 
@@ -67,7 +73,7 @@
 - Protocol write alignment check only on first write
 - UB in boot metadata reads
 
-## [0.2.1] - 2026-03-25
+## [v0.2.1] - 2026-03-25
 
 ### Fixed
 
@@ -86,7 +92,7 @@
 - ~180 bytes saved in system-flash bootloader via aggressive inlining, CRC/payload merge, batched RCC enable, custom `read_exact`/`write_all` overrides, and boot version cleanup
 - All CH32V003 chip variants added with CI coverage
 
-## [0.2.0] - 2026-03-20
+## [v0.2.0] - 2026-03-20
 
 ### Changed
 
@@ -113,6 +119,6 @@
 - Flash time reduced proportionally to firmware size (e.g. 5KB app on 16KB chip: ~8s vs full-region flash)
 - CRC verification faster — only covers firmware bytes
 
-## [0.1.0] - 2026-03-20
+## [v0.1.0] - 2026-03-20
 
 Initial release.
