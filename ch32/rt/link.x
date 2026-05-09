@@ -4,52 +4,30 @@ ENTRY(_start);
 
 SECTIONS
 {
-    .vector_table ORIGIN(CODE) :
+    .text ORIGIN(CODE) :
     {
         KEEP(*(SORT_NONE(.init)));
         . = ALIGN(4);
-        KEEP(*(.vector_table.core_interrupts));
-        KEEP(*(.vector_table.external_interrupts));
-        KEEP(*(.vector_table.exceptions));
-        *(.trap .trap.rust);
-    } > CODE AT> BOOT
-
-    .text : ALIGN(4)
-    {
-        KEEP(*(SORT_NONE(.handle_reset)));
-        *(.init.rust);
         *(.text .text.*);
     } > CODE AT> BOOT
 
     .rodata : ALIGN(4)
     {
-        *(.srodata .srodata.*);
-        *(.rodata .rodata.*);
+        *(.srodata .srodata.* .rodata .rodata.*);
         . = ALIGN(4);
     } > CODE AT> BOOT
 
     .data : ALIGN(4)
     {
-        _sidata = LOADADDR(.data);
-        _sdata = .;
         PROVIDE(__global_pointer$ = . + 0x800);
-        *(.sdata .sdata.* .sdata2 .sdata2.*);
-        *(.data .data.*);
+        *(.sdata .sdata.* .sdata2 .sdata2.* .data .data.*);
         . = ALIGN(4);
-        _edata = .;
     } > RAM AT> BOOT
 
     .bss (NOLOAD) : ALIGN(4)
     {
-        _sbss = .;
         *(.sbss .sbss.* .bss .bss.*);
         . = ALIGN(4);
-        _ebss = .;
-    } > RAM
-
-    .uninit (NOLOAD) : ALIGN(4)
-    {
-        *(.uninit .uninit.*);
     } > RAM
 
     _stack_top = ORIGIN(RAM) + LENGTH(RAM);
