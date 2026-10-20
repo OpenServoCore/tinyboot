@@ -10,7 +10,7 @@
 use panic_halt as _;
 use tinyboot_ch32_rt as _;
 
-tinyboot_ch32::boot::boot_version!();
+tinyboot_ch32::boot::boot_version!(compat = "tinyboot-example-v00x");
 
 use tinyboot_ch32::boot::prelude::*;
 use tinyboot_ch32::pac::{

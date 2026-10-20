@@ -14,16 +14,16 @@ pub use tinyboot_core::{app_version, pkg_version};
 /// Create an [`App`] configured for CH32 hardware.
 pub fn new_app(ctl: BootCtl) -> App<BootCtl, BootMetaStore> {
     unsafe extern "C" {
-        static __tb_boot_version_addr: u8;
+        static __tb_boot_tail: tinyboot_core::ImageTail;
         static __tb_app_capacity: u8;
     }
-    let boot_ver_addr = unsafe { &__tb_boot_version_addr as *const u8 as *const u16 };
+    let boot_tail = &raw const __tb_boot_tail;
     let app_capacity = unsafe { &__tb_app_capacity as *const u8 as u32 };
     App::new(
         AppConfig {
             capacity: app_capacity,
             erase_size: flash::PAGE_SIZE as u16,
-            boot_version: unsafe { boot_ver_addr.read_volatile() },
+            boot_version: unsafe { (&raw const (*boot_tail).version).read_volatile() },
             app_version: tinyboot_core::tinyboot_version(),
         },
         ctl,

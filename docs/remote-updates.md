@@ -88,14 +88,15 @@ When all four hold, the bootloader hands off to the app. As soon as you run a re
 
 ## What happens if something goes wrong
 
-| Scenario                                   | Outcome                                                                               |
-| ------------------------------------------ | ------------------------------------------------------------------------------------- |
-| Power lost during erase or write           | `META.state = Updating`, app is invalid. Bootloader stays in service mode on restart. |
-| Verify returns `CrcMismatch`               | META stays in `Updating`. Retry or check [troubleshooting](troubleshooting.md).       |
-| App panics during init after flash         | Trials run out across reboots; bootloader reclaims control.                           |
-| App's `confirm()` never reaches due to bug | Same as above — trials run out, bootloader wins.                                      |
-| Host crashes mid-flash                     | Same as "power lost during erase or write" — safe, just re-flash.                     |
-| `Reset` to the app mid-flash               | Refused with `Unsupported`; the device stays in the bootloader. Re-flash.             |
+| Scenario                                   | Outcome                                                                                  |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Power lost during erase or write           | `META.state = Updating`, app is invalid. Bootloader stays in service mode on restart.    |
+| Verify returns `CrcMismatch`               | META stays in `Updating`. Retry or check [troubleshooting](troubleshooting.md).          |
+| App panics during init after flash         | Trials run out across reboots; bootloader reclaims control.                              |
+| App's `confirm()` never reaches due to bug | Same as above — trials run out, bootloader wins.                                         |
+| Host crashes mid-flash                     | Same as "power lost during erase or write" — safe, just re-flash.                        |
+| `Reset` to the app mid-flash               | Refused with `Unsupported`; the device stays in the bootloader. Re-flash.                |
+| Image built for another board              | Verify returns `Incompatible` (bootloader has a compatibility key); flash the right one. |
 
 ## Making it automatic
 

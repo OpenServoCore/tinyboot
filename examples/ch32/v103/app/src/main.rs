@@ -21,7 +21,7 @@ use critical_section::Mutex;
 
 use defmt_rtt as _;
 
-tinyboot_ch32::app::app_version!();
+tinyboot_ch32::app::app_version!(compat = "tinyboot-example-v103");
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
