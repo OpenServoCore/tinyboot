@@ -80,6 +80,50 @@ jobs:
       - name: Build app (user-flash)
         run: cd examples/ch32/v003 && cargo +nightly build -p app --no-default-features --features "${{ matrix.chip }},user-flash" --release
 
+  ch32-v00x:
+    name: CH32V00x (${{ matrix.chip }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chip: [ch32v002x4x6, ch32v004x6x1, ch32v005x6x6, ch32v006x8x6, ch32v007x8x6]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install toolchain
+        run: rustup toolchain install nightly --profile minimal --component rust-src,rustfmt,clippy
+      - name: Fmt libraries
+        run: cd ch32 && cargo +nightly fmt --all -- --check
+      - name: Clippy libraries
+        run: cd ch32 && cargo +nightly clippy --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v00x/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec -- -D warnings
+      - name: Build libraries
+        run: cd ch32 && cargo +nightly build --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v00x/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --release
+      - name: Clippy libraries (half-duplex)
+        run: cd ch32 && cargo +nightly clippy --no-default-features --features ${{ matrix.chip }},half-duplex --target ../examples/ch32/v00x/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec -- -D warnings
+      - name: Doc libraries
+        run: cd ch32 && cargo +nightly doc --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v00x/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --no-deps
+      - name: Fmt examples
+        run: cd examples/ch32/v00x && cargo +nightly fmt --all -- --check
+      - name: Clippy boot (system-flash)
+        run: cd examples/ch32/v00x && cargo +nightly clippy -p boot --no-default-features --features "${{ matrix.chip }},system-flash" -- -D warnings
+      - name: Build boot (system-flash)
+        run: cd examples/ch32/v00x && cargo +nightly build -p boot --no-default-features --features "${{ matrix.chip }},system-flash" --release
+      - name: Clippy boot (user-flash)
+        run: cd examples/ch32/v00x && cargo +nightly clippy -p boot --no-default-features --features "${{ matrix.chip }},user-flash" -- -D warnings
+      - name: Build boot (user-flash)
+        run: cd examples/ch32/v00x && cargo +nightly build -p boot --no-default-features --features "${{ matrix.chip }},user-flash" --release
+      - name: Clippy app (system-flash)
+        if: matrix.chip == 'ch32v006x8x6'
+        run: cd examples/ch32/v00x && cargo +nightly clippy -p app --no-default-features --features "${{ matrix.chip }},system-flash" -- -D warnings
+      - name: Build app (system-flash)
+        if: matrix.chip == 'ch32v006x8x6'
+        run: cd examples/ch32/v00x && cargo +nightly build -p app --no-default-features --features "${{ matrix.chip }},system-flash" --release
+      - name: Clippy app (user-flash)
+        if: matrix.chip == 'ch32v006x8x6'
+        run: cd examples/ch32/v00x && cargo +nightly clippy -p app --no-default-features --features "${{ matrix.chip }},user-flash" -- -D warnings
+      - name: Build app (user-flash)
+        if: matrix.chip == 'ch32v006x8x6'
+        run: cd examples/ch32/v00x && cargo +nightly build -p app --no-default-features --features "${{ matrix.chip }},user-flash" --release
+
   ch32-v103:
     name: CH32V103 (${{ matrix.chip }})
     runs-on: ubuntu-latest

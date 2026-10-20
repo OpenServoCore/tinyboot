@@ -12,7 +12,10 @@ use ch32_hal::usart::{Instance, UartRx, UartTx};
 use core::convert::Infallible;
 use embedded_io::{ErrorType, Read, Write};
 
-pub struct Rx<'d, T: Instance>(pub UartRx<'d, T, Blocking>);
+/// Owns the RX half so nothing else claims USART1; reads poll the registers.
+pub struct Rx<'d, T: Instance> {
+    pub _uart: UartRx<'d, T, Blocking>,
+}
 
 impl<T: Instance> ErrorType for Rx<'_, T> {
     type Error = Infallible;

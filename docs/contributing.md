@@ -106,4 +106,4 @@ System-flash validation follows the same shape but uses `wlink` to write to the 
 
 ## Releases
 
-Crates release independently: bump the crate's version, add a `## [<crate> X.Y.Z] - <date>` changelog section, and tag `<crate>-vX.Y.Z`. `tinyboot-ch32` stays git-only (not published to crates.io) while it depends on an unreleased `ch32-metapac`. The rest (`tinyboot-core`, `tinyboot-protocol`, `tinyboot`, `tinyboot-ch32-rt`) also publish to crates.io.
+Crates release independently: bump the crate's version, add a `## [<crate> X.Y.Z] - <date>` changelog section, and tag `<crate>-vX.Y.Z`. Every crate (`tinyboot-core`, `tinyboot-protocol`, `tinyboot-ch32`, `tinyboot-ch32-rt`, `tinyboot`) publishes to crates.io.

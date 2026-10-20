@@ -20,7 +20,7 @@ impl NorFlashError for StorageError {
     }
 }
 
-/// CH32 flash storage. Geometry cached from `__tb_app_base` / `__tb_meta_base`.
+/// CH32 flash storage. Geometry cached from `__tb_app_base` / `__tb_app_capacity`.
 pub struct Storage {
     app_base: u32,
     app_size: usize,
@@ -29,9 +29,10 @@ pub struct Storage {
 impl Default for Storage {
     #[inline(always)]
     fn default() -> Self {
-        let app_base = flash::app_base();
-        let app_size = (flash::meta_addr() - app_base) as usize;
-        Storage { app_base, app_size }
+        Storage {
+            app_base: flash::app_base(),
+            app_size: flash::app_capacity() as usize,
+        }
     }
 }
 

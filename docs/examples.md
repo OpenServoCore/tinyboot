@@ -52,15 +52,13 @@ That gives you a minimal, single-purpose workspace with none of the CI scaffoldi
 
 ## Using tinyboot-ch32 from crates.io
 
-The examples depend on `tinyboot-ch32` via a path reference (`path = "../../../../ch32"`) because they live in this repo. For an external project, switch to a git dependency:
+The examples depend on `tinyboot-ch32` via a path reference (`path = "../../../../ch32"`) because they live in this repo. For an external project, use the crates.io release:
 
 ```toml
 [dependencies]
-tinyboot-ch32 = { git = "https://github.com/OpenServoCore/tinyboot", tag = "v0.4.0", default-features = false, features = ["ch32v003f4p6", "system-flash"] }
+tinyboot-ch32 = { version = "0.6", default-features = false, features = ["ch32v003f4p6", "system-flash"] }
 tinyboot-ch32-rt = "0.4"
 ```
-
-`tinyboot-ch32` is git-only until upstream `ch32-metapac` publishes the flash driver it depends on. See the [`tinyboot-ch32` README](https://github.com/OpenServoCore/tinyboot/tree/main/ch32#installation) for details.
 
 ## `memory.x` and the linker region contract
 
