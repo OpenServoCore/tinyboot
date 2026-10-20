@@ -52,7 +52,7 @@ repository = "https://github.com/OpenServoCore/tinyboot"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-tinyboot-core = { version = "0.6.0", path = "../lib/core", default-features = false }
+tinyboot-core = { version = "0.6.1", path = "../lib/core", default-features = false }
 tinyboot-ch32 = { version = "0.7.0", path = ".", default-features = false }
 embedded-hal = "1"
 embedded-io = "0.7"

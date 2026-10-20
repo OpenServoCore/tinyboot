@@ -4,6 +4,16 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ## [Unreleased]
 
+## [tinyboot-core 0.6.1] - 2026-10-20
+
+### Added
+
+- `App::reset(mode, baud)` resets into the bootloader or the app, storing the bootloader's baud first when given. An app with its own protocol uses it to start a firmware update.
+
+### Changed
+
+- The app's `Reset` command goes through `App::reset`, so it skips the metadata write when the baud is already stored.
+
 ## [tinyboot 0.5.1] - 2026-10-20
 
 ### Fixed

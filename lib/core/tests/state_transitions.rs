@@ -8,7 +8,7 @@ mod common;
 use common::*;
 use tinyboot_core::app::{App, AppConfig};
 use tinyboot_core::protocol::Dispatcher;
-use tinyboot_core::traits::BootState;
+use tinyboot_core::traits::{BootState, RunMode};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
 use tinyboot_protocol::frame::DEFAULT_PAYLOAD;
 use tinyboot_protocol::frame::Flags;
@@ -477,6 +477,59 @@ fn app_reset_with_baud_flag_stores_baud() {
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| a.poll(&mut rx, &mut tx)));
     assert!(r.is_err(), "reset must not return");
     assert_eq!(a.baud(), Some(BaudRate::B2000000));
+}
+
+fn reset_events(
+    a: &mut App<MockBootCtl, MockBootMeta>,
+    mode: RunMode,
+    baud: Option<BaudRate>,
+) -> Vec<String> {
+    take_events();
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| a.reset(mode, baud)));
+    assert!(r.is_err(), "reset must not return");
+    take_events()
+}
+
+#[test]
+fn app_reset_stores_the_baud_before_the_run_mode() {
+    let mut a = app();
+    let ev = reset_events(&mut a, RunMode::Service, Some(BaudRate::B1000000));
+    assert_eq!(ev, ["baud 9", "Service", "reset"]);
+}
+
+#[test]
+fn app_reset_skips_an_unchanged_baud() {
+    let mut a = app();
+    a.set_baud(BaudRate::B1000000);
+    let ev = reset_events(&mut a, RunMode::Service, Some(BaudRate::B1000000));
+    assert_eq!(ev, ["Service", "reset"]);
+}
+
+#[test]
+fn app_reset_to_the_app_leaves_meta_alone() {
+    let mut a = app();
+    assert_eq!(
+        reset_events(&mut a, RunMode::HandOff, None),
+        ["HandOff", "reset"]
+    );
+}
+
+#[test]
+fn app_reset_command_takes_the_same_order() {
+    let mut a = app();
+    let mut rx = MockTransport::new();
+    rx.load_request_flags(
+        Cmd::Reset,
+        BaudRate::B500000 as u32,
+        reset_flags(ResetFlags::BAUD | ResetFlags::BOOTLOADER),
+        0,
+        &[],
+    );
+    let mut tx = MockTransport::new();
+    take_events();
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| a.poll(&mut rx, &mut tx)));
+    assert!(r.is_err(), "reset must not return");
+    assert_eq!(take_events(), ["baud 7", "Service", "reset"]);
 }
 
 // =============================================================================

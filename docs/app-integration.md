@@ -82,6 +82,19 @@ uart_config.baudrate = app.baud().map_or(115200, |b| b.hz());
 
 `set_baud()` erases and rewrites the metadata page (skipped when the rate is already stored), in a critical section like `confirm()`.
 
+## `reset()` - into the bootloader from your own protocol
+
+An app that speaks its own protocol on the bus, instead of running `poll()`, can still send the device to its bootloader when the host asks. `app.reset(mode, baud)` does what the `Reset` command does. It stores `baud` when given, as `set_baud()` does, then sets the run mode and resets.
+
+```rust
+use tinyboot_ch32::app::{BaudRate, traits::RunMode};
+
+// The host asked for a firmware update at 1 Mbaud.
+app.reset(RunMode::Service, Some(BaudRate::B1000000));
+```
+
+`RunMode::Service` stays in the bootloader, and `RunMode::HandOff` boots the app again. The baud goes in before the run mode on purpose. On CH32 a metadata write rewrites the flash status register, which would drop a boot mode set before it.
+
 ## Compatibility key - only the right image installs
 
 `app_version!()` and `boot_version!()` end each image with a 6-byte tail: a 32-bit compatibility key, then the version. Give the bootloader a key and it accepts only images that carry the same one:
