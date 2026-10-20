@@ -36,6 +36,8 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ### Added
 
+- `addressing`: the `Addressing` trait, `Unaddressed`, and `Addressable::new(uid)` for devices sharing a bus. An addressable device answers `Select` when its id starts with the prefix, after a slot of 0 to 15 byte-times drawn from its id and the host's seed, and any other command only while selected. It never answers a frame it cannot read or another device's reply. `Dispatcher::with_addressing`, `Core::with_addressing` and `App::with_addressing` take it.
+- `Transport::wait_bytes(n)`, a wait of about `n` byte-times for the `Select` slot; the default returns at once.
 - Compatibility keys. `boot_version!` and `app_version!` take `compat = "name"` (hashed at compile time) or `compat_key = <u32>`, and end the image with a 6-byte tail, `ImageTail { compat, version }`. A bootloader with a key refuses `Verify` of an image with another key, or none, with `Status::Incompatible` and stays in `Updating`; without a key it carries no check (with LTO the unset key folds away).
 - `Reset` with `ResetFlags::BAUD` stores addr byte 0 as the bootloader's baud before resetting, in the bootloader and in `App::poll`.
 - `App::baud` returns the stored bootloader baud; `App::set_baud` stores one, skipping the flash write when it is already stored.
@@ -53,6 +55,7 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ### Added
 
+- `Cmd::Select` (0x05), data `[seed, prefix_len, prefix..]`: selects every addressable device whose unique id starts with the prefix, and deselects the rest.
 - `Frame<N>` and `Data<N>` take the payload capacity as a const parameter, `DEFAULT_PAYLOAD` = 52 so a whole frame fits one 64-byte USB full-speed packet.
 - `Status::Incompatible` (0x07), `COMPAT_UNSET` and `compat_key(name)`, a compile-time 32-bit FNV-1a hash that never returns `COMPAT_UNSET`.
 - `BaudRate`, the 14 rates from 9600 to 3M as append-only `u8` indices, with `hz`, `from_u8`, `from_hz` and `ALL`.

@@ -1,3 +1,4 @@
+use crate::addressing::{self, Addressing, Unaddressed};
 use crate::platform::Platform;
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
@@ -18,6 +19,7 @@ pub struct Dispatcher<
     C: BootCtl,
     const BUF: usize,
     const P: usize = DEFAULT_PAYLOAD,
+    A: Addressing = Unaddressed,
 > {
     /// Platform peripherals.
     pub platform: &'a mut Platform<T, S, B, C>,
@@ -28,6 +30,8 @@ pub struct Dispatcher<
     fill: usize,
     /// Address of the next sequential write; [`ANY`] after a flush.
     next: u32,
+    /// Bus addressing: [`Unaddressed`] or [`Addressable`](crate::addressing::Addressable).
+    pub addressing: A,
 }
 
 /// No write is pending: the next may start at any page-aligned address.
@@ -37,16 +41,34 @@ const ANY: u32 = u32::MAX;
 struct Page<const N: usize>(core::mem::MaybeUninit<[u8; N]>);
 
 impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usize, const P: usize>
-    Dispatcher<'a, T, S, B, C, BUF, P>
+    Dispatcher<'a, T, S, B, C, BUF, P, Unaddressed>
 {
-    /// Create a new dispatcher over the given platform.
+    /// Create an unaddressed dispatcher over the given platform.
     pub fn new(platform: &'a mut Platform<T, S, B, C>) -> Self {
+        Self::with_addressing(platform, Unaddressed)
+    }
+}
+
+impl<
+    'a,
+    T: Transport,
+    S: Storage,
+    B: BootMetaStore,
+    C: BootCtl,
+    const BUF: usize,
+    const P: usize,
+    A: Addressing,
+> Dispatcher<'a, T, S, B, C, BUF, P, A>
+{
+    /// Create a dispatcher over the given platform and bus addressing.
+    pub fn with_addressing(platform: &'a mut Platform<T, S, B, C>, addressing: A) -> Self {
         Self {
             platform,
             frame: Frame::default(),
             page: Page(core::mem::MaybeUninit::uninit()),
             fill: 0,
             next: ANY,
+            addressing,
         }
     }
 
@@ -242,50 +264,80 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
     }
 
     /// Read a frame, dispatch, send the response. Err only on transport IO;
-    /// frame-level errors (bad CRC) are silently skipped.
+    /// frame-level errors (bad CRC) are silently skipped. An addressable
+    /// device replies only to a `Select` matching it and, while selected,
+    /// to other requests; it never answers a frame it cannot read or
+    /// another device's reply.
     pub fn dispatch(&mut self) -> Result<(), ReadError> {
         let status = self.frame.read(&mut self.platform.transport)?;
 
-        if status == Status::Ok {
-            let data_len = self.frame.len as usize;
-            let addr = self.frame.addr();
-            let flags = self.frame.flags;
-            let capacity = self.platform.storage.capacity() as u32;
-            let state = self.platform.boot_meta.boot_state();
-            self.frame.len = 0;
-            self.frame.status = Status::Ok;
-
-            let cmd = self.frame.cmd;
-            if cmd == Cmd::Write {
-                // SAFETY: cmd is Write, so flags.write is the active variant.
-                self.cmd_write(addr, data_len, unsafe { flags.write }, capacity, state);
-            } else if cmd == Cmd::Erase {
-                self.cmd_erase(addr, capacity, state);
-            } else if cmd == Cmd::Info {
-                self.cmd_info(capacity);
-            } else if cmd == Cmd::Verify {
-                self.cmd_verify(addr, capacity, state);
+        let reply = if A::ADDRESSABLE {
+            if status != Status::Ok || self.frame.status != Status::Request {
+                false
+            } else if self.frame.cmd == Cmd::Select {
+                let transport = &mut self.platform.transport;
+                addressing::select(&mut self.addressing, &mut self.frame, |n| {
+                    transport.wait_bytes(n)
+                })
+            } else if self.addressing.selected() {
+                self.handle_cmd();
+                true
             } else {
-                // SAFETY: cmd is Reset, so flags.reset is the active variant.
-                let flags = unsafe { flags.reset };
-                // A reset to the app skips the bootloader's META check on
-                // chips that hand off by run mode, so a half-written image
-                // would run.
-                if state == BootState::Updating && !flags.contains(ResetFlags::BOOTLOADER) {
-                    self.frame.status = Status::Unsupported;
-                } else {
-                    self.cmd_reset(addr, flags);
-                }
+                false
             }
-        } else {
+        } else if status != Status::Ok {
             self.frame.len = 0;
             self.frame.status = status;
-        }
+            true
+        } else {
+            self.handle_cmd();
+            true
+        };
 
+        if !reply {
+            return Ok(());
+        }
         self.frame
             .send(&mut self.platform.transport)
             .map_err(|_| ReadError)?;
 
         embedded_io::Write::flush(&mut self.platform.transport).map_err(|_| ReadError)
+    }
+
+    #[inline(always)]
+    fn handle_cmd(&mut self) {
+        let data_len = self.frame.len as usize;
+        let addr = self.frame.addr();
+        let flags = self.frame.flags;
+        let capacity = self.platform.storage.capacity() as u32;
+        let state = self.platform.boot_meta.boot_state();
+        self.frame.len = 0;
+        self.frame.status = Status::Ok;
+
+        let cmd = self.frame.cmd;
+        if cmd == Cmd::Write {
+            // SAFETY: cmd is Write, so flags.write is the active variant.
+            self.cmd_write(addr, data_len, unsafe { flags.write }, capacity, state);
+        } else if cmd == Cmd::Erase {
+            self.cmd_erase(addr, capacity, state);
+        } else if cmd == Cmd::Info {
+            self.cmd_info(capacity);
+        } else if cmd == Cmd::Verify {
+            self.cmd_verify(addr, capacity, state);
+        } else if A::ADDRESSABLE || cmd == Cmd::Reset {
+            // SAFETY: cmd is Reset (an addressable device took Select
+            // above), so flags.reset is the active variant.
+            let flags = unsafe { flags.reset };
+            // A reset to the app skips the bootloader's META check on
+            // chips that hand off by run mode, so a half-written image
+            // would run.
+            if state == BootState::Updating && !flags.contains(ResetFlags::BOOTLOADER) {
+                self.frame.status = Status::Unsupported;
+            } else {
+                self.cmd_reset(addr, flags);
+            }
+        } else {
+            self.frame.status = Status::Unsupported;
+        }
     }
 }

@@ -188,12 +188,19 @@ pub enum Cmd {
     Verify = 0x03,
     /// Reset the device. See [`ResetFlags`].
     Reset = 0x04,
+    /// Select addressable devices by unique id prefix: data `[seed,
+    /// prefix_len, prefix..]`, `prefix_len` in bits. Every device whose id
+    /// starts with the prefix is selected and replies `Ok` with its id after
+    /// a slot drawn from `seed`; every other device is deselected and
+    /// silent. A full id selects one device, an empty prefix every device,
+    /// a `prefix_len` longer than any id none.
+    Select = 0x05,
 }
 
 impl Cmd {
     /// Returns true if `b` is a valid command code.
     pub fn is_valid(b: u8) -> bool {
-        b <= 0x04
+        b <= 0x05
     }
 }
 
@@ -258,8 +265,8 @@ mod tests {
     #[test]
     fn cmd_is_valid() {
         assert!(Cmd::is_valid(Cmd::Info as u8));
-        assert!(Cmd::is_valid(Cmd::Reset as u8));
-        assert!(!Cmd::is_valid(0x05));
+        assert!(Cmd::is_valid(Cmd::Select as u8));
+        assert!(!Cmd::is_valid(0x06));
         assert!(!Cmd::is_valid(0xFF));
     }
 
