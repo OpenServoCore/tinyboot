@@ -23,7 +23,7 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 ### Added
 
 - Addressable devices for a shared bus. `boot::run` takes the bus addressing: `Addressable::new(chip_uid)` keeps the bootloader silent until a host selects it by the chip's 96-bit unique id, `Unaddressed` answers every frame as before. `app::new_addressable_app(ctl, wait_bytes)` does the same in the app. `chip_uid` reads the ESIG unique id, and `Usart` implements `Transport::wait_bytes` from its baud divisor.
-- `boot_version!(compat = "name")` and `app_version!(compat = "name")` (re-exported from core): a bootloader with a compatibility key accepts only app images with the same key. The V00x and V103 examples set one.
+- `boot_version!(compat = "name")` and `app_version!(compat = "name")` (re-exported from core): a bootloader with a compatibility key accepts only app images with the same key. The V00x and V103 examples set one. `boot` and `app` also re-export `compat_key` and `pack_version`, for an image that sets its own `version = ...`.
 - The bootloader runs its USART at the baud stored in boot metadata, falling back to `UsartConfig::baud` when nothing is stored or `pclk` cannot reach the rate (divisor below 16). Divisors are computed at build time, so there is no runtime divide; the CH32V003 example bootloader grows by 64 bytes.
 - `app::BaudRate` re-export for `App::set_baud` / `App::baud`.
 - `boot::run_with_payload::<N>` runs the bootloader with an `N`-byte frame payload (at least 18; a Write may span flash pages); `boot::run` uses the 52-byte default.
@@ -43,7 +43,7 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 - `addressing`: the `Addressing` trait, `Unaddressed`, and `Addressable::new(uid)` for devices sharing a bus. An addressable device answers `Select` when its id starts with the prefix, after a slot of 0 to 15 byte-times drawn from its id and the host's seed, and any other command only while selected. It never answers a frame it cannot read or another device's reply. `Dispatcher::with_addressing`, `Core::with_addressing` and `App::with_addressing` take it.
 - `Transport::wait_bytes(n)`, a wait of about `n` byte-times for the `Select` slot; the default returns at once.
-- Compatibility keys. `boot_version!` and `app_version!` take `compat = "name"` (hashed at compile time) or `compat_key = <u32>`, and end the image with a 6-byte tail, `ImageTail { compat, version }`. A bootloader with a key refuses `Verify` of an image with another key, or none, with `Status::Incompatible` and stays in `Updating`; without a key it carries no check (with LTO the unset key folds away).
+- Compatibility keys. `boot_version!` and `app_version!` take `compat = "name"` (hashed at compile time) or `compat_key = <u32>`, and end the image with a 6-byte tail, `ImageTail { compat, version }`. A `version = <u16>` argument, alone or after the key, replaces the crate's `Cargo.toml` version; `pack_version` is re-exported to build one. A bootloader with a key refuses `Verify` of an image with another key, or none, with `Status::Incompatible` and stays in `Updating`; without a key it carries no check (with LTO the unset key folds away).
 - `Reset` with `ResetFlags::BAUD` stores addr byte 0 as the bootloader's baud before resetting, in the bootloader and in `App::poll`.
 - `App::baud` returns the stored bootloader baud; `App::set_baud` stores one, skipping the flash write when it is already stored.
 

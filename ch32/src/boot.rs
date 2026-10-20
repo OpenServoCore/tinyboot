@@ -13,7 +13,7 @@ pub use crate::hal::{Pin, UsartMapping};
 pub use tinyboot_core::Platform;
 pub use tinyboot_core::addressing::{Addressable, Addressing, Unaddressed};
 use tinyboot_core::frame::{DEFAULT_PAYLOAD, InfoData};
-pub use tinyboot_core::{boot_version, pkg_version};
+pub use tinyboot_core::{boot_version, compat_key, pack_version, pkg_version};
 
 /// Common imports for bootloader binaries.
 pub mod prelude {

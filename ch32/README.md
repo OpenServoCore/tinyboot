@@ -46,7 +46,7 @@ fn main() -> ! {
 
 `Unaddressed` answers every frame, for a device that has the bus to itself. With several devices on one bus, pass `Addressable::new(chip_uid)` instead: the bootloader then stays silent until a host selects it by the chip's unique id (see the [shared bus guide](https://openservocore.github.io/tinyboot/shared-bus.html)).
 
-`Storage` and `BootMetaStore` are initialized from linker symbols automatically. `boot_version!()` ends the image with its tail: a compatibility key and the crate's `Cargo.toml` version. `boot_version!(compat = "name")` sets the key, and the bootloader then accepts only app images built with the same `app_version!(compat = "name")` (see [app integration](https://openservocore.github.io/tinyboot/app-integration.html)).
+`Storage` and `BootMetaStore` are initialized from linker symbols automatically. `boot_version!()` ends the image with its tail: a compatibility key and the crate's `Cargo.toml` version. `boot_version!(compat = "name")` sets the key, and the bootloader then accepts only app images built with the same `app_version!(compat = "name")`. A trailing `version = <u16>` replaces the crate version in either macro (see [app integration](https://openservocore.github.io/tinyboot/app-integration.html)).
 
 `boot::run` reads frames with up to 52 payload bytes (a whole frame fits one 64-byte USB packet); `boot::run_with_payload::<N>` takes `N` bytes per Write (at least 18, not limited to a flash page) for faster updates, at `N` bytes of RAM. Hosts read the capacity from Info.
 
