@@ -6,7 +6,7 @@ use embedded_storage::nor_flash;
 use tinyboot_core::Platform;
 use tinyboot_core::protocol::Dispatcher;
 use tinyboot_core::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
-use tinyboot_protocol::frame::{Flags, Frame};
+use tinyboot_protocol::frame::{DEFAULT_PAYLOAD, Flags, Frame};
 use tinyboot_protocol::{Cmd, Status, WriteFlags};
 
 // -- Mocks --
@@ -35,7 +35,20 @@ impl MockTransport {
     }
 
     pub fn load_request_flags(&mut self, cmd: Cmd, addr: u32, flags: Flags, len: u16, data: &[u8]) {
-        let mut frame = Frame::default();
+        self.load_request_flags_n::<DEFAULT_PAYLOAD>(cmd, addr, flags, len, data);
+    }
+
+    /// As [`load_request_flags`](Self::load_request_flags) through an
+    /// `N`-byte host frame.
+    pub fn load_request_flags_n<const N: usize>(
+        &mut self,
+        cmd: Cmd,
+        addr: u32,
+        flags: Flags,
+        len: u16,
+        data: &[u8],
+    ) {
+        let mut frame = Frame::<N>::default();
         frame.cmd = cmd;
         frame.set_addr(addr);
         frame.flags = flags;

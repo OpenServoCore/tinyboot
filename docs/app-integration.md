@@ -61,7 +61,7 @@ If `confirm()` is never reached (panic, watchdog, init deadlock), the trials get
 
 | Command | Behavior in app                                                                                                                                                  |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Info`  | Responds with capacity, erase size, boot + app versions, `mode = 1` (app mode).                                                                                  |
+| `Info`  | Responds with capacity, erase size, boot + app versions, `mode = 1` (app mode), the stored boot baud and the bootloader's compatibility key.                     |
 | `Reset` | Resets the device. The `BOOTLOADER` flag reboots into the bootloader, otherwise into the app. The `BAUD` flag first stores addr byte 0 as the bootloader's baud. |
 
 This is enough for the host CLI to do `tinyboot info` and `tinyboot reset --bootloader` while the app is running, which is how remote updates get kicked off — see the [remote updates guide](remote-updates.md).

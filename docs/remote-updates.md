@@ -60,8 +60,8 @@ tinyboot info     # now reports mode=0 (bootloader)
 
 `tinyboot flash` drives the four-phase protocol:
 
-1. **Erase** the app region (`META.state` → `Updating`).
-2. **Write** the image in 64-byte pages, with `WriteFlags::FLUSH` on the final write.
+1. **Erase** the app region (`META.state` → `Updating`). Before it, when the bootloader has a compatibility key, the CLI checks the image carries the same one, so a wrong file never erases a working app.
+2. **Write** the image in chunks of the device's `max_payload` (52 bytes by default, so a frame fits one 64-byte USB packet), with `WriteFlags::FLUSH` on the final write.
 3. **Verify** — the device CRC16s the image, stores the checksum and size in META, and transitions to `Validating`.
 4. **Reset** (if `--reset` was passed) — boot the new app for the first time.
 

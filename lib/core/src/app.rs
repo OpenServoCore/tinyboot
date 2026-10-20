@@ -2,7 +2,7 @@
 //! Info/Reset commands so the CLI can drive updates without physical access.
 
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode};
-use tinyboot_protocol::frame::{Frame, InfoData};
+use tinyboot_protocol::frame::{DEFAULT_PAYLOAD, Frame, InfoData};
 use tinyboot_protocol::{BaudRate, Cmd, ResetFlags, Status};
 
 /// App-side configuration.
@@ -11,21 +11,23 @@ pub struct AppConfig {
     pub capacity: u32,
     /// Erase page size in bytes.
     pub erase_size: u16,
-    /// Boot version (caller reads it from flash).
+    /// Boot version (caller reads it from the boot image's tail).
     pub boot_version: u16,
+    /// Boot compatibility key (caller reads it from the boot image's tail).
+    pub boot_compat: u32,
     /// App version, typically `pkg_version!()`.
     pub app_version: u16,
 }
 
-/// App-side tinyboot client.
-pub struct App<C: BootCtl, M: BootMetaStore> {
-    frame: Frame,
+/// App-side tinyboot client. `P` is the frame's data capacity.
+pub struct App<C: BootCtl, M: BootMetaStore, const P: usize = DEFAULT_PAYLOAD> {
+    frame: Frame<P>,
     config: AppConfig,
     ctl: C,
     meta: M,
 }
 
-impl<C: BootCtl, M: BootMetaStore> App<C, M> {
+impl<C: BootCtl, M: BootMetaStore, const P: usize> App<C, M, P> {
     /// Create a new app client.
     pub fn new(config: AppConfig, ctl: C, meta: M) -> Self {
         Self {
@@ -109,13 +111,16 @@ impl<C: BootCtl, M: BootMetaStore> App<C, M> {
         self.frame.status = Status::Ok;
         match self.frame.cmd {
             Cmd::Info => {
-                self.frame.len = 12;
+                self.frame.len = InfoData::SIZE;
                 self.frame.data.info = InfoData {
                     capacity: self.config.capacity,
                     erase_size: self.config.erase_size,
                     boot_version: self.config.boot_version,
                     app_version: self.config.app_version,
                     mode: 1, // app
+                    boot_baud: self.meta.baud(),
+                    compat: self.config.boot_compat,
+                    max_payload: P as u16,
                 };
             }
             Cmd::Reset => {

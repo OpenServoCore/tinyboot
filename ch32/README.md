@@ -46,6 +46,8 @@ fn main() -> ! {
 
 `Storage` and `BootMetaStore` are initialized from linker symbols automatically. `boot_version!()` ends the image with its tail: a compatibility key and the crate's `Cargo.toml` version. `boot_version!(compat = "name")` sets the key, and the bootloader then accepts only app images built with the same `app_version!(compat = "name")` (see [app integration](https://openservocore.github.io/tinyboot/app-integration.html)).
 
+`boot::run` reads frames with up to 52 payload bytes (a whole frame fits one 64-byte USB packet); `boot::run_with_payload::<N>` takes up to a flash page per Write for faster updates, at `N` bytes of RAM. Hosts read the capacity from Info.
+
 For configuring RS-485 half-duplex, DXL TTL, or alternate pin remaps, see the [transports guide](https://openservocore.github.io/tinyboot/transports.html). For CH32V103 in system-flash mode, `BootCtl::new` takes additional arguments for the external BOOT_CTL circuit — see [boot-ctl](https://openservocore.github.io/tinyboot/boot-ctl.html).
 
 ## Minimal app
@@ -61,7 +63,7 @@ loop {
 }
 ```
 
-`app::poll` handles `Info` (responds with capacity, erase size, versions, `mode = 1`) and `Reset` (resets the device; `addr = 1` reboots into the bootloader, `addr = 0` reboots into the app). All other commands return `Status::Unsupported`.
+`app::poll` handles `Info` (responds with capacity, erase size, versions, `mode = 1`, the stored boot baud and the bootloader's compatibility key) and `Reset` (resets the device; `addr = 1` reboots into the bootloader, `addr = 0` reboots into the app). All other commands return `Status::Unsupported`.
 
 See the [app integration guide](https://openservocore.github.io/tinyboot/app-integration.html) for a complete app including `embedded_io` transport wrapping and peripheral ownership.
 

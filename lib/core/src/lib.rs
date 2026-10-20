@@ -23,6 +23,7 @@ pub use crate::core::Core;
 pub use crate::platform::Platform;
 pub use tinyboot_protocol::BaudRate;
 
+pub use tinyboot_protocol::frame;
 #[doc(hidden)]
 pub use tinyboot_protocol::pkg_version;
 pub use tinyboot_protocol::{COMPAT_UNSET, compat_key};

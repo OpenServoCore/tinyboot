@@ -40,3 +40,17 @@ fn verify_refuses_a_size_that_cannot_end_in_a_tail() {
         assert_eq!(p.boot_meta.state, BootState::Updating);
     }
 }
+
+#[test]
+fn info_reports_the_key() {
+    let mut p = platform(BootState::Idle);
+    let mut d = tinyboot_core::protocol::Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    d.platform
+        .transport
+        .load_request(tinyboot_protocol::Cmd::Info, 0, 0, &[]);
+    d.dispatch().unwrap();
+    assert_eq!(
+        { unsafe { d.frame.data.info }.compat },
+        compat_key("board-a")
+    );
+}

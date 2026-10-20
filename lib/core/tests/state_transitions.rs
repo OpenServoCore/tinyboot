@@ -10,8 +10,9 @@ use tinyboot_core::app::{App, AppConfig};
 use tinyboot_core::protocol::Dispatcher;
 use tinyboot_core::traits::BootState;
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
+use tinyboot_protocol::frame::DEFAULT_PAYLOAD;
 use tinyboot_protocol::frame::Flags;
-use tinyboot_protocol::{BaudRate, Cmd, ResetFlags, Status};
+use tinyboot_protocol::{BaudRate, COMPAT_UNSET, Cmd, ResetFlags, Status};
 
 // This bootloader's image tail: no compatibility key.
 tinyboot_core::boot_version!();
@@ -281,11 +282,39 @@ fn info_reports_geometry() {
     d.platform.transport.load_request(Cmd::Info, 0, 0, &[]);
     d.dispatch().unwrap();
     assert_eq!(d.frame.status, Status::Ok);
-    assert_eq!(d.frame.len, 12);
+    assert_eq!(d.frame.len, 18);
     let info = unsafe { d.frame.data.info };
     assert_eq!({ info.capacity }, 256);
     assert_eq!({ info.erase_size }, 64);
     assert_eq!({ info.mode }, 0);
+    assert_eq!({ info.boot_baud }, 0xFF);
+    assert_eq!({ info.compat }, COMPAT_UNSET);
+    assert_eq!({ info.max_payload }, DEFAULT_PAYLOAD as u16);
+}
+
+#[test]
+fn info_reports_stored_baud_and_payload_capacity() {
+    let mut p = platform(BootState::Idle);
+    p.boot_meta.baud = BaudRate::B1000000 as u8;
+    let mut d = Dispatcher::<_, _, _, _, 512, 240>::new(&mut p);
+    d.platform.transport.load_request(Cmd::Info, 0, 0, &[]);
+    d.dispatch().unwrap();
+    let info = unsafe { d.frame.data.info };
+    assert_eq!({ info.boot_baud }, BaudRate::B1000000 as u8);
+    assert_eq!({ info.max_payload }, 240);
+}
+
+#[test]
+fn write_accepts_a_full_large_payload() {
+    let mut p = platform(BootState::Updating);
+    let mut d = Dispatcher::<_, _, _, _, 512, 240>::new(&mut p);
+    let data = [0xA5; 240];
+    d.platform
+        .transport
+        .load_request_flags_n::<240>(Cmd::Write, 0, flush_flags(), 240, &data);
+    d.dispatch().unwrap();
+    assert_eq!(d.frame.status, Status::Ok);
+    assert!(d.platform.storage.data[..240].iter().all(|&b| b == 0xA5));
 }
 
 // =============================================================================
@@ -411,6 +440,7 @@ fn app() -> App<MockBootCtl, MockBootMeta> {
             capacity: 256,
             erase_size: 64,
             boot_version: 0xFFFF,
+            boot_compat: COMPAT_UNSET,
             app_version: 0xFFFF,
         },
         MockBootCtl,

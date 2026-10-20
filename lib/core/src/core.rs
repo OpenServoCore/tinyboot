@@ -1,10 +1,11 @@
 use crate::platform::Platform;
 use crate::protocol;
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
+use tinyboot_protocol::frame::DEFAULT_PAYLOAD;
 
 /// Bootloader entry point. Validates the app and either hands off or enters
 /// the protocol loop.
-pub struct Core<T, S, B, C, const BUF: usize>
+pub struct Core<T, S, B, C, const BUF: usize, const P: usize = DEFAULT_PAYLOAD>
 where
     T: Transport,
     S: Storage,
@@ -14,7 +15,7 @@ where
     platform: Platform<T, S, B, C>,
 }
 
-impl<T, S, B, C, const BUF: usize> Core<T, S, B, C, BUF>
+impl<T, S, B, C, const BUF: usize, const P: usize> Core<T, S, B, C, BUF, P>
 where
     T: Transport,
     S: Storage,
@@ -80,7 +81,7 @@ where
 
     #[inline(always)]
     fn enter_bootloader(&mut self) -> ! {
-        let mut d = protocol::Dispatcher::<_, _, _, _, BUF>::new(&mut self.platform);
+        let mut d = protocol::Dispatcher::<_, _, _, _, BUF, P>::new(&mut self.platform);
 
         loop {
             let _ = d.dispatch();

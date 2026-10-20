@@ -4,8 +4,11 @@ use crate::crc::{CRC_INIT, crc16};
 use crate::sync::Sync;
 use crate::{Cmd, ReadError, ResetFlags, Status, WriteFlags};
 
-/// Maximum data payload size per frame.
-pub const MAX_PAYLOAD: usize = 64;
+/// Default data capacity of a [`Frame`], the largest payload a request may
+/// carry to a device built with it. Info reports a device's capacity.
+/// With the 12 bytes of framing, a full frame fits one 64-byte USB
+/// full-speed packet.
+pub const DEFAULT_PAYLOAD: usize = 52;
 
 /// Typed Info response data.
 ///
@@ -23,7 +26,20 @@ pub struct InfoData {
     /// App version (packed 5.5.6, `0xFFFF` = none).
     pub app_version: u16,
     /// 0 = bootloader, 1 = app.
-    pub mode: u16,
+    pub mode: u8,
+    /// Stored bootloader [`BaudRate`](crate::BaudRate) index; `0xFF` = the
+    /// bootloader's build default.
+    pub boot_baud: u8,
+    /// The bootloader's compatibility key
+    /// ([`COMPAT_UNSET`](crate::COMPAT_UNSET) = accepts any image).
+    pub compat: u32,
+    /// Largest payload the responder accepts in a request.
+    pub max_payload: u16,
+}
+
+impl InfoData {
+    /// Encoded size in bytes.
+    pub const SIZE: u16 = core::mem::size_of::<Self>() as u16;
 }
 
 /// Typed Erase request data.
@@ -62,9 +78,9 @@ pub union Flags {
 /// Provides zero-cost typed access to frame data. Reading fields is unsafe
 /// because the caller must know which variant is active.
 #[repr(C)]
-pub union Data {
+pub union Data<const N: usize = DEFAULT_PAYLOAD> {
     /// Raw byte access.
-    pub raw: [u8; MAX_PAYLOAD],
+    pub raw: [u8; N],
     /// Info response fields.
     pub info: InfoData,
     /// Erase request fields.
@@ -78,9 +94,11 @@ pub union Data {
 /// Used for both requests and responses. For requests, `status` is
 /// [`Status::Request`]. For responses, `cmd` and `addr` echo the request.
 ///
+/// `N` is the data capacity: the largest payload this side reads.
+///
 /// Single instance, reused each iteration of the protocol loop.
 #[repr(C)]
-pub struct Frame {
+pub struct Frame<const N: usize = DEFAULT_PAYLOAD> {
     sync: Sync,
     /// Command code.
     pub cmd: Cmd,
@@ -92,15 +110,15 @@ pub struct Frame {
     pub addr_hi: u8,
     /// Per-command flags (addr byte 3).
     pub flags: Flags,
-    /// Data payload length in bytes (0..64).
+    /// Data payload length in bytes (0..=N).
     pub len: u16,
     /// Payload data (union-typed).
-    pub data: Data,
+    pub data: Data<N>,
     /// CRC16 over the frame body (little-endian).
     pub crc: [u8; 2],
 }
 
-impl Default for Frame {
+impl<const N: usize> Default for Frame<N> {
     /// Create a default frame. Data buffer is uninitialized — `read()` or
     /// caller writes populate it before use.
     ///
@@ -124,7 +142,7 @@ impl Default for Frame {
     }
 }
 
-impl Frame {
+impl<const N: usize> Frame<N> {
     /// Reconstruct the 24-bit address from lo + hi.
     #[inline(always)]
     pub fn addr(&self) -> u32 {
@@ -139,7 +157,7 @@ impl Frame {
     }
 }
 
-impl Frame {
+impl<const N: usize> Frame<N> {
     fn as_bytes(&self, offset: usize, len: usize) -> &[u8] {
         debug_assert!(offset + len <= core::mem::size_of::<Self>());
         unsafe {
@@ -163,7 +181,7 @@ impl Frame {
         let crc = crc16(CRC_INIT, self.as_bytes(0, body_len)).to_le_bytes();
         // Place CRC immediately after payload for a contiguous write.
         // SAFETY: Frame is #[repr(C)] so offset 10+len is within the struct
-        // (inside `data` when len < MAX_PAYLOAD, or at `crc` field when len == MAX_PAYLOAD).
+        // (inside `data` when len < N, or at or before `crc` when len == N).
         unsafe {
             let base = self as *mut Self as *mut u8;
             *base.add(10 + self.len as usize) = crc[0];
@@ -194,7 +212,7 @@ impl Frame {
 
         let data_len = self.len as usize;
 
-        if data_len > MAX_PAYLOAD {
+        if data_len > N {
             // Same as above — we cannot drain a payload larger than our buffer.
             // The sync scanner recovers on the next frame.
             return Ok(Status::PayloadOverflow);
@@ -247,7 +265,7 @@ impl Frame {
 
         let data_len = self.len as usize;
 
-        if data_len > MAX_PAYLOAD {
+        if data_len > N {
             // See sync read() for rationale on not draining here.
             return Ok(Status::PayloadOverflow);
         }
@@ -348,7 +366,7 @@ mod tests {
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = Frame::<DEFAULT_PAYLOAD>::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Write);
         assert_eq!(frame2.len, 2);
@@ -364,7 +382,7 @@ mod tests {
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = Frame::<DEFAULT_PAYLOAD>::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Verify);
         assert_eq!(frame2.status, Status::Ok);
@@ -381,7 +399,7 @@ mod tests {
         // Frame: SYNC(2) + CMD(1) + STATUS(1) + ADDR(4) + LEN(2) + CRC(2) = 12
         assert_eq!(sink.written().len(), 12);
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = Frame::<DEFAULT_PAYLOAD>::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.cmd, Cmd::Erase);
         assert_eq!(frame2.len, 0);
@@ -394,7 +412,7 @@ mod tests {
         let mut sink = Sink::new();
         frame.send(&mut sink).unwrap();
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = Frame::<DEFAULT_PAYLOAD>::default();
         frame2.read(&mut MockReader::new(sink.written())).unwrap();
         assert_eq!(frame2.addr(), 0x0001_0800);
     }
@@ -407,7 +425,7 @@ mod tests {
         frame.send(&mut sink).unwrap();
 
         // "Device" reads the request
-        let mut dev = Frame::default();
+        let mut dev = Frame::<DEFAULT_PAYLOAD>::default();
         dev.read(&mut MockReader::new(sink.written())).unwrap();
 
         // Device sends response — cmd and addr carry over
@@ -417,12 +435,45 @@ mod tests {
         dev.send(&mut resp_sink).unwrap();
 
         // Host reads response
-        let mut host = Frame::default();
+        let mut host = Frame::<DEFAULT_PAYLOAD>::default();
         host.read(&mut MockReader::new(resp_sink.written()))
             .unwrap();
         assert_eq!(host.cmd, Cmd::Write);
         assert_eq!(host.addr(), 0x0400);
         assert_eq!(host.status, Status::Ok);
+    }
+
+    #[test]
+    fn info_is_18_bytes() {
+        assert_eq!(InfoData::SIZE, 18);
+    }
+
+    #[test]
+    fn large_payload_round_trip() {
+        let data = [0x3C; 240];
+        let mut f = Frame::<240> {
+            cmd: Cmd::Write,
+            ..Default::default()
+        };
+        f.len = 240;
+        unsafe { f.data.raw.copy_from_slice(&data) };
+        let mut sink = Sink::new();
+        f.send(&mut sink).unwrap();
+        assert_eq!(sink.written().len(), 12 + 240);
+
+        let mut big = Frame::<240>::default();
+        assert_eq!(
+            big.read(&mut MockReader::new(sink.written())),
+            Ok(Status::Ok)
+        );
+        assert_eq!(unsafe { big.data.raw }, data);
+
+        // A device with the default capacity refuses it.
+        let mut small = Frame::<DEFAULT_PAYLOAD>::default();
+        assert_eq!(
+            small.read(&mut MockReader::new(sink.written())),
+            Ok(Status::PayloadOverflow)
+        );
     }
 
     #[test]
@@ -433,7 +484,7 @@ mod tests {
         frame.send(&mut sink).unwrap();
         sink.buf[2] ^= 0xFF; // corrupt CMD byte
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = Frame::<DEFAULT_PAYLOAD>::default();
         assert_eq!(
             frame2.read(&mut MockReader::new(sink.written())),
             Ok(Status::Unsupported)
@@ -452,7 +503,7 @@ mod tests {
         input[..4].copy_from_slice(&[0xFF, 0x00, 0xAA, 0x42]);
         input[4..4 + frame_len].copy_from_slice(&sink.buf[..frame_len]);
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = Frame::<DEFAULT_PAYLOAD>::default();
         assert_eq!(
             frame2.read(&mut MockReader::new(&input[..4 + frame_len])),
             Ok(Status::Ok)
@@ -462,18 +513,18 @@ mod tests {
 
     #[test]
     fn read_overflow() {
-        // Build a valid frame, then patch the LEN field to exceed MAX_PAYLOAD.
+        // Build a valid frame, then patch the LEN field to exceed the capacity.
         let mut f = frame(Cmd::Write, Status::Request, 0, &[]);
 
         let mut sink = Sink::new();
         f.send(&mut sink).unwrap();
 
-        // LEN is at offset 8..10 (little-endian u16). Set to MAX_PAYLOAD + 1.
-        let overflow_len = (MAX_PAYLOAD as u16 + 1).to_le_bytes();
+        // LEN is at offset 8..10 (little-endian u16). Set to capacity + 1.
+        let overflow_len = (DEFAULT_PAYLOAD as u16 + 1).to_le_bytes();
         sink.buf[8] = overflow_len[0];
         sink.buf[9] = overflow_len[1];
 
-        let mut frame2 = Frame::default();
+        let mut frame2 = Frame::<DEFAULT_PAYLOAD>::default();
         assert_eq!(
             frame2.read(&mut MockReader::new(sink.written())),
             Ok(Status::PayloadOverflow)

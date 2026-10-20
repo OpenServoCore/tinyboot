@@ -23,7 +23,8 @@ pub fn new_app(ctl: BootCtl) -> App<BootCtl, BootMetaStore> {
         AppConfig {
             capacity: app_capacity,
             erase_size: flash::PAGE_SIZE as u16,
-            boot_version: unsafe { (&raw const (*boot_tail).version).read_volatile() },
+            boot_version: unsafe { (*boot_tail).version },
+            boot_compat: unsafe { (*boot_tail).compat },
             app_version: tinyboot_core::tinyboot_version(),
         },
         ctl,
