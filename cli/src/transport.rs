@@ -20,3 +20,9 @@ impl embedded_io::Write for Serial {
         std::io::Write::flush(&mut self.0).map_err(|_| embedded_io::ErrorKind::Other)
     }
 }
+
+impl crate::client::Link for Serial {
+    fn set_timeout(&mut self, timeout: std::time::Duration) {
+        let _ = self.0.set_timeout(timeout);
+    }
+}
