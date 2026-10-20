@@ -5,6 +5,8 @@ target = "riscv32imc-unknown-none-elf"
 rustflags = [
   "-C", "link-arg=-Tlink.x",
   "-C", "link-arg=--nmagic",
+  # Linker relaxation: calls shrink from auipc+jalr to jal/c.jal.
+  "-C", "target-feature=+relax",
 ]
 runner = "probe-rs run --chip CH32V103"
 

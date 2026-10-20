@@ -23,6 +23,7 @@ To build your bootloader, you create a small crate with a `main.rs` that wires u
 
 Beyond the usual Cargo profile tricks (`opt-level = "z"`, LTO, `codegen-units = 1`, `panic = "abort"`), fitting a real bootloader in 1920 bytes required more deliberate choices:
 
+- **Linker relaxation and WCH compressed opcodes** - the examples enable `+relax`, so the linker shrinks every `auipc`+`jalr` call pair to `jal` or `c.jal`, and on QingKe V2 cores (V003, V00x) `+xwchc`, WCH's 16-bit byte and halfword loads and stores. Together they take the V003 bootloader from 1898 to 1710 bytes. QingKe V3A (V103) has no XW extension, so its example enables only `+relax`.
 - **No HAL crates** — bare metal register access via PAC crates only; HAL abstractions are too expensive for this budget.
 - **Custom runtime** — `tinyboot-ch32-rt` replaces `qingke-rt` in the bootloader; its startup is just GP/SP init and a jump to main (20 bytes of assembly instead of ~1.4KB of full runtime).
 - **Symmetric frame format** — the same `Frame` struct is used for both requests and responses with one shared parse and format path, eliminating code duplication.
