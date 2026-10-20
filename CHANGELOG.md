@@ -4,6 +4,31 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ## [Unreleased]
 
+## [tinyboot-ch32 0.6.0] - 2026-10-19
+
+### Changed
+
+- `tinyboot-ch32` now depends on `ch32-metapac` 0.1.2 from crates.io instead of git, and is published to crates.io. Boot images are byte-identical to 0.5.0 builds against the git pin.
+- Requires `tinyboot-core` 0.5.0 (`__tb_app_capacity`).
+
+### Fixed
+
+- The app region is `LENGTH(APP)` instead of `ORIGIN(META) - ORIGIN(APP)`. On a `memory.x` with regions between `APP` and `META` (app settings, calibration), Info reported the larger span as `capacity` and Erase/Write accepted it, so `tinyboot flash` and `tinyboot erase` wiped those regions. Maps where `APP` ends at `META` are unchanged.
+
+## [tinyboot-core 0.5.0] - 2026-10-19
+
+### Added
+
+- `tb-boot.x` defines `__tb_app_capacity = LENGTH(APP)` and fails the link when `APP` overlaps `META`.
+
+### Fixed
+
+- `tb-app.x` anchors `.tb_version` at the end of `.data`'s load image instead of the location counter, which after `.data` is a RAM address: with qingke-rt 0.8 the version tag landed in RAM and the app failed to link.
+
+### Removed
+
+- **Breaking:** `tb-app.x` no longer collects `.vector_table.interrupts` / `.vector_table.external_interrupts` into `.tb_vectors`; qingke-rt 0.8 keeps every vector inside `.vector_table`. Apps need qingke-rt 0.8.
+
 ## [tinyboot-ch32 0.5.0] - 2026-07-11
 
 ### Changed
