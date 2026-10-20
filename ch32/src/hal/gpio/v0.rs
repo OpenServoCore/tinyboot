@@ -59,6 +59,27 @@ pub fn configure(pin: Pin, mode: PinMode) {
     }
 }
 
+/// Config register holding `pin` and its CNF0 bit, the one bit between
+/// AF push-pull and AF open-drain.
+#[inline(always)]
+pub fn cnf0(pin: Pin) -> (*mut u32, u32) {
+    (
+        pin.gpio_regs().cfglr().as_ptr() as *mut u32,
+        1 << (pin.pin_number() * 4 + 2),
+    )
+}
+
+/// BSHR address and the word that drives `pin` to `level` (set bits low,
+/// reset bits high).
+#[inline(always)]
+pub fn level_word(pin: Pin, level: Level) -> (*mut u32, u32) {
+    let shift = if level == Level::High { 0 } else { 16 };
+    (
+        pin.gpio_regs().bshr().as_ptr() as *mut u32,
+        1 << (pin.pin_number() + shift),
+    )
+}
+
 pub fn set_level(pin: Pin, level: Level) {
     if level == Level::High {
         pin.gpio_regs()

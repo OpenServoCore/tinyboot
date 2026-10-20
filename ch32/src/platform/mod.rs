@@ -8,4 +8,7 @@ pub use crate::hal::{Pin, UsartMapping};
 pub use boot_ctl::BootCtl;
 pub use boot_meta_store::BootMetaStore;
 pub use storage::Storage;
-pub use transport::usart::{BaudRate, TxEnConfig, Usart, UsartConfig};
+pub use transport::usart::{
+    BaudRate, FullDrive, FullDuplex, HalfDrive, HalfDuplex, NoTxEn, OpenDrain, PushPull,
+    PushPullWhileSending, TxEn, TxEnable, Usart, UsartConfig, Wire,
+};

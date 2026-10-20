@@ -16,7 +16,7 @@ tinyboot-ch32-rt = "0.4"  # optional, bootloader-only
 
 | Module     | For                  | What it provides                                                                                 |
 | ---------- | -------------------- | ------------------------------------------------------------------------------------------------ |
-| `boot`     | Bootloader binaries  | `run()`, `BootCtl`, USART transport (`Usart`, `UsartConfig`, `BaudRate`, `TxEnConfig`) |
+| `boot`     | Bootloader binaries  | `run()`, `BootCtl`, USART transport (`Usart`, `UsartConfig`, `BaudRate`, `FullDuplex` / `HalfDuplex`, `TxEn` / `NoTxEn`) |
 | `app`      | Application binaries | `new_app()`, `App`, `BootCtl`, the `tinyboot_core::app` types                                    |
 | `hal`      | Both                 | `flash`, `gpio`, `usart`, `afio`, `rcc`, `pfic`, `iwdg`; auto-generated `Pin` and `UsartMapping` |
 | `platform` | (internal)           | `tinyboot_core::traits` impls for Storage, Transport, BootCtl, BootMetaStore                     |
@@ -37,8 +37,8 @@ fn main() -> ! {
         baud: BaudRate::B115200,
         pclk: 8_000_000,
         mapping: UsartMapping::Usart1Remap0,
-        rx_pull: Pull::None,
-        tx_en: None,
+        wire: FullDuplex { rx_pull: Pull::None, drive: PushPull },
+        tx_en: NoTxEn,
     });
     tinyboot_ch32::boot::run(transport, BootCtl::new());
 }

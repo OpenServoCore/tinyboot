@@ -20,6 +20,8 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 ### Changed
 
 - **Breaking:** `BaudRate` is `tinyboot_protocol::BaudRate`, a `u8` index enum with `hz()`, instead of a `u32` enum whose discriminant was the rate.
+- **Breaking:** the USART wire and DE pin are chosen by type, and the `half-duplex` cargo feature is gone. `UsartConfig` takes `wire: FullDuplex { rx_pull, drive }` (`PushPull` / `OpenDrain`) or `HalfDuplex { drive }` (`PushPullWhileSending` / `OpenDrain`), and `tx_en: NoTxEn` or `TxEn { pin, tx_level }` (was `Option<TxEnConfig>`). A bootloader builds only the pin switching its setup needs, with each switch precomputed in `Usart::new` (one BSHR store for the DE pin, one CNF0 bit flip for push-pull while sending), and `HalfDuplex { drive: PushPull }` does not compile. Bootloaders shrink: CH32V003 example 40 bytes, CH32V00x 48, CH32V103 68, a half-duplex CH32V006 board 164.
+- The DE pin is set to its RX level before it turns output, so it no longer passes through the reset-default low at init.
 - **Breaking:** boot metadata is 12 bytes: a `baud` index byte (`0xFF` = build default) and 3 reserved bytes follow `app_size`. Existing metadata reads as the build default.
 
 ## [tinyboot-core 0.6.0] - 2026-10-20

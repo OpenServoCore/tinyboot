@@ -2,12 +2,17 @@ use core::convert::Infallible;
 
 use embedded_io::ErrorType;
 
-use crate::hal::gpio::PinMode;
-#[cfg(not(feature = "half-duplex"))]
-use crate::hal::gpio::Pull;
-use crate::hal::{Pin, UsartMapping};
-use crate::hal::{afio, gpio, rcc, usart};
+use crate::hal::UsartMapping;
+use crate::hal::{afio, rcc, usart};
 use crate::platform::boot_meta_store;
+
+mod wire;
+
+use wire::Switch;
+pub use wire::{
+    FullDrive, FullDuplex, HalfDrive, HalfDuplex, NoTxEn, OpenDrain, PushPull,
+    PushPullWhileSending, TxEn, TxEnable, Wire,
+};
 
 pub use tinyboot_core::BaudRate;
 
@@ -50,15 +55,7 @@ fn stored_brr(pclk: u32, default: u32) -> u32 {
     if v < 16 { default } else { v }
 }
 
-/// RS-485 DE/RE pin configuration.
-#[derive(Copy, Clone)]
-pub struct TxEnConfig {
-    pub pin: Pin,
-    /// Level driven to enable TX; the inverse enables RX.
-    pub tx_level: gpio::Level,
-}
-
-pub struct UsartConfig {
+pub struct UsartConfig<W: Wire, E: TxEnable> {
     /// Build default. A baud stored in boot metadata (`Reset` with the
     /// `BAUD` flag, or the app's `set_baud`) overrides it when `pclk`
     /// can reach it.
@@ -71,28 +68,25 @@ pub struct UsartConfig {
     ///   X0xx: HSI 48MHz / HPRE 1 = 48_000_000
     pub pclk: u32,
     pub mapping: UsartMapping,
-    /// RX pin bias (full duplex only).
-    #[cfg(not(feature = "half-duplex"))]
-    pub rx_pull: Pull,
-    /// Optional RS-485 DE/RE pin.
-    pub tx_en: Option<TxEnConfig>,
+    /// [`FullDuplex`] or [`HalfDuplex`], with the TX drive.
+    pub wire: W,
+    /// [`NoTxEn`] or a [`TxEn`] DE/RE pin.
+    pub tx_en: E,
 }
 
-pub struct Usart {
+pub struct Usart<W: Wire, E: TxEnable> {
     regs: crate::hal::usart::Regs,
-    tx_en: Option<TxEnConfig>,
-    /// The single wire: push-pull while driving, open-drain parked.
-    #[cfg(feature = "half-duplex")]
-    tx_pin: Pin,
+    wire: W::Switch,
+    tx_en: E::Switch,
 }
 
-impl tinyboot_core::traits::Transport for Usart {}
+impl<W: Wire, E: TxEnable> tinyboot_core::traits::Transport for Usart<W, E> {}
 
-impl Usart {
+impl<W: Wire, E: TxEnable> Usart<W, E> {
     #[cfg_attr(split_sysflash, inline(never))]
     #[cfg_attr(not(split_sysflash), inline(always))]
     #[cfg_attr(split_sysflash, unsafe(link_section = ".text2"))]
-    pub fn new(config: &UsartConfig) -> Self {
+    pub fn new(config: &UsartConfig<W, E>) -> Self {
         let tx_pin = config.mapping.tx_pin();
         let rx_pin = config.mapping.rx_pin();
         let regs = config.mapping.regs();
@@ -113,66 +107,33 @@ impl Usart {
 
         afio::set_usart_remap(usart_n, config.mapping.remap_value());
 
-        // Park the single wire open-drain: RX hears through the pin, the
-        // bus pull-up holds mark; writes flip to push-pull.
-        #[cfg(feature = "half-duplex")]
-        gpio::configure(tx_pin, PinMode::AF_OPEN_DRAIN);
-        #[cfg(not(feature = "half-duplex"))]
-        {
-            gpio::configure(tx_pin, PinMode::AF_PUSH_PULL);
-            gpio::configure(rx_pin, PinMode::input_pull(config.rx_pull));
-        }
-
-        // Start DE/RE in RX mode.
-        if let Some(ref tx_en) = config.tx_en {
-            rcc::enable_gpio(tx_en.pin.port_index());
-            gpio::configure(tx_en.pin, PinMode::OUTPUT_PUSH_PULL);
-            gpio::set_level(tx_en.pin, invert(tx_en.tx_level));
-        }
+        let wire = config.wire.init(tx_pin, rx_pin);
+        let tx_en = config.tx_en.init();
 
         let brr = stored_brr(config.pclk, brr(config.pclk, config.baud.hz()));
-        usart::init(regs, brr, cfg!(feature = "half-duplex"));
+        usart::init(regs, brr, W::HALF_DUPLEX);
 
-        Usart {
-            regs,
-            tx_en: config.tx_en,
-            #[cfg(feature = "half-duplex")]
-            tx_pin,
-        }
+        Usart { regs, wire, tx_en }
     }
 
     #[inline(always)]
     fn set_tx_mode(&self) {
-        #[cfg(feature = "half-duplex")]
-        gpio::configure(self.tx_pin, PinMode::AF_PUSH_PULL);
-        if let Some(ref tx_en) = self.tx_en {
-            gpio::set_level(tx_en.pin, tx_en.tx_level);
-        }
+        self.wire.tx();
+        self.tx_en.tx();
     }
 
     #[inline(always)]
     fn set_rx_mode(&self) {
-        #[cfg(feature = "half-duplex")]
-        gpio::configure(self.tx_pin, PinMode::AF_OPEN_DRAIN);
-        if let Some(ref tx_en) = self.tx_en {
-            gpio::set_level(tx_en.pin, invert(tx_en.tx_level));
-        }
+        self.wire.rx();
+        self.tx_en.rx();
     }
 }
 
-#[inline(always)]
-fn invert(level: gpio::Level) -> gpio::Level {
-    match level {
-        gpio::Level::High => gpio::Level::Low,
-        gpio::Level::Low => gpio::Level::High,
-    }
-}
-
-impl ErrorType for Usart {
+impl<W: Wire, E: TxEnable> ErrorType for Usart<W, E> {
     type Error = Infallible;
 }
 
-impl embedded_io::Read for Usart {
+impl<W: Wire, E: TxEnable> embedded_io::Read for Usart<W, E> {
     #[cfg_attr(split_sysflash, inline(never))]
     #[cfg_attr(split_sysflash, unsafe(link_section = ".text2"))]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
@@ -197,7 +158,7 @@ impl embedded_io::Read for Usart {
     }
 }
 
-impl embedded_io::Write for Usart {
+impl<W: Wire, E: TxEnable> embedded_io::Write for Usart<W, E> {
     #[cfg_attr(split_sysflash, inline(never))]
     #[cfg_attr(split_sysflash, unsafe(link_section = ".text2"))]
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {

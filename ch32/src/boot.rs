@@ -2,7 +2,10 @@
 
 use crate::platform::{BootMetaStore, Storage};
 
-pub use crate::platform::{BaudRate, BootCtl, TxEnConfig, Usart, UsartConfig};
+pub use crate::platform::{
+    BaudRate, BootCtl, FullDrive, FullDuplex, HalfDrive, HalfDuplex, NoTxEn, OpenDrain, PushPull,
+    PushPullWhileSending, TxEn, TxEnable, Usart, UsartConfig, Wire,
+};
 
 pub use crate::hal::gpio::{Level, Pull};
 pub use crate::hal::{Pin, UsartMapping};
@@ -12,7 +15,8 @@ pub use tinyboot_core::{boot_version, pkg_version};
 /// Common imports for bootloader binaries.
 pub mod prelude {
     pub use super::{
-        BaudRate, BootCtl, Level, Pin, Pull, TxEnConfig, Usart, UsartConfig, UsartMapping,
+        BaudRate, BootCtl, FullDuplex, HalfDuplex, Level, NoTxEn, OpenDrain, Pin, Pull, PushPull,
+        PushPullWhileSending, TxEn, Usart, UsartConfig, UsartMapping,
     };
 }
 
