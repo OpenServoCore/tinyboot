@@ -41,6 +41,8 @@ All `memory.x` files define five standard regions. The crate linker scripts (`tb
 | `META` | Boot metadata (last flash page)                     |
 | `RAM`  | SRAM                                                |
 
+The bootloader erases and writes only `APP` (`__tb_app_capacity = LENGTH(APP)`), so regions placed between `APP` and `META` (app settings, calibration) survive firmware updates. `APP` must end at or before `META`; the link fails otherwise.
+
 ## What you get for free
 
 The entire protocol (frame format, CRC, sync, commands), the boot state machine (Idle / Updating / Validating transitions, trial boot logic, app validation), the CLI, and the host-side flashing workflow all work unchanged. You only write the chip-specific glue.

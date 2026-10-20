@@ -14,6 +14,15 @@ pub fn meta_addr() -> u32 {
     unsafe { &__tb_meta_base as *const u8 as u32 }
 }
 
+/// App region capacity (`__tb_app_capacity`).
+#[inline(always)]
+pub fn app_capacity() -> u32 {
+    unsafe extern "C" {
+        static __tb_app_capacity: u8;
+    }
+    unsafe { &__tb_app_capacity as *const u8 as u32 }
+}
+
 /// App region base (`__tb_app_base`).
 #[inline(always)]
 pub fn app_base() -> u32 {
