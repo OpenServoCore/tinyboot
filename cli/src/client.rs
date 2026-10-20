@@ -236,19 +236,30 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
         Ok(info)
     }
 
-    /// Reset the device. Does not wait for a response since the device resets immediately.
-    /// `bootloader=true`: enter bootloader. `bootloader=false`: boot app.
-    pub fn reset(&mut self, bootloader: bool) {
-        self.send_reset(bootloader, None);
+    /// Reset the device into the bootloader or the app. A bootloader
+    /// replies before it resets, so `in_boot` waits for the reply and
+    /// reports a refusal; an app resets without replying.
+    pub fn reset(&mut self, bootloader: bool, in_boot: bool) -> Result<(), FlashError> {
+        self.send_reset(bootloader, None, in_boot)
     }
 
     /// Store `baud` (a `BaudRate` index; `0xFF` = the build default) for
-    /// the bootloader, then reset into `bootloader` or the app.
-    pub fn set_baud(&mut self, baud: u8, bootloader: bool) {
-        self.send_reset(bootloader, Some(baud));
+    /// the bootloader, then reset as [`reset`](Self::reset).
+    pub fn set_baud(
+        &mut self,
+        baud: u8,
+        bootloader: bool,
+        in_boot: bool,
+    ) -> Result<(), FlashError> {
+        self.send_reset(bootloader, Some(baud), in_boot)
     }
 
-    fn send_reset(&mut self, bootloader: bool, baud: Option<u8>) {
+    fn send_reset(
+        &mut self,
+        bootloader: bool,
+        baud: Option<u8>,
+        in_boot: bool,
+    ) -> Result<(), FlashError> {
         let mut flags = ResetFlags::empty();
         flags.set(ResetFlags::BOOTLOADER, bootloader);
         flags.set(ResetFlags::BAUD, baud.is_some());
@@ -256,7 +267,11 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
         self.frame.set_addr(baud.unwrap_or(0) as u32);
         self.frame.flags = Flags { reset: flags };
         self.frame.len = 0;
+        if in_boot {
+            return self.transact();
+        }
         self.frame.status = Status::Request;
         let _ = self.frame.send(&mut self.transport);
+        Ok(())
     }
 }

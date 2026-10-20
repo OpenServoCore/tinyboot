@@ -10,6 +10,10 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 - `tinyboot baud <rate>` stores the bootloader's baud and resets the device back into its current mode; in bootloader mode it reconnects at the new rate to check the bootloader answers. `tinyboot baud default` restores the build default.
 
+### Changed
+
+- `tinyboot reset` and `tinyboot flash --reset` wait for the bootloader's reply and report a refused reset to the app.
+
 ## [tinyboot-ch32 0.7.0] - 2026-10-20
 
 ### Added
@@ -34,6 +38,7 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 ### Changed
 
 - **Breaking:** `BootMetaStore` has `baud` and `set_baud`, and `refresh` keeps the stored baud.
+- `Reset` to the app is refused with `Unsupported` while an update is in progress (`Updating`). Chips that hand off by run mode start the app without the bootloader checking META, so a half-written image used to run. `Reset` with `BOOTLOADER` and `Erase` still restart the update.
 
 ## [tinyboot-protocol 0.5.0] - 2026-10-20
 
