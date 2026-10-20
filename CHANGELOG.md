@@ -8,10 +8,13 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ### Added
 
+- `tinyboot discover` lists the addressable devices on a shared bus by unique id, with mode, versions and compatibility key, walking the id tree with `Select`.
+- `--uid <hex>` on every device command picks one device by unique id (a unique prefix of whole bytes is enough). Without it the CLI selects the only device, refuses when several answer, and uses a device without addressing as it is.
 - `tinyboot baud <rate>` stores the bootloader's baud and resets the device back into its current mode; in bootloader mode it reconnects at the new rate to check the bootloader answers. `tinyboot baud default` restores the build default.
 
 ### Changed
 
+- Port auto-detection probes with an empty-prefix `Select` instead of Info, so it finds addressable devices too.
 - `tinyboot reset` and `tinyboot flash --reset` wait for the bootloader's reply and report a refused reset to the app.
 - `tinyboot flash` writes in chunks of the device's `max_payload` and, when the bootloader has a compatibility key, refuses an image with another key before erasing. `tinyboot info` prints the stored boot baud, the compatibility key and `max_payload`.
 

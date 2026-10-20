@@ -18,12 +18,22 @@ cargo install --path cli
 
 ## Usage
 
+Every command that talks to a device takes `--port`, `--baud` and `--uid`. `--uid` picks one device on a shared bus by its unique id, in hex as `tinyboot discover` prints it. A unique prefix of whole bytes is enough. Without `--uid` the CLI selects the only device on the bus, and stops with an error when more than one answers. A device without addressing is used as it is. See the [shared bus guide](https://openservocore.github.io/tinyboot/shared-bus.html).
+
+### `tinyboot discover`
+
+List the addressable devices on the bus by unique id, with mode, versions and compatibility key. With `--uid`, only the devices under that prefix.
+
+```sh
+tinyboot discover [--port /dev/ttyUSB0] [--baud 115200] [--uid 10]
+```
+
 ### `tinyboot info`
 
 Query device info (capacity, erase size, versions, mode).
 
 ```sh
-tinyboot info [--port /dev/ttyUSB0] [--baud 115200]
+tinyboot info [--port /dev/ttyUSB0] [--baud 115200] [--uid 1032]
 ```
 
 ### `tinyboot flash`
@@ -69,7 +79,7 @@ tinyboot bin firmware.elf -o firmware.bin
 
 ## Auto-detection
 
-If `--port` is omitted, the CLI probes USB serial ports (usbmodem, ttyACM, ttyUSB) by sending an Info command with a 100ms timeout. Non-USB serial ports are skipped. Both the bootloader and apps running `poll()` respond to Info, so auto-detection works in either mode.
+If `--port` is omitted, the CLI probes USB serial ports (usbmodem, ttyACM, ttyUSB) by sending a `Select` with an empty prefix and listening for any reply. Non-USB serial ports are skipped. Addressable devices answer with their id, others with `Unsupported`, in the bootloader and in apps running `poll()` alike, so auto-detection works in either mode.
 
 ## Single-wire bus echo
 

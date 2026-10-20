@@ -1,7 +1,7 @@
 mod client;
 mod transport;
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use clap::{Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -9,7 +9,7 @@ use object::elf::{PT_LOAD, SHF_ALLOC};
 use object::read::elf::{ElfFile32, ProgramHeader as _};
 use object::{LittleEndian, Object, ObjectSection, SectionFlags};
 
-use client::{Client, FlashError};
+use client::{Client, FlashError, Found, Heard, uid_hex};
 use tinyboot_protocol::{BaudRate, Status};
 use transport::Serial;
 
@@ -31,10 +31,20 @@ struct ConnectionArgs {
     /// Baud rate
     #[arg(long, default_value_t = 115200)]
     baud: u32,
+    /// Device unique id, in hex as `tinyboot discover` prints it; a unique
+    /// prefix of whole bytes is enough. Needed when several addressable
+    /// devices share the bus.
+    #[arg(long)]
+    uid: Option<String>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// List the addressable devices on the bus by unique id, with their info
+    Discover {
+        #[command(flatten)]
+        conn: ConnectionArgs,
+    },
     /// Query device info (capacity, payload size, erase size)
     Info {
         #[command(flatten)]
@@ -103,8 +113,8 @@ fn detect_port(baud: u32) -> Result<String, Box<dyn std::error::Error>> {
             Ok(s) => s,
             Err(_) => continue,
         };
-        let mut client = Client::new(Serial(serial));
-        if client.info().is_ok() {
+        let mut client = Client::new(Serial(serial), probe_timeout(baud));
+        if client.select(&[]).is_ok_and(|h| h != Heard::Nothing) {
             eprintln!("detected tinyboot on {}", p.port_name);
             return Ok(p.port_name.clone());
         }
@@ -117,6 +127,68 @@ fn resolve_port(port: Option<String>, baud: u32) -> Result<String, Box<dyn std::
         Some(p) => Ok(p),
         None => detect_port(baud),
     }
+}
+
+/// How long a `Select` listens: a 15 byte-time slot and a 28-byte reply
+/// with margin, plus USB serial latency.
+fn probe_timeout(baud: u32) -> Duration {
+    Duration::from_millis(50) + Duration::from_micros(64 * 10 * 1_000_000 / baud as u64)
+}
+
+fn parse_uid_arg(uid: Option<&str>) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
+    Ok(uid.map(client::parse_uid).transpose()?)
+}
+
+/// Open the port and select the device, as named by `--uid` or the only
+/// one on the bus.
+fn connect(conn: &ConnectionArgs) -> Result<(Client<Serial>, String), Box<dyn std::error::Error>> {
+    let uid = parse_uid_arg(conn.uid.as_deref())?;
+    let port = resolve_port(conn.port.clone(), conn.baud)?;
+    let mut client = Client::new(open_serial(&port, conn.baud)?, probe_timeout(conn.baud));
+    client.attach(uid.as_deref())?;
+    if let Some(id) = client.uid() {
+        eprintln!("selected {}", uid_hex(id));
+    }
+    Ok((client, port))
+}
+
+fn print_info(info: &client::DeviceInfo) {
+    println!("capacity:     {} bytes", info.capacity);
+    println!("erase_size:   {} bytes", info.erase_size);
+    let (bm, bn, bp) = tinyboot_protocol::unpack_version(info.boot_version);
+    let (am, an, ap) = tinyboot_protocol::unpack_version(info.app_version);
+    if info.boot_version == 0xFFFF {
+        println!("boot_version: none");
+    } else {
+        println!("boot_version: {bm}.{bn}.{bp}");
+    }
+    if info.app_version == 0xFFFF {
+        println!("app_version:  none");
+    } else {
+        println!("app_version:  {am}.{an}.{ap}");
+    }
+    println!(
+        "mode:         {}",
+        if info.mode == 0 { "bootloader" } else { "app" }
+    );
+    match BaudRate::from_u8(info.boot_baud) {
+        Some(b) => println!("boot_baud:    {}", b.hz()),
+        None => println!("boot_baud:    default"),
+    }
+    if info.compat == tinyboot_protocol::COMPAT_UNSET {
+        println!("compat:       none");
+    } else {
+        println!("compat:       {:#010X}", info.compat);
+    }
+    println!("max_payload:  {} bytes", info.max_payload);
+}
+
+fn version(v: u16) -> String {
+    if v == 0xFFFF {
+        return "none".into();
+    }
+    let (m, n, p) = tinyboot_protocol::unpack_version(v);
+    format!("{m}.{n}.{p}")
 }
 
 /// Load firmware from file. If ELF, extract loadable sections into a flat binary
@@ -245,44 +317,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::new().filter_level(log_level).init();
 
     match cli.command {
-        Commands::Info { conn } => {
+        Commands::Discover { conn } => {
+            let prefix = parse_uid_arg(conn.uid.as_deref())?.unwrap_or_default();
             let port = resolve_port(conn.port, conn.baud)?;
-            let serial = open_serial(&port, conn.baud)?;
-            let mut client = Client::new(serial);
-            let info = client.info()?;
-            println!("capacity:     {} bytes", info.capacity);
-            println!("erase_size:   {} bytes", info.erase_size);
-            let (bm, bn, bp) = tinyboot_protocol::unpack_version(info.boot_version);
-            let (am, an, ap) = tinyboot_protocol::unpack_version(info.app_version);
-            if info.boot_version == 0xFFFF {
-                println!("boot_version: none");
-            } else {
-                println!("boot_version: {bm}.{bn}.{bp}");
+            let mut client = Client::new(open_serial(&port, conn.baud)?, probe_timeout(conn.baud));
+            match client.discover(&prefix)? {
+                Found::Unaddressed => {
+                    println!("one device, not addressable");
+                    print_info(&client.info()?);
+                }
+                Found::Ids(ids) if ids.is_empty() => println!("no addressable device answered"),
+                Found::Ids(ids) => {
+                    println!(
+                        "{:<32} {:<10} {:<8} {:<8} compat",
+                        "uid", "mode", "boot", "app"
+                    );
+                    for id in &ids {
+                        client.attach(Some(id))?;
+                        let info = client.info()?;
+                        let compat = if info.compat == tinyboot_protocol::COMPAT_UNSET {
+                            "none".to_string()
+                        } else {
+                            format!("{:#010X}", info.compat)
+                        };
+                        println!(
+                            "{:<32} {:<10} {:<8} {:<8} {compat}",
+                            uid_hex(id),
+                            if info.mode == 0 { "bootloader" } else { "app" },
+                            version(info.boot_version),
+                            version(info.app_version),
+                        );
+                    }
+                    client.deselect_all()?;
+                }
             }
-            if info.app_version == 0xFFFF {
-                println!("app_version:  none");
-            } else {
-                println!("app_version:  {am}.{an}.{ap}");
-            }
-            println!(
-                "mode:         {}",
-                if info.mode == 0 { "bootloader" } else { "app" }
-            );
-            match BaudRate::from_u8(info.boot_baud) {
-                Some(b) => println!("boot_baud:    {}", b.hz()),
-                None => println!("boot_baud:    default"),
-            }
-            if info.compat == tinyboot_protocol::COMPAT_UNSET {
-                println!("compat:       none");
-            } else {
-                println!("compat:       {:#010X}", info.compat);
-            }
-            println!("max_payload:  {} bytes", info.max_payload);
+        }
+        Commands::Info { conn } => {
+            let (mut client, _) = connect(&conn)?;
+            print_info(&client.info()?);
         }
         Commands::Erase { conn } => {
-            let port = resolve_port(conn.port, conn.baud)?;
-            let serial = open_serial(&port, conn.baud)?;
-            let mut client = Client::new(serial);
+            let (mut client, _) = connect(&conn)?;
 
             let info = client.info()?;
             if info.mode != 0 {
@@ -319,11 +394,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             conn,
             reset,
         } => {
-            let port = resolve_port(conn.port, conn.baud)?;
             let file_data = std::fs::read(&firmware)?;
             let fw = load_firmware(&file_data)?;
-            let serial = open_serial(&port, conn.baud)?;
-            let mut client = Client::new(serial);
+            let (mut client, _) = connect(&conn)?;
 
             let info = client.info()?;
             if info.mode != 0 {
@@ -365,11 +438,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Baud { rate, conn } => {
             let baud = parse_baud(&rate)?;
-            let port = resolve_port(conn.port, conn.baud)?;
-            let serial = open_serial(&port, conn.baud)?;
-            let mut client = Client::new(serial);
+            let (mut client, port) = connect(&conn)?;
             let bootloader = client.info()?.mode == 0;
             client.set_baud(baud.map_or(0xFF, |b| b as u8), bootloader, bootloader)?;
+            let uid = client.uid().map(<[u8]>::to_vec);
             drop(client);
             println!("baud stored: {rate}");
 
@@ -383,9 +455,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             // The device answers at the new rate once it has reset.
             std::thread::sleep(std::time::Duration::from_millis(100));
-            let serial = open_serial(&port, baud.hz())?;
-            let mut client = Client::new(serial);
-            match client.info() {
+            let mut client = Client::new(open_serial(&port, baud.hz())?, probe_timeout(baud.hz()));
+            // The reset deselected it.
+            match client.attach(uid.as_deref()).and_then(|()| client.info()) {
                 Ok(_) => println!("bootloader answers at {}", baud.hz()),
                 Err(_) => {
                     return Err(format!(
@@ -398,9 +470,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Reset { conn, bootloader } => {
-            let port = resolve_port(conn.port, conn.baud)?;
-            let serial = open_serial(&port, conn.baud)?;
-            let mut client = Client::new(serial);
+            let (mut client, _) = connect(&conn)?;
             let in_boot = client.info()?.mode == 0;
             client.reset(bootloader, in_boot).map_err(refused_app)?;
             println!(
