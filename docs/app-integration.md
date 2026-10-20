@@ -95,6 +95,15 @@ tinyboot_ch32::app::app_version!(compat = "acme-widget-rev-b");
 
 `compat = "name"` hashes the name at compile time (32-bit FNV-1a); `compat_key = 0x1234_5678` takes a raw value. tinyboot only compares keys, so encode whatever has to match: product, board revision, pinout. `Verify` refuses an image with another key, or none, with `Status::Incompatible` and leaves the device in its bootloader waiting for the right image; a mistaken image never starts. A bootloader built without a key accepts any image and carries no check.
 
+The version in the tail is the crate's `Cargo.toml` version. A firmware with its own version number passes it after the key, or alone, packed 5.5.6 the way `tinyboot info` shows it:
+
+```rust
+tinyboot_ch32::app::app_version!(
+    compat = "acme-widget-rev-b",
+    version = tinyboot_ch32::app::pack_version(2, 4, 0)
+);
+```
+
 ## On a shared bus
 
 Several devices on one bus need the addressable app, created with `new_addressable_app(BootCtl::new(), wait_bytes)`. It stays silent until the host selects it by the chip's unique id, like the addressable bootloader. `wait_bytes(n)` waits about `n` byte-times at the bus baud, and the example apps compute it from the USART's baud divisor. Build the bootloader addressable too. See the [shared bus guide](shared-bus.md).

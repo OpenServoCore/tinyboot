@@ -11,7 +11,7 @@ pub use tinyboot_core::BaudRate;
 pub use tinyboot_core::addressing::{Addressable, Addressing, Unaddressed};
 pub use tinyboot_core::app::{App, AppConfig};
 pub use tinyboot_core::traits;
-pub use tinyboot_core::{app_version, pkg_version};
+pub use tinyboot_core::{app_version, compat_key, pack_version, pkg_version};
 
 /// Create an [`App`] configured for CH32 hardware.
 pub fn new_app(ctl: BootCtl) -> App<BootCtl, BootMetaStore> {
