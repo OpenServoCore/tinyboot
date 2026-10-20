@@ -32,6 +32,16 @@ Something in the UART chain isn't right. Work through these in order:
 
 ---
 
+## `more than one device answered` or `no device answered`
+
+The CLI selects a device before every command (see the [shared bus guide](shared-bus.md)).
+
+- **More than one device** - several addressable devices share the bus. Run `tinyboot discover` and pass `--uid`.
+- **No device answered** - the usual wiring and baud causes above apply. An addressable device also stays silent until selected, so a custom host tool has to send `Select` first.
+- **Mixed bus** - an unaddressed device answers every frame, `Select` included, and garbles every probe. Build every device on a shared bus addressable.
+
+---
+
 ## Bootloader changes don't take effect after `wlink flash`
 
 After writing to system flash on some chips, a full power cycle is required before the new bootloader runs. A software reset or re-attach is not enough.

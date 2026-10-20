@@ -65,7 +65,7 @@ tinyboot flash target/riscv32ec-unknown-none-elf/release/app --reset
 
 `--reset` tells the bootloader to jump into the app once the flash and verify steps succeed. You should see the LED blink (TIM2-driven, ~1 Hz) — that's the app running.
 
-If `--port` is omitted, the CLI probes USB serial ports by sending an Info request to each. If auto-detection fails, pass `--port /dev/ttyUSB0` (or the equivalent on your OS).
+If `--port` is omitted, the CLI probes USB serial ports by sending a `Select` request to each. If auto-detection fails, pass `--port /dev/ttyUSB0` (or the equivalent on your OS).
 
 ## 6. Verify it worked
 

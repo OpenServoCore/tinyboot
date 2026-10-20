@@ -26,8 +26,8 @@ Total frame size = 12 bytes overhead + payload. The payload capacity is a build 
 | STATUS | 1 byte  | `Request (0x00)` for requests, result status for responses            |
 | ADDR   | 3 bytes | Flash address (u24 LE). Echoed in responses                           |
 | FLAGS  | 1 byte  | Per-command flags (see below). Occupies addr byte 3                   |
-| LEN    | 2 bytes | Data payload length (u16 LE, 0..64)                                   |
-| DATA   | 0..64   | Payload bytes                                                         |
+| LEN    | 2 bytes | Data payload length (u16 LE, 0..N, N the receiver's payload capacity) |
+| DATA   | 0..N    | Payload bytes                                                         |
 | CRC    | 2 bytes | CRC16-CCITT (LE) over SYNC + CMD + STATUS + ADDR + FLAGS + LEN + DATA |
 
 ## Commands
@@ -39,6 +39,7 @@ Total frame size = 12 bytes overhead + payload. The payload capacity is a build 
 | 0x02 | Write  | Host to Device | Write data at address. `WriteFlags::FLUSH` commits trailing partial page                                                                                                                 |
 | 0x03 | Verify | Host to Device | Compute CRC16 over `addr` bytes of app, store checksum + state in metadata. Refused with `Incompatible` when the bootloader has a compatibility key and the image's tail carries another |
 | 0x04 | Reset  | Host to Device | Reset the device. `ResetFlags::BOOTLOADER` enters bootloader (service), `ResetFlags::BAUD` stores a baud first                                                                           |
+| 0x05 | Select | Host to Device | Select addressable devices by unique id prefix (see [Select](#select)). A device without addressing answers `Unsupported`                                                                |
 
 ## Per-command flags
 
@@ -83,6 +84,20 @@ Versions are packed as `(major << 11) | (minor << 6) | patch` and read from the 
 ### Image tail
 
 Each boot and app image ends with 6 bytes: the compatibility key (u32 LE), then the version (u16 LE). An app image's tail starts word-aligned, so its size is 2 past a multiple of 4. The key is opaque and compared only for equality; `0xFFFF_FFFF` means none. `compat_key(name)` derives one from a name (32-bit FNV-1a, never `0xFFFF_FFFF`).
+
+### Select
+
+Several addressable devices can share one bus. Each stays silent until the host selects it by its unique id.
+
+Request payload: `[seed, prefix_len, prefix...]`. `prefix_len` counts bits, and `prefix` holds `ceil(prefix_len / 8)` bytes. Bit `k` of an id is `id[k / 8] >> (k % 8) & 1`, with the id stored least significant byte first, so a prefix of whole bytes is the id's leading bytes.
+
+- A device whose id starts with the prefix is selected. It waits `slot` byte-times, then replies `Ok` with its id as data (12 bytes on CH32). `slot = (crc16(0xFFFF, id) >> (seed % 16)) & 15`.
+- Every other device is deselected and does not reply.
+- An empty prefix selects every device, a full id exactly one, and a `prefix_len` longer than any id none (deselect all).
+
+An addressable device answers `Select` when it matches, and any other command only while selected. It never answers a frame it can't read (bad CRC, unknown command, payload overflow) or a frame whose status is not `Request` (another device's reply). Selection lives in RAM, so a reset deselects it.
+
+Replies from two or more devices at once overlap and read as garble. The slot keeps devices running the same code from answering in exact unison, which on some wires reads back as one clean frame. A fresh `seed` per probe gives a fresh slot. A host finds every device by walking the id tree. Silence ends a branch, garble descends one bit, and a clean reply is a candidate, confirmed when its device answers alone under the next bit of its id and nothing answers under the other.
 
 ### Erase
 
@@ -142,6 +157,8 @@ CRC16-CCITT with polynomial `0x1021` and initial value `0xFFFF`. Computed over t
 
 The same `Frame` struct is reused: after `read()`, the device modifies `status`, `len`, and `data`, then calls `send()`. The `cmd` and `addr` fields carry over automatically.
 
+An addressable device replies only as [Select](#select) describes, so on a shared bus the host selects a device before anything else.
+
 ## Data union
 
 The `data` field is a `#[repr(C)]` union with typed variants for structured payloads:
@@ -160,6 +177,9 @@ Data starts at offset 10 (even-aligned), so `u16` fields in the union variants a
 ## Example: flash sequence
 
 ```
+Host  -> Select seed=1 prefix_len=0 (addressable devices only)
+Device -> Ok uid=[12 bytes]
+
 Host  -> Info request
 Device -> Info response (capacity=16384, erase_size=64, mode=0)
 

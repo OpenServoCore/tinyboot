@@ -39,8 +39,9 @@ app starts
    ├─ app::confirm() ──► META.state → Idle (keeps current checksum)
    │
    └─ app::poll():
-        ├─ Info  ──► respond with capacity, versions, mode=1
-        └─ Reset ──► if flag & BOOTLOADER: mark run_mode = Service, reset
+        ├─ Select ──► (addressable) select or deselect by unique id
+        ├─ Info   ──► respond with capacity, versions, mode=1
+        └─ Reset  ──► if flag & BOOTLOADER: mark run_mode = Service, reset
 ```
 
 
@@ -97,6 +98,18 @@ When all four hold, the bootloader hands off to the app. As soon as you run a re
 | Host crashes mid-flash                     | Same as "power lost during erase or write" — safe, just re-flash.                        |
 | `Reset` to the app mid-flash               | Refused with `Unsupported`; the device stays in the bootloader. Re-flash.                |
 | Image built for another board              | Verify returns `Incompatible` (bootloader has a compatibility key); flash the right one. |
+
+## Several devices on one bus
+
+With addressable devices, add `--uid` to pick the device. Each command selects it again, so a reset in between is fine:
+
+```sh
+tinyboot discover
+tinyboot reset --bootloader --uid 1032
+tinyboot flash new-firmware.elf --reset --uid 1032
+```
+
+The device's siblings stay silent the whole time, including any that sit in their bootloader waiting for firmware. See the [shared bus guide](shared-bus.md).
 
 ## Making it automatic
 

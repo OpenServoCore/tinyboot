@@ -80,7 +80,7 @@ On CH32V00x or CH32V103, the flow is the same — swap the example directory. Se
 The full documentation lives at **[openservocore.github.io/tinyboot](https://openservocore.github.io/tinyboot/)**. Highlights:
 
 - [**Getting Started**](https://openservocore.github.io/tinyboot/getting-started.html) — expanded tutorial with more detail and per-chip notes
-- [**CLI reference**](cli/README.md) — `tinyboot flash / info / erase / reset / bin`
+- [**CLI reference**](cli/README.md) — `tinyboot flash / info / erase / reset / baud / discover / bin`
 - [**App integration**](https://openservocore.github.io/tinyboot/app-integration.html) — put `poll()` and `confirm()` into your own firmware
 - [**Remote firmware updates**](https://openservocore.github.io/tinyboot/remote-updates.html) — end-to-end OTA flow
 - [**Troubleshooting**](https://openservocore.github.io/tinyboot/troubleshooting.html) — things that go wrong and how to fix them

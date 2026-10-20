@@ -16,10 +16,14 @@ Mirror the layout of [`tinyboot-ch32`](https://github.com/OpenServoCore/tinyboot
 
 | Trait           | What to implement                                                                                                                         |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `Transport`     | Any `embedded_io::Read + Write` stream — UART, RS-485, USB, SPI, even WiFi or Bluetooth. The protocol doesn't care what carries the bytes |
+| `Transport`     | Any `embedded_io::Read + Write` stream — UART, RS-485, USB, SPI, even WiFi or Bluetooth. The protocol doesn't care what carries the bytes. For a shared bus, also `wait_bytes(n)`, a wait of about `n` byte-times |
 | `Storage`       | `embedded_storage::NorFlash` (erase, write, read), plus `as_slice()` for zero-copy flash reads                                            |
 | `BootMetaStore` | Read/write boot state, trial counter, app checksum, and app size from a reserved flash page (address from linker symbol)                  |
 | `BootCtl`       | `run_mode()`/`set_run_mode()` for Service/HandOff intent across reset, `reset()` for software reset, `hand_off()` to boot the app         |
+
+### Unique id for a shared bus
+
+To support [addressable devices](shared-bus.md), expose the chip's factory unique id as a function returning `&'static [u8; N]` (1 to 16 bytes, least significant first), like `tinyboot_ch32::boot::chip_uid`. Users pass it to `Addressable::new`. A function item keeps the id's address and length constant, so it costs only the loads.
 
 ## 2. (Optional) Create a `tinyboot-{chip}-rt` crate
 
