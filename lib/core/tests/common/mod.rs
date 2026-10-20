@@ -17,6 +17,7 @@ pub struct MockTransport {
     pub rx_pos: usize,
     pub tx_buf: [u8; 512],
     pub tx_pos: usize,
+    pub flushes: usize,
 }
 
 impl MockTransport {
@@ -27,6 +28,7 @@ impl MockTransport {
             rx_pos: 0,
             tx_buf: [0; 512],
             tx_pos: 0,
+            flushes: 0,
         }
     }
 
@@ -84,6 +86,7 @@ impl embedded_io::Write for MockTransport {
         Ok(n)
     }
     fn flush(&mut self) -> Result<(), Self::Error> {
+        self.flushes += 1;
         Ok(())
     }
 }

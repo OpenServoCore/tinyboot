@@ -3,8 +3,8 @@
 //! to switch compiles to no code and no state; a choice that would make an
 //! idle node drive a shared wire does not compile.
 
+use crate::hal::Pin;
 use crate::hal::gpio::{self, Level, PinMode, Pull};
-use crate::hal::{Pin, rcc};
 
 mod sealed {
     pub trait Sealed {}
@@ -194,6 +194,9 @@ pub struct TxEn {
 pub trait TxEnable: Sealed {
     #[doc(hidden)]
     type Switch: Switch;
+    /// APB2 clock bits the pin needs, enabled with the USART's.
+    #[doc(hidden)]
+    fn apb2_bits(&self) -> u32;
     /// Configure the pin, starting in RX; returns the per-frame switch.
     #[doc(hidden)]
     fn init(&self) -> Self::Switch;
@@ -205,11 +208,20 @@ impl Sealed for TxEn {}
 impl TxEnable for NoTxEn {
     type Switch = ();
     #[inline(always)]
+    fn apb2_bits(&self) -> u32 {
+        0
+    }
+    #[inline(always)]
     fn init(&self) {}
 }
 
 impl TxEnable for TxEn {
     type Switch = LevelSwitch;
+    #[inline(always)]
+    fn apb2_bits(&self) -> u32 {
+        // IOPxEN starts at bit 2, as in `Usart::new`.
+        1 << (2 + self.pin.port_index())
+    }
     #[inline(always)]
     fn init(&self) -> LevelSwitch {
         let rx_level = match self.tx_level {
@@ -222,7 +234,6 @@ impl TxEnable for TxEn {
             tx_word,
             rx_word: gpio::level_word(self.pin, rx_level).1,
         };
-        rcc::enable_gpio(self.pin.port_index());
         // Latch the RX level before the pin turns output, so it never
         // passes through the reset-default low.
         switch.rx();

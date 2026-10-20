@@ -99,6 +99,8 @@ pub fn boot_mode() -> bool {
     FLASH.statr().read().boot_mode()
 }
 
+// Out of line: the hand-off and Reset paths both call it.
+#[inline(never)]
 pub fn set_boot_mode(mode: bool) {
     FLASH.boot_modekeyp().write(|w| w.set_modekeyr(KEY1));
     FLASH.boot_modekeyp().write(|w| w.set_modekeyr(KEY2));
