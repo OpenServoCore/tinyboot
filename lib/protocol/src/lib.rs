@@ -12,7 +12,7 @@ pub mod crc;
 pub mod frame;
 pub(crate) mod sync;
 
-pub use frame::{Data, EraseData, Flags, InfoData, MAX_PAYLOAD, VerifyData};
+pub use frame::{DEFAULT_PAYLOAD, Data, EraseData, Flags, InfoData, VerifyData};
 
 use bitflags::bitflags;
 

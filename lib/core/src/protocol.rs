@@ -2,28 +2,36 @@ use crate::platform::Platform;
 use crate::ringbuf::RingBuf;
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
-use tinyboot_protocol::frame::{Frame, InfoData, VerifyData};
+use tinyboot_protocol::frame::{DEFAULT_PAYLOAD, Frame, InfoData, VerifyData};
 use tinyboot_protocol::{COMPAT_UNSET, Cmd, ReadError, ResetFlags, Status, WriteFlags};
 
 /// Protocol dispatcher with write buffering.
 ///
 /// Writes are accumulated in a ring buffer and flushed a page at a time.
 /// The host sets [`WriteFlags::FLUSH`] on the last write of each contiguous
-/// region to commit the trailing partial page.
-pub struct Dispatcher<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usize>
-{
+/// region to commit the trailing partial page. `P` is the frame's data
+/// capacity, reported by Info; `BUF` must hold a page plus `P - 1` bytes.
+pub struct Dispatcher<
+    'a,
+    T: Transport,
+    S: Storage,
+    B: BootMetaStore,
+    C: BootCtl,
+    const BUF: usize,
+    const P: usize = DEFAULT_PAYLOAD,
+> {
     /// Platform peripherals.
     pub platform: &'a mut Platform<T, S, B, C>,
     /// Reusable frame buffer.
-    pub frame: Frame,
+    pub frame: Frame<P>,
     /// 2 × page size.
     buf: RingBuf<BUF>,
     /// Expected address of the next sequential write; `None` accepts any.
     next_addr: Option<u32>,
 }
 
-impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usize>
-    Dispatcher<'a, T, S, B, C, BUF>
+impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usize, const P: usize>
+    Dispatcher<'a, T, S, B, C, BUF, P>
 {
     /// Create a new dispatcher over the given platform.
     pub fn new(platform: &'a mut Platform<T, S, B, C>) -> Self {
@@ -68,7 +76,7 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
             return;
         }
 
-        // SAFETY: data_len <= MAX_PAYLOAD validated by frame.read()
+        // SAFETY: data_len <= P validated by frame.read()
         self.buf
             .push(unsafe { self.frame.data.raw.get_unchecked(..data_len) });
         let next = addr + data_len as u32;
@@ -139,13 +147,16 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
         } else {
             0xFFFF
         };
-        self.frame.len = 12;
+        self.frame.len = InfoData::SIZE;
         self.frame.data.info = InfoData {
             capacity,
             erase_size: S::ERASE_SIZE as u16,
             boot_version: crate::tinyboot_version(),
             app_version: app_ver,
             mode: 0,
+            boot_baud: self.platform.boot_meta.baud(),
+            compat: crate::tinyboot_compat(),
+            max_payload: P as u16,
         };
     }
 

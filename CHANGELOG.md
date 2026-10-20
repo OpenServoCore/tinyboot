@@ -13,15 +13,16 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 ### Changed
 
 - `tinyboot reset` and `tinyboot flash --reset` wait for the bootloader's reply and report a refused reset to the app.
+- `tinyboot flash` writes in chunks of the device's `max_payload` and, when the bootloader has a compatibility key, refuses an image with another key before erasing. `tinyboot info` prints the stored boot baud, the compatibility key and `max_payload`.
 
 ## [tinyboot-ch32 0.7.0] - 2026-10-20
 
 ### Added
 
 - `boot_version!(compat = "name")` and `app_version!(compat = "name")` (re-exported from core): a bootloader with a compatibility key accepts only app images with the same key. The V00x and V103 examples set one.
-
 - The bootloader runs its USART at the baud stored in boot metadata, falling back to `UsartConfig::baud` when nothing is stored or `pclk` cannot reach the rate (divisor below 16). Divisors are computed at build time, so there is no runtime divide; the CH32V003 example bootloader grows by 64 bytes.
 - `app::BaudRate` re-export for `App::set_baud` / `App::baud`.
+- `boot::run_with_payload::<N>` runs the bootloader with an `N`-byte frame payload, up to a flash page; `boot::run` uses the 52-byte default.
 
 ### Changed
 
@@ -35,13 +36,13 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 ### Added
 
 - Compatibility keys. `boot_version!` and `app_version!` take `compat = "name"` (hashed at compile time) or `compat_key = <u32>`, and end the image with a 6-byte tail, `ImageTail { compat, version }`. A bootloader with a key refuses `Verify` of an image with another key, or none, with `Status::Incompatible` and stays in `Updating`; without a key it carries no check (with LTO the unset key folds away).
-
 - `Reset` with `ResetFlags::BAUD` stores addr byte 0 as the bootloader's baud before resetting, in the bootloader and in `App::poll`.
 - `App::baud` returns the stored bootloader baud; `App::set_baud` stores one, skipping the flash write when it is already stored.
 
 ### Changed
 
 - **Breaking:** `BootMetaStore` has `baud` and `set_baud`, and `refresh` keeps the stored baud.
+- **Breaking:** `Core`, `Dispatcher` and `App` take the frame's payload capacity as a const parameter (default `DEFAULT_PAYLOAD`), and `AppConfig` has `boot_compat`. Info reports the stored boot baud, the bootloader's compatibility key and the payload capacity, in both modes.
 - **Breaking:** the image tail is 6 bytes, `[compat u32, version u16]`, read through the `__tb_tail` symbol the macros define. `tb-app.x` starts it word-aligned and exports `__tb_boot_tail` (was `__tb_boot_version_addr`); `tb-boot.x` places it in the last 6 bytes of BOOT. The version stays in the last 2 bytes of each image.
 - `Reset` to the app is refused with `Unsupported` while an update is in progress (`Updating`). Chips that hand off by run mode start the app without the bootloader checking META, so a half-written image used to run. `Reset` with `BOOTLOADER` and `Erase` still restart the update.
 
@@ -49,10 +50,14 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ### Added
 
+- `Frame<N>` and `Data<N>` take the payload capacity as a const parameter, `DEFAULT_PAYLOAD` = 52 so a whole frame fits one 64-byte USB full-speed packet.
 - `Status::Incompatible` (0x07), `COMPAT_UNSET` and `compat_key(name)`, a compile-time 32-bit FNV-1a hash that never returns `COMPAT_UNSET`.
-
 - `BaudRate`, the 14 rates from 9600 to 3M as append-only `u8` indices, with `hz`, `from_u8`, `from_hz` and `ALL`.
 - `ResetFlags::BAUD`: store addr byte 0 as the bootloader's baud before resetting.
+
+### Changed
+
+- **Breaking:** Info is 18 bytes: `mode` shrinks to a `u8`, followed by `boot_baud` (stored bootloader baud index), `compat` (the bootloader's compatibility key) and `max_payload`. `MAX_PAYLOAD` (64) is replaced by the `Frame<N>` capacity.
 
 ## [tinyboot-protocol 0.4.1] - 2026-10-19
 

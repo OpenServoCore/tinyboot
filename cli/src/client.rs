@@ -1,7 +1,11 @@
 use log::debug;
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
-use tinyboot_protocol::frame::{EraseData, Flags, Frame, MAX_PAYLOAD};
-use tinyboot_protocol::{Cmd, ResetFlags, Status, WriteFlags};
+use tinyboot_protocol::frame::{EraseData, Flags, Frame, InfoData};
+use tinyboot_protocol::{COMPAT_UNSET, Cmd, ResetFlags, Status, WriteFlags};
+
+/// Largest payload the host sends; each Write carries the smaller of this
+/// and the device's `max_payload`.
+const HOST_PAYLOAD: usize = 1024;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FlashError {
@@ -15,6 +19,18 @@ pub enum FlashError {
     CrcMismatch { expected: u16, actual: u16 },
     #[error("invalid info response")]
     BadInfo,
+    #[error(
+        "image is not for this device: its compatibility key is {}, the bootloader's is {device:#010X}",
+        image.map_or("missing".to_string(), |k| format!("{k:#010X}"))
+    )]
+    Incompatible { device: u32, image: Option<u32> },
+}
+
+/// Compatibility key in an image's tail. The tail starts word-aligned, so
+/// a tagged image is 2 bytes past a word.
+pub fn image_compat(image: &[u8]) -> Option<u32> {
+    let n = image.len();
+    (n >= 6 && n % 4 == 2).then(|| u32::from_le_bytes(image[n - 6..n - 2].try_into().unwrap()))
 }
 
 /// Device geometry from Info response.
@@ -24,12 +40,16 @@ pub struct DeviceInfo {
     pub erase_size: u16,
     pub boot_version: u16,
     pub app_version: u16,
-    pub mode: u16,
+    pub mode: u8,
+    /// Stored bootloader baud index; `0xFF` = build default.
+    pub boot_baud: u8,
+    pub compat: u32,
+    pub max_payload: u16,
 }
 
 pub struct Client<T: embedded_io::Read + embedded_io::Write> {
     transport: T,
-    frame: Frame,
+    frame: Frame<HOST_PAYLOAD>,
 }
 
 impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
@@ -90,7 +110,7 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
         self.frame.len = 0;
         self.transact()?;
 
-        if self.frame.len < 8 {
+        if self.frame.len < InfoData::SIZE {
             return Err(FlashError::BadInfo);
         }
 
@@ -100,8 +120,11 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
         let boot_version = { info.boot_version };
         let app_version = { info.app_version };
         let mode = { info.mode };
+        let boot_baud = { info.boot_baud };
+        let compat = { info.compat };
+        let max_payload = { info.max_payload };
 
-        if erase_size == 0 || capacity == 0 {
+        if erase_size == 0 || capacity == 0 || max_payload < 4 {
             return Err(FlashError::BadInfo);
         }
 
@@ -111,6 +134,9 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
             boot_version,
             app_version,
             mode,
+            boot_baud,
+            compat,
+            max_payload,
         })
     }
 
@@ -157,6 +183,14 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
             });
         }
 
+        // A wrong image is refused before the erase destroys a working app.
+        if info.compat != COMPAT_UNSET && image_compat(firmware) != Some(info.compat) {
+            return Err(FlashError::Incompatible {
+                device: info.compat,
+                image: image_compat(firmware),
+            });
+        }
+
         let erase_size = info.erase_size as u32;
 
         // 2. Erase — full region, page by page
@@ -174,14 +208,15 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
             on_progress("Erasing", erase_addr, info.capacity);
         }
 
-        // 3. Write — chunk by MAX_PAYLOAD, pad to 4-byte alignment with 0xFF.
-        //    Set FLUSH flag on the last chunk.
+        // 3. Write — chunk by the smaller payload capacity, pad to 4-byte
+        //    alignment with 0xFF. Set FLUSH flag on the last chunk.
+        let chunk = HOST_PAYLOAD.min(info.max_payload as usize) & !3;
         let padded_len = firmware.len().next_multiple_of(4);
-        let total_chunks = padded_len.div_ceil(MAX_PAYLOAD) as u32;
+        let total_chunks = padded_len.div_ceil(chunk) as u32;
         let mut offset = 0usize;
         let mut chunk_idx = 0u32;
         while offset < padded_len {
-            let end = (offset + MAX_PAYLOAD).min(padded_len);
+            let end = (offset + chunk).min(padded_len);
             let len = end - offset;
             let is_last = end >= padded_len;
             // Copy firmware bytes, pad remainder with 0xFF
@@ -273,5 +308,19 @@ impl<T: embedded_io::Read + embedded_io::Write> Client<T> {
         self.frame.status = Status::Request;
         let _ = self.frame.send(&mut self.transport);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn image_compat_reads_a_word_aligned_tail() {
+        let mut image = vec![0u8; 10];
+        image[4..8].copy_from_slice(&0x1234_5678u32.to_le_bytes());
+        assert_eq!(image_compat(&image), Some(0x1234_5678));
+        assert_eq!(image_compat(&image[..8]), None);
+        assert_eq!(image_compat(&image[..2]), None);
     }
 }

@@ -17,7 +17,7 @@ A single `Frame` struct is used for both requests (host to device) and responses
  |<--------------------- header (10 bytes) --------------------->|<- payload ->|<--- CRC --->|
 ```
 
-Total frame size = 12 bytes overhead + payload. Maximum payload is 64 bytes (`MAX_PAYLOAD`).
+Total frame size = 12 bytes overhead + payload. The payload capacity is a build choice, `Frame<N>`, 52 bytes by default (`DEFAULT_PAYLOAD`, so a whole frame fits one 64-byte USB full-speed packet); a device reports its own as Info's `max_payload`, and a host sends at most that.
 
 | Field  | Size    | Description                                                           |
 | ------ | ------- | --------------------------------------------------------------------- |
@@ -34,7 +34,7 @@ Total frame size = 12 bytes overhead + payload. Maximum payload is 64 bytes (`MA
 
 | Code | Name   | Direction      | Description                                                                                                                                                                              |
 | ---- | ------ | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0x00 | Info   | Host to Device | Query device info (capacity, erase size, versions, mode)                                                                                                                                 |
+| 0x00 | Info   | Host to Device | Query device info (capacity, erase size, versions, mode, baud, compatibility key, payload capacity)                                                                                      |
 | 0x01 | Erase  | Host to Device | Erase `byte_count` bytes at addr (first erase transitions Idle → Updating)                                                                                                               |
 | 0x02 | Write  | Host to Device | Write data at address. `WriteFlags::FLUSH` commits trailing partial page                                                                                                                 |
 | 0x03 | Verify | Host to Device | Compute CRC16 over `addr` bytes of app, store checksum + state in metadata. Refused with `Incompatible` when the bootloader has a compatibility key and the image's tail carries another |
@@ -65,15 +65,18 @@ The baud rate travels and is stored as its `u8` index: 0 = 9600, 1 = 19200, 2 = 
 
 ### Info response
 
-Returns 12 bytes via the `InfoData` struct:
+Returns 18 bytes via the `InfoData` struct, in either mode:
 
-| Offset | Size    | Field        | Description                               |
-| ------ | ------- | ------------ | ----------------------------------------- |
-| 0      | 4 bytes | capacity     | App region capacity in bytes (u32 LE)     |
-| 4      | 2 bytes | erase_size   | Erase page size in bytes (u16 LE)         |
-| 6      | 2 bytes | boot_version | Boot version (packed u16 LE, 0xFFFF=none) |
-| 8      | 2 bytes | app_version  | App version (packed u16 LE, 0xFFFF=none)  |
-| 10     | 2 bytes | mode         | 0 = bootloader, 1 = app                   |
+| Offset | Size    | Field        | Description                                                    |
+| ------ | ------- | ------------ | -------------------------------------------------------------- |
+| 0      | 4 bytes | capacity     | App region capacity in bytes (u32 LE)                          |
+| 4      | 2 bytes | erase_size   | Erase page size in bytes (u16 LE)                              |
+| 6      | 2 bytes | boot_version | Boot version (packed u16 LE, 0xFFFF=none)                      |
+| 8      | 2 bytes | app_version  | App version (packed u16 LE, 0xFFFF=none)                       |
+| 10     | 1 byte  | mode         | 0 = bootloader, 1 = app                                        |
+| 11     | 1 byte  | boot_baud    | Stored bootloader `BaudRate` index, 0xFF = build default       |
+| 12     | 4 bytes | compat       | The bootloader's compatibility key (u32 LE), 0xFFFFFFFF = none |
+| 16     | 2 bytes | max_payload  | Largest payload the responder accepts in a request (u16 LE)    |
 
 Versions are packed as `(major << 11) | (minor << 6) | patch` and read from the last 2 bytes of each binary (boot and app).
 
@@ -144,8 +147,8 @@ The same `Frame` struct is reused: after `read()`, the device modifies `status`,
 The `data` field is a `#[repr(C)]` union with typed variants for structured payloads:
 
 ```rust
-pub union Data {
-    pub raw: [u8; MAX_PAYLOAD],
+pub union Data<const N: usize = DEFAULT_PAYLOAD> {
+    pub raw: [u8; N],
     pub info: InfoData,
     pub erase: EraseData,
     pub verify: VerifyData,

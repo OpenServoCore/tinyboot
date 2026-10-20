@@ -28,7 +28,7 @@ Beyond the usual Cargo profile tricks (`opt-level = "z"`, LTO, `codegen-units = 
 - **Custom runtime** — `tinyboot-ch32-rt` replaces `qingke-rt` in the bootloader; its startup is just GP/SP init and a jump to main (20 bytes of assembly instead of ~1.4KB of full runtime).
 - **Symmetric frame format** — the same `Frame` struct is used for both requests and responses with one shared parse and format path, eliminating code duplication.
 - **`repr(C)` frame with union data** — CRC is computed directly over the struct memory via pointer cast; no serialization step, no intermediate buffer.
-- **`MaybeUninit` frame buffer** — the 76-byte `Frame` struct is reused every iteration without zero-initialization.
+- **`MaybeUninit` frame buffer** — the 64-byte `Frame` struct (default 52-byte payload) is reused every iteration without zero-initialization.
 - **Bit-bang CRC16** — no lookup table, trades speed for ~512 bytes of flash savings.
 - **Bit-clear state transitions** — forward state changes (Idle → Updating, trial consumption) flip 1→0 bits without erasing, avoiding a full erase + rewrite cycle.
 - **Avoid `memset` / `memcpy`** — these pull in expensive `core` routines; manual byte loops and volatile writes keep the linker from dragging in library code.

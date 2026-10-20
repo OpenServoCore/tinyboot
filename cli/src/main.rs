@@ -268,6 +268,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "mode:         {}",
                 if info.mode == 0 { "bootloader" } else { "app" }
             );
+            match BaudRate::from_u8(info.boot_baud) {
+                Some(b) => println!("boot_baud:    {}", b.hz()),
+                None => println!("boot_baud:    default"),
+            }
+            if info.compat == tinyboot_protocol::COMPAT_UNSET {
+                println!("compat:       none");
+            } else {
+                println!("compat:       {:#010X}", info.compat);
+            }
+            println!("max_payload:  {} bytes", info.max_payload);
         }
         Commands::Erase { conn } => {
             let port = resolve_port(conn.port, conn.baud)?;
