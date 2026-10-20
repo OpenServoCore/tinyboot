@@ -363,14 +363,14 @@ impl<T: Link> Client<T> {
         // On single-wire setups like the OSC-Dev-V006 board — where MCU TX/RX
         // and the host's TX/RX all land on the same DXL-TTL data line — the
         // host hears its own request frame before the device replies. Skip
-        // frames whose status is `Request`: those can only be our own echo,
-        // since devices never reply with that status.
+        // frames whose status is `Request`, even with a bad CRC: those can
+        // only be our own echo, since devices never reply with that status.
         let parse_status = loop {
             let s = self
                 .frame
                 .read(&mut self.transport)
                 .map_err(|_| FlashError::Io)?;
-            if s == Status::Ok && self.frame.status == Status::Request {
+            if self.frame.status == Status::Request {
                 continue;
             }
             break s;
@@ -722,6 +722,80 @@ mod tests {
 
     impl Link for Bus {
         fn set_timeout(&mut self, _: Duration) {}
+    }
+
+    /// One wire with a single device: the host hears its own request,
+    /// byte `damage` flipped when set, then the device's reply.
+    struct Echo {
+        tx: Vec<u8>,
+        rx: Vec<u8>,
+        damage: Option<usize>,
+        reply: Vec<u8>,
+    }
+
+    impl embedded_io::ErrorType for Echo {
+        type Error = embedded_io::ErrorKind;
+    }
+
+    impl embedded_io::Write for Echo {
+        fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
+            self.tx.extend_from_slice(buf);
+            let t = &self.tx;
+            if t.len() >= 10 && t.len() == 12 + u16::from_le_bytes([t[8], t[9]]) as usize {
+                let mut echo = std::mem::take(&mut self.tx);
+                if let Some(i) = self.damage {
+                    echo[i] ^= 0x10;
+                }
+                self.rx = [echo, self.reply.clone()].concat();
+            }
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> Result<(), Self::Error> {
+            Ok(())
+        }
+    }
+
+    impl embedded_io::Read for Echo {
+        fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
+            if self.rx.is_empty() {
+                return Err(embedded_io::ErrorKind::TimedOut);
+            }
+            let n = buf.len().min(self.rx.len());
+            buf[..n].copy_from_slice(&self.rx[..n]);
+            self.rx.drain(..n);
+            Ok(n)
+        }
+    }
+
+    impl Link for Echo {
+        fn set_timeout(&mut self, _: Duration) {}
+    }
+
+    /// A page-sized Write on one wire; `damage` flips a byte of the echo.
+    fn page_write(damage: Option<usize>) -> Result<(), FlashError> {
+        let echo = Echo {
+            tx: Vec::new(),
+            rx: Vec::new(),
+            damage,
+            reply: Bus::reply(Cmd::Write, Status::Ok, &[]),
+        };
+        let mut c = Client::new(echo, Duration::ZERO);
+        c.frame.cmd = Cmd::Write;
+        c.frame.set_addr(0);
+        c.frame.flags = Flags { raw: 0 };
+        c.frame.len = 256;
+        c.transact()
+    }
+
+    #[test]
+    fn a_page_sized_write_reads_the_reply_after_its_echo() {
+        assert!(page_write(None).is_ok());
+    }
+
+    #[test]
+    fn a_damaged_echo_is_skipped_not_taken_for_the_reply() {
+        // Byte 100 lies in the payload, so the echo's CRC fails.
+        assert!(page_write(Some(100)).is_ok());
     }
 
     const IDS: [[u8; 12]; 5] = [

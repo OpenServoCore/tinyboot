@@ -4,6 +4,10 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ## [Unreleased]
 
+### Fixed
+
+- `tinyboot` on a single wire skips its own request echo even when the echo arrives damaged, instead of taking it for the device's reply and resending a write the device already took.
+
 ## [tinyboot 0.5.0] - 2026-10-20
 
 ### Added
