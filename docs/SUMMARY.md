@@ -13,6 +13,7 @@
 - [GPIO-controlled boot mode selection](boot-ctl.md)
 - [App integration](app-integration.md)
 - [Remote firmware updates](remote-updates.md)
+- [Shared bus (addressable)](shared-bus.md)
 - [Building your bootloader from an example](examples.md)
 
 # Reference

@@ -15,6 +15,7 @@ If you're new here, start with the [top-level README](https://github.com/OpenSer
 - [GPIO-controlled boot mode selection](boot-ctl.md) — BOOT0 circuits for chips with hardware boot pins
 - [App integration](app-integration.md) — wire the tinyboot app side into your firmware
 - [Remote firmware updates](remote-updates.md) — the end-to-end OTA flow
+- [Shared bus (addressable)](shared-bus.md) - several devices on one bus, selected by unique id
 - [Building your bootloader from an example](examples.md)
 
 ## Reference

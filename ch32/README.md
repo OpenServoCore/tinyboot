@@ -16,8 +16,8 @@ tinyboot-ch32-rt = "0.4"  # optional, bootloader-only
 
 | Module     | For                  | What it provides                                                                                 |
 | ---------- | -------------------- | ------------------------------------------------------------------------------------------------ |
-| `boot`     | Bootloader binaries  | `run()`, `BootCtl`, USART transport (`Usart`, `UsartConfig`, `BaudRate`, `FullDuplex` / `HalfDuplex`, `TxEn` / `NoTxEn`) |
-| `app`      | Application binaries | `new_app()`, `App`, `BootCtl`, the `tinyboot_core::app` types                                    |
+| `boot`     | Bootloader binaries  | `run()`, `BootCtl`, `Addressable` / `Unaddressed`, `chip_uid`, USART transport (`Usart`, `UsartConfig`, `BaudRate`, `FullDuplex` / `HalfDuplex`, `TxEn` / `NoTxEn`) |
+| `app`      | Application binaries | `new_app()`, `new_addressable_app()`, `App`, `BootCtl`, the `tinyboot_core::app` types                                    |
 | `hal`      | Both                 | `flash`, `gpio`, `usart`, `afio`, `rcc`, `pfic`, `iwdg`; auto-generated `Pin` and `UsartMapping` |
 | `platform` | (internal)           | `tinyboot_core::traits` impls for Storage, Transport, BootCtl, BootMetaStore                     |
 
@@ -40,9 +40,11 @@ fn main() -> ! {
         wire: FullDuplex { rx_pull: Pull::None, drive: PushPull },
         tx_en: NoTxEn,
     });
-    tinyboot_ch32::boot::run(transport, BootCtl::new());
+    tinyboot_ch32::boot::run(transport, BootCtl::new(), Unaddressed);
 }
 ```
+
+`Unaddressed` answers every frame, for a device that has the bus to itself. With several devices on one bus, pass `Addressable::new(chip_uid)` instead: the bootloader then stays silent until a host selects it by the chip's unique id (see the [shared bus guide](https://openservocore.github.io/tinyboot/shared-bus.html)).
 
 `Storage` and `BootMetaStore` are initialized from linker symbols automatically. `boot_version!()` ends the image with its tail: a compatibility key and the crate's `Cargo.toml` version. `boot_version!(compat = "name")` sets the key, and the bootloader then accepts only app images built with the same `app_version!(compat = "name")` (see [app integration](https://openservocore.github.io/tinyboot/app-integration.html)).
 
@@ -63,7 +65,7 @@ loop {
 }
 ```
 
-`app::poll` handles `Info` (responds with capacity, erase size, versions, `mode = 1`, the stored boot baud and the bootloader's compatibility key) and `Reset` (resets the device; `addr = 1` reboots into the bootloader, `addr = 0` reboots into the app). All other commands return `Status::Unsupported`.
+`app::poll` handles `Info` (responds with capacity, erase size, versions, `mode = 1`, the stored boot baud and the bootloader's compatibility key) and `Reset` (resets the device; `ResetFlags::BOOTLOADER` reboots into the bootloader, otherwise into the app). All other commands return `Status::Unsupported`. On a shared bus, `app::new_addressable_app(ctl, wait_bytes)` also handles `Select` and stays silent until selected.
 
 See the [app integration guide](https://openservocore.github.io/tinyboot/app-integration.html) for a complete app including `embedded_io` transport wrapping and peripheral ownership.
 

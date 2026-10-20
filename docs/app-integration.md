@@ -6,7 +6,7 @@ The tinyboot bootloader is only half the story — to support remote firmware up
 
 1. **Declare its version** so the host can see it via `tinyboot info`.
 2. **Confirm successful boot** so the bootloader stops retrying.
-3. **Poll the transport** for `Info` and `Reset` requests.
+3. **Poll the transport** for `Info` and `Reset` requests (and `Select` on a shared bus).
 
 That's it. The bootloader handles everything else — flashing, verification, state transitions, trial boot.
 
@@ -57,12 +57,13 @@ If `confirm()` is never reached (panic, watchdog, init deadlock), the trials get
 
 ## `app::poll()` — handling bootloader commands
 
-`poll()` reads a single frame from your transport and handles it. In the app, two commands do something; the rest are rejected with `Status::Unsupported`:
+`poll()` reads a single frame from your transport and handles it. In the app, two commands do something (three when addressable), and the rest are rejected with `Status::Unsupported`:
 
 | Command | Behavior in app                                                                                                                                                  |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Info`  | Responds with capacity, erase size, boot + app versions, `mode = 1` (app mode), the stored boot baud and the bootloader's compatibility key.                     |
 | `Reset` | Resets the device. The `BOOTLOADER` flag reboots into the bootloader, otherwise into the app. The `BAUD` flag first stores addr byte 0 as the bootloader's baud. |
+| `Select` | Addressable apps only: selects or deselects the device by unique id. An unselected app answers nothing else. |
 
 This is enough for the host CLI to do `tinyboot info` and `tinyboot reset --bootloader` while the app is running, which is how remote updates get kicked off — see the [remote updates guide](remote-updates.md).
 
@@ -93,6 +94,10 @@ tinyboot_ch32::app::app_version!(compat = "acme-widget-rev-b");
 ```
 
 `compat = "name"` hashes the name at compile time (32-bit FNV-1a); `compat_key = 0x1234_5678` takes a raw value. tinyboot only compares keys, so encode whatever has to match: product, board revision, pinout. `Verify` refuses an image with another key, or none, with `Status::Incompatible` and leaves the device in its bootloader waiting for the right image; a mistaken image never starts. A bootloader built without a key accepts any image and carries no check.
+
+## On a shared bus
+
+Several devices on one bus need the addressable app, created with `new_addressable_app(BootCtl::new(), wait_bytes)`. It stays silent until the host selects it by the chip's unique id, like the addressable bootloader. `wait_bytes(n)` waits about `n` byte-times at the bus baud, and the example apps compute it from the USART's baud divisor. Build the bootloader addressable too. See the [shared bus guide](shared-bus.md).
 
 ## UART sharing notes
 

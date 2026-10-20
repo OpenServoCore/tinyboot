@@ -74,6 +74,8 @@ mod family;
 
 Repeat for `rcc/` and `afio/` if their versions differ too.
 
+Check that the series keeps its 96-bit unique id at `0x1FFF_F7E8` (the ESIG area, `ch32/src/hal/esig.rs`), which the addressable bootloader reads. Move it behind a `cfg` if not.
+
 ### Boot mode selection
 
 The flash controller version also determines how the bootloader selects its flash region and persists run-mode across resets. The `build.rs` derives this automatically from the `boot_pin` flag (which itself comes from the flash version):
