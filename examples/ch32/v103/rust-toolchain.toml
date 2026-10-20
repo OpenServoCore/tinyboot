@@ -1,0 +1,4 @@
+[toolchain]
+channel = "nightly"
+components = ["rustfmt", "clippy", "rust-analyzer"]
+targets = ["riscv32imc-unknown-none-elf"]

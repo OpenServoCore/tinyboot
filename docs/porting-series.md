@@ -188,7 +188,7 @@ Then flash to hardware using `wlink` and walk through the [standard test sequenc
 
 Add the new series to `.github/workflows/ci.yml`. Each series has its own job with a matrix of variants. The CI runs `cargo fmt`, `cargo clippy`, and `cargo build --release` for both `system-flash` and `user-flash` modes on every variant. This ensures formatting, lint, compilation, and that the bootloader fits within the system flash region.
 
-Add a new job following the pattern of the existing series jobs. Use the V003 job as a template for custom-target chips (nightly + `-Zbuild-std`) or the V103 job for standard-target chips (stable + `rustup target add`).
+Add a new job following the pattern of the existing series jobs. Use the V003 job as a template for custom-target chips (nightly + `-Zbuild-std`) or the V103 job for standard-target chips (nightly with the target added).
 
 ```yaml
 strategy:
