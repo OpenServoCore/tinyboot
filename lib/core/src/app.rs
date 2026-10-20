@@ -86,9 +86,30 @@ impl<C: BootCtl, M: BootMetaStore, const P: usize, A: Addressing> App<C, M, P, A
     /// reset. Skips the flash write when it is already stored. Runs in a
     /// critical section; feed the watchdog first.
     pub fn set_baud(&mut self, baud: BaudRate) {
+        self.store_baud(baud as u8);
+    }
+
+    /// Reset into `mode`: [`RunMode::Service`] stays in the bootloader,
+    /// [`RunMode::HandOff`] boots the app. `baud` is stored first, as by
+    /// [`set_baud`](Self::set_baud). Feed the watchdog first.
+    pub fn reset(&mut self, mode: RunMode, baud: Option<BaudRate>) -> ! {
+        self.reset_with(mode, baud.map(|b| b as u8))
+    }
+
+    /// The baud before the run mode: a CH32 META write rewrites the flash
+    /// status register whole, which would drop a boot mode set before it.
+    fn reset_with(&mut self, mode: RunMode, baud: Option<u8>) -> ! {
+        if let Some(baud) = baud {
+            self.store_baud(baud);
+        }
+        self.ctl.set_run_mode(mode);
+        self.ctl.reset()
+    }
+
+    fn store_baud(&mut self, baud: u8) {
         critical_section::with(|_| {
-            if self.meta.baud() != baud as u8 {
-                let _ = self.meta.set_baud(baud as u8);
+            if self.meta.baud() != baud {
+                let _ = self.meta.set_baud(baud);
             }
         });
     }
@@ -161,13 +182,15 @@ impl<C: BootCtl, M: BootMetaStore, const P: usize, A: Addressing> App<C, M, P, A
             }
             Cmd::Reset => {
                 let flags = unsafe { self.frame.flags.reset };
-                if flags.contains(ResetFlags::BAUD) {
-                    let _ = self.meta.set_baud(self.frame.addr() as u8);
-                }
-                if flags.contains(ResetFlags::BOOTLOADER) {
-                    self.ctl.set_run_mode(RunMode::Service);
-                }
-                self.ctl.reset();
+                let baud = flags
+                    .contains(ResetFlags::BAUD)
+                    .then(|| self.frame.addr() as u8);
+                let mode = if flags.contains(ResetFlags::BOOTLOADER) {
+                    RunMode::Service
+                } else {
+                    RunMode::HandOff
+                };
+                self.reset_with(mode, baud);
             }
             _ => {
                 self.frame.len = 0;

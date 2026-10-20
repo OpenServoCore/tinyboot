@@ -67,6 +67,8 @@ loop {
 
 `app::poll` handles `Info` (responds with capacity, erase size, versions, `mode = 1`, the stored boot baud and the bootloader's compatibility key) and `Reset` (resets the device; `ResetFlags::BOOTLOADER` reboots into the bootloader, otherwise into the app). All other commands return `Status::Unsupported`. On a shared bus, `app::new_addressable_app(ctl, wait_bytes)` also handles `Select` and stays silent until selected.
 
+An app with its own protocol, instead of `poll`, calls `app.reset(RunMode::Service, Some(baud))` to send the device to its bootloader at `baud`.
+
 See the [app integration guide](https://openservocore.github.io/tinyboot/app-integration.html) for a complete app including `embedded_io` transport wrapping and peripheral ownership.
 
 ## Features

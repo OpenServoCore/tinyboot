@@ -11,6 +11,20 @@ use tinyboot_protocol::{Cmd, Status, WriteFlags};
 
 // -- Mocks --
 
+std::thread_local! {
+    /// META baud writes, run-mode sets and resets on this thread, in order.
+    pub static EVENTS: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+fn event(e: String) {
+    EVENTS.with(|v| v.borrow_mut().push(e));
+}
+
+/// Drain this thread's [`EVENTS`].
+pub fn take_events() -> Vec<String> {
+    EVENTS.with(|v| v.take())
+}
+
 pub struct MockTransport {
     pub rx_buf: [u8; 512],
     pub rx_len: usize,
@@ -166,8 +180,11 @@ impl BootCtl for MockBootCtl {
     fn run_mode(&self) -> RunMode {
         RunMode::HandOff
     }
-    fn set_run_mode(&mut self, _mode: RunMode) {}
+    fn set_run_mode(&mut self, mode: RunMode) {
+        event(format!("{mode:?}"));
+    }
     fn reset(&mut self) -> ! {
+        event("reset".into());
         panic!("mock reset")
     }
     fn hand_off(&mut self) -> ! {
@@ -217,6 +234,7 @@ impl BootMetaStore for MockBootMeta {
     fn set_baud(&mut self, baud: u8) -> Result<(), ()> {
         self.baud = baud;
         self.baud_writes += 1;
+        event(format!("baud {baud}"));
         Ok(())
     }
     fn advance(&mut self) -> Result<BootState, ()> {
