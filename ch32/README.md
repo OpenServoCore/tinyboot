@@ -6,15 +6,11 @@ CH32 HAL and tinyboot platform for CH32V003, CH32V00x (V002 / V004 / V005 / V006
 
 ## Installation
 
-As of v0.4.0, `tinyboot-ch32` is **consumed from git**, not crates.io. It depends on [`ch32-metapac`](https://github.com/ch32-rs/ch32-metapac) as a git-only dependency for CH32V00x flash support, which crates.io does not allow.
-
 ```toml
 [dependencies]
-tinyboot-ch32 = { git = "https://github.com/OpenServoCore/tinyboot", tag = "v0.4.0", default-features = false, features = ["ch32v006x8x6", "system-flash"] }
-tinyboot-ch32-rt = "0.4"  # optional, bootloader-only; on crates.io
+tinyboot-ch32 = { version = "0.6", default-features = false, features = ["ch32v006x8x6", "system-flash"] }
+tinyboot-ch32-rt = "0.4"  # optional, bootloader-only
 ```
-
-`tinyboot-core`, `tinyboot-protocol`, `tinyboot-ch32-rt`, and the `tinyboot` CLI are all published to crates.io. Only `tinyboot-ch32` requires the git path until the upstream flash driver lands in a `ch32-metapac` release.
 
 ## Modules
 
