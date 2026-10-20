@@ -19,6 +19,7 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ### Added
 
+- Addressable devices for a shared bus. `boot::run` takes the bus addressing: `Addressable::new(chip_uid)` keeps the bootloader silent until a host selects it by the chip's 96-bit unique id, `Unaddressed` answers every frame as before. `app::new_addressable_app(ctl, wait_bytes)` does the same in the app. `chip_uid` reads the ESIG unique id, and `Usart` implements `Transport::wait_bytes` from its baud divisor.
 - `boot_version!(compat = "name")` and `app_version!(compat = "name")` (re-exported from core): a bootloader with a compatibility key accepts only app images with the same key. The V00x and V103 examples set one.
 - The bootloader runs its USART at the baud stored in boot metadata, falling back to `UsartConfig::baud` when nothing is stored or `pclk` cannot reach the rate (divisor below 16). Divisors are computed at build time, so there is no runtime divide; the CH32V003 example bootloader grows by 64 bytes.
 - `app::BaudRate` re-export for `App::set_baud` / `App::baud`.
@@ -26,6 +27,7 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ### Changed
 
+- **Breaking:** `boot::run` and `boot::run_with_payload` take a third argument, the bus addressing (`Unaddressed` for the previous behavior).
 - **Breaking:** `BaudRate` is `tinyboot_protocol::BaudRate`, a `u8` index enum with `hz()`, instead of a `u32` enum whose discriminant was the rate.
 - **Breaking:** the USART wire and DE pin are chosen by type, and the `half-duplex` cargo feature is gone. `UsartConfig` takes `wire: FullDuplex { rx_pull, drive }` (`PushPull` / `OpenDrain`) or `HalfDuplex { drive }` (`PushPullWhileSending` / `OpenDrain`), and `tx_en: NoTxEn` or `TxEn { pin, tx_level }` (was `Option<TxEnConfig>`). A bootloader builds only the pin switching its setup needs, with each switch precomputed in `Usart::new` (one BSHR store for the DE pin, one CNF0 bit flip for push-pull while sending), and `HalfDuplex { drive: PushPull }` does not compile. Bootloaders shrink: CH32V003 example 40 bytes, CH32V00x 48, CH32V103 68, a half-duplex CH32V006 board 164.
 - The DE pin's GPIO clock is enabled in `Usart::new`'s single RCC write, and `set_boot_mode` is shared by the hand-off and Reset paths.

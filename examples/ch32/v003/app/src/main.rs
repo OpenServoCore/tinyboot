@@ -47,7 +47,8 @@ fn main() -> ! {
     tim.start();
     unsafe { ch32_hal::interrupt::TIM2.enable() };
 
-    let mut app = tinyboot_ch32::app::new_app(tinyboot_ch32::app::BootCtl::new());
+    let mut app =
+        tinyboot_ch32::app::new_addressable_app(tinyboot_ch32::app::BootCtl::new(), wait_bytes);
 
     // USART1 blocking — must match the bootloader's pin mapping.
     // ch32-hal generic param picks the remap:
@@ -82,6 +83,16 @@ fn main() -> ! {
 
     loop {
         app.poll(&mut rx, &mut tx);
+    }
+}
+
+/// Stagger `Select` replies: about `n` byte-times at USART1's baud (BRR
+/// is clock cycles per bit).
+fn wait_bytes(n: u8) {
+    let bit = pac::USART1.brr().read().0;
+    for _ in 0..n as u32 * 10 * bit {
+        // SAFETY: empty asm, only keeps the loop.
+        unsafe { core::arch::asm!("") };
     }
 }
 

@@ -49,16 +49,17 @@ fn main() -> ! {
 
     // system-flash: pass BOOT0 pin, the level that selects system flash,
     // and the reset delay in cycles (RC ~1ms @ 8MHz = 8000; flip-flop: 0).
-    let mut app = tinyboot_ch32::app::new_app(core::cfg_select! {
-        feature = "system-flash" => {
-            tinyboot_ch32::app::BootCtl::new(
+    let mut app = tinyboot_ch32::app::new_addressable_app(
+        core::cfg_select! {
+            feature = "system-flash" => tinyboot_ch32::app::BootCtl::new(
                 tinyboot_ch32::app::Pin::PB1,
                 tinyboot_ch32::app::Level::High,
                 8000,
-            )
-        }
-        _ => tinyboot_ch32::app::BootCtl::new(),
-    });
+            ),
+            _ => tinyboot_ch32::app::BootCtl::new(),
+        },
+        wait_bytes,
+    );
 
     // USART1 blocking — must match the bootloader's pin mapping.
     // ch32-hal generic param picks the remap:
@@ -91,6 +92,16 @@ fn main() -> ! {
 
     loop {
         app.poll(&mut rx, &mut tx);
+    }
+}
+
+/// Stagger `Select` replies: about `n` byte-times at USART1's baud (BRR
+/// is clock cycles per bit).
+fn wait_bytes(n: u8) {
+    let bit = pac::USART1.brr().read().0;
+    for _ in 0..n as u32 * 10 * bit {
+        // SAFETY: empty asm, only keeps the loop.
+        unsafe { core::arch::asm!("") };
     }
 }
 

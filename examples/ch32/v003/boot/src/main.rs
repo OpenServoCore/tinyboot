@@ -40,5 +40,8 @@ fn main() -> ! {
             tx_level: Level::Low,
         },
     });
-    tinyboot_ch32::boot::run(transport, BootCtl::new());
+    // Addressable: silent on a shared bus until a host selects this chip by
+    // its unique id; the CLI does that for a single device on its own. One
+    // device per bus and nothing to select: `Unaddressed`.
+    tinyboot_ch32::boot::run(transport, BootCtl::new(), Addressable::new(chip_uid));
 }

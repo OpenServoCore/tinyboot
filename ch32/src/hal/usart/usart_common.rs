@@ -31,6 +31,28 @@ pub fn write_byte(r: ch32_metapac::usart::Usart, byte: u8) {
     r.datar().write(|w| w.set_dr(byte as u16));
 }
 
+/// Spin at least `n` byte-times: BRR is PCLK cycles per bit, each spin
+/// takes at least one cycle, and a byte is counted as 16 bits.
+#[inline(always)]
+pub fn wait_bytes(r: ch32_metapac::usart::Usart, n: u8) {
+    let bit = r.brr().read().0;
+    // Nested, not one n * 16 * bit count: no multiply on V003.
+    let mut bits = (n as u32) << 4;
+    while bits != 0 {
+        // Bottom-tested: an enabled USART's BRR is at least 16.
+        let mut c = bit;
+        loop {
+            // SAFETY: empty asm, only keeps the loop.
+            unsafe { core::arch::asm!("") };
+            c -= 1;
+            if c == 0 {
+                break;
+            }
+        }
+        bits -= 1;
+    }
+}
+
 #[inline(always)]
 pub fn flush(r: ch32_metapac::usart::Usart) {
     while !r.statr().read().tc() {}

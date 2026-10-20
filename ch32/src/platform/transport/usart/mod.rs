@@ -80,7 +80,12 @@ pub struct Usart<W: Wire, E: TxEnable> {
     tx_en: E::Switch,
 }
 
-impl<W: Wire, E: TxEnable> tinyboot_core::traits::Transport for Usart<W, E> {}
+impl<W: Wire, E: TxEnable> tinyboot_core::traits::Transport for Usart<W, E> {
+    #[inline(always)]
+    fn wait_bytes(&mut self, n: u8) {
+        usart::wait_bytes(self.regs, n);
+    }
+}
 
 impl<W: Wire, E: TxEnable> Usart<W, E> {
     #[cfg_attr(split_sysflash, inline(never))]
