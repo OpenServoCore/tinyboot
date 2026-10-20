@@ -3,7 +3,7 @@
 
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode};
 use tinyboot_protocol::frame::{Frame, InfoData};
-use tinyboot_protocol::{Cmd, ResetFlags, Status};
+use tinyboot_protocol::{BaudRate, Cmd, ResetFlags, Status};
 
 /// App-side configuration.
 pub struct AppConfig {
@@ -45,6 +45,23 @@ impl<C: BootCtl, M: BootMetaStore> App<C, M> {
             let checksum = self.meta.app_checksum();
             let app_size = self.meta.app_size();
             let _ = self.meta.refresh(checksum, BootState::Idle, app_size);
+        });
+    }
+
+    /// Bootloader baud stored in boot metadata; `None` means the
+    /// bootloader's build default.
+    pub fn baud(&self) -> Option<BaudRate> {
+        BaudRate::from_u8(self.meta.baud())
+    }
+
+    /// Store the bootloader baud; the bootloader uses it from the next
+    /// reset. Skips the flash write when it is already stored. Runs in a
+    /// critical section; feed the watchdog first.
+    pub fn set_baud(&mut self, baud: BaudRate) {
+        critical_section::with(|_| {
+            if self.meta.baud() != baud as u8 {
+                let _ = self.meta.set_baud(baud as u8);
+            }
         });
     }
 
@@ -102,7 +119,11 @@ impl<C: BootCtl, M: BootMetaStore> App<C, M> {
                 };
             }
             Cmd::Reset => {
-                if unsafe { self.frame.flags.reset }.contains(ResetFlags::BOOTLOADER) {
+                let flags = unsafe { self.frame.flags.reset };
+                if flags.contains(ResetFlags::BAUD) {
+                    let _ = self.meta.set_baud(self.frame.addr() as u8);
+                }
+                if flags.contains(ResetFlags::BOOTLOADER) {
                     self.ctl.set_run_mode(RunMode::Service);
                 }
                 self.ctl.reset();

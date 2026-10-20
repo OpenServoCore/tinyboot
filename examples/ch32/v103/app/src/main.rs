@@ -47,12 +47,27 @@ fn main() -> ! {
     tim.start();
     unsafe { ch32_hal::interrupt::TIM2.enable() };
 
+    // system-flash: pass BOOT0 pin, the level that selects system flash,
+    // and the reset delay in cycles (RC ~1ms @ 8MHz = 8000; flip-flop: 0).
+    let mut app = tinyboot_ch32::app::new_app(core::cfg_select! {
+        feature = "system-flash" => {
+            tinyboot_ch32::app::BootCtl::new(
+                tinyboot_ch32::app::Pin::PB1,
+                tinyboot_ch32::app::Level::High,
+                8000,
+            )
+        }
+        _ => tinyboot_ch32::app::BootCtl::new(),
+    });
+
     // USART1 blocking — must match the bootloader's pin mapping.
     // ch32-hal generic param picks the remap:
     //   0 (default): TX=PA9, RX=PA10
     //   1: TX=PB6, RX=PB7
+    // Follow the baud stored for the bootloader (`tinyboot baud`), so one
+    // rate reaches the device in either mode.
     let mut uart_config = usart::Config::default();
-    uart_config.baudrate = 115200;
+    uart_config.baudrate = app.baud().map_or(115200, |b| b.hz());
     let uart = Uart::new_blocking::<0>(p.USART1, p.PA10, p.PA9, uart_config).unwrap();
     let (tx, rx) = uart.split();
     let mut rx = transport::Rx(rx);
@@ -69,19 +84,6 @@ fn main() -> ! {
             tx_level,
         }),
     };
-
-    // system-flash: pass BOOT0 pin, the level that selects system flash,
-    // and the reset delay in cycles (RC ~1ms @ 8MHz = 8000; flip-flop: 0).
-    let mut app = tinyboot_ch32::app::new_app(core::cfg_select! {
-        feature = "system-flash" => {
-            tinyboot_ch32::app::BootCtl::new(
-                tinyboot_ch32::app::Pin::PB1,
-                tinyboot_ch32::app::Level::High,
-                8000,
-            )
-        }
-        _ => tinyboot_ch32::app::BootCtl::new(),
-    });
 
     app.confirm();
 

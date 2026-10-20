@@ -59,14 +59,27 @@ If `confirm()` is never reached (panic, watchdog, init deadlock), the trials get
 
 `poll()` reads a single frame from your transport and handles it. In the app, two commands do something; the rest are rejected with `Status::Unsupported`:
 
-| Command  | Behavior in app                                                                  |
-| -------- | -------------------------------------------------------------------------------- |
-| `Info`   | Responds with capacity, erase size, boot + app versions, `mode = 1` (app mode).  |
-| `Reset`  | Resets the device. `addr = 1` reboots into the bootloader; `addr = 0` reboots into the app. |
+| Command | Behavior in app                                                                                                                                                  |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Info`  | Responds with capacity, erase size, boot + app versions, `mode = 1` (app mode).                                                                                  |
+| `Reset` | Resets the device. The `BOOTLOADER` flag reboots into the bootloader, otherwise into the app. The `BAUD` flag first stores addr byte 0 as the bootloader's baud. |
 
 This is enough for the host CLI to do `tinyboot info` and `tinyboot reset --bootloader` while the app is running, which is how remote updates get kicked off — see the [remote updates guide](remote-updates.md).
 
 Because `poll()` is blocking on a read, a typical app runs it in a dedicated task or a loop iteration alongside its other work. For timing-sensitive apps, consider running the transport on an interrupt-driven reader and feeding `poll()` asynchronously; `poll()` itself is CPU-cheap.
+
+## `baud()` and `set_baud()` - one rate for both modes
+
+The bootloader's baud lives in boot metadata, next to the trial state. `tinyboot baud <rate>` stores it over the wire (a `Reset` with the `BAUD` flag, in either mode), and the app can store it with `app.set_baud(BaudRate::B1000000)`, for example when its own protocol changes the bus rate. The bootloader picks it up from its next start; a rate its clock cannot reach falls back to its `UsartConfig::baud`.
+
+`app.baud()` returns the stored rate, `None` when nothing is stored. An app that brings its UART up at that rate stays reachable at one baud whichever mode the device is in; the examples do this:
+
+```rust
+let mut app = tinyboot_ch32::app::new_app(tinyboot_ch32::app::BootCtl::new());
+uart_config.baudrate = app.baud().map_or(115200, |b| b.hz());
+```
+
+`set_baud()` erases and rewrites the metadata page (skipped when the rate is already stored), in a critical section like `confirm()`.
 
 ## UART sharing notes
 

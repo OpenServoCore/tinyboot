@@ -78,13 +78,21 @@ pub trait BootMetaStore {
     /// Stored app size in bytes.
     fn app_size(&self) -> u32;
 
+    /// Stored bootloader baud index (a `BaudRate` discriminant; `0xFF` =
+    /// the bootloader's build default).
+    fn baud(&self) -> u8;
+
+    /// Erase and rewrite meta with a new baud index; everything else kept.
+    fn set_baud(&mut self, baud: u8) -> Result<(), Self::Error>;
+
     /// Advance state (1→0 bit clear).
     fn advance(&mut self) -> Result<BootState, Self::Error>;
 
     /// Clear one bit of the trials counter.
     fn consume_trial(&mut self) -> Result<(), Self::Error>;
 
-    /// Erase and rewrite meta. Trials reset to the erased default.
+    /// Erase and rewrite meta. Trials reset to the erased default; the
+    /// baud index is kept.
     fn refresh(
         &mut self,
         checksum: u16,

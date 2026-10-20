@@ -33,6 +33,96 @@ bitflags! {
     pub struct ResetFlags: u8 {
         /// Enter bootloader (service mode) instead of booting the app.
         const BOOTLOADER = 1 << 0;
+        /// Persist addr byte 0 as the bootloader's [`BaudRate`] before
+        /// resetting. The bootloader uses it from this reset on.
+        const BAUD = 1 << 1;
+    }
+}
+
+/// UART baud rates, encoded as their `u8` index on the wire and in boot
+/// metadata. Indices are append-only; an index the bootloader does not
+/// know or cannot reach from its clock (erased flash `0xFF` included)
+/// selects its build default.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BaudRate {
+    /// 9600 baud.
+    B9600 = 0,
+    /// 19200 baud.
+    B19200 = 1,
+    /// 38400 baud.
+    B38400 = 2,
+    /// 57600 baud.
+    B57600 = 3,
+    /// 115200 baud.
+    B115200 = 4,
+    /// 230400 baud.
+    B230400 = 5,
+    /// 460800 baud.
+    B460800 = 6,
+    /// 500000 baud.
+    B500000 = 7,
+    /// 921600 baud.
+    B921600 = 8,
+    /// 1 Mbaud.
+    B1000000 = 9,
+    /// 1.5 Mbaud.
+    B1500000 = 10,
+    /// 2 Mbaud.
+    B2000000 = 11,
+    /// 2.5 Mbaud.
+    B2500000 = 12,
+    /// 3 Mbaud.
+    B3000000 = 13,
+}
+
+impl BaudRate {
+    /// Every rate, in index order.
+    pub const ALL: [BaudRate; 14] = [
+        BaudRate::B9600,
+        BaudRate::B19200,
+        BaudRate::B38400,
+        BaudRate::B57600,
+        BaudRate::B115200,
+        BaudRate::B230400,
+        BaudRate::B460800,
+        BaudRate::B500000,
+        BaudRate::B921600,
+        BaudRate::B1000000,
+        BaudRate::B1500000,
+        BaudRate::B2000000,
+        BaudRate::B2500000,
+        BaudRate::B3000000,
+    ];
+
+    /// Rate in bits per second.
+    pub const fn hz(self) -> u32 {
+        match self {
+            BaudRate::B9600 => 9600,
+            BaudRate::B19200 => 19200,
+            BaudRate::B38400 => 38400,
+            BaudRate::B57600 => 57600,
+            BaudRate::B115200 => 115_200,
+            BaudRate::B230400 => 230_400,
+            BaudRate::B460800 => 460_800,
+            BaudRate::B500000 => 500_000,
+            BaudRate::B921600 => 921_600,
+            BaudRate::B1000000 => 1_000_000,
+            BaudRate::B1500000 => 1_500_000,
+            BaudRate::B2000000 => 2_000_000,
+            BaudRate::B2500000 => 2_500_000,
+            BaudRate::B3000000 => 3_000_000,
+        }
+    }
+
+    /// Parse a wire / metadata index.
+    pub fn from_u8(v: u8) -> Option<Self> {
+        Self::ALL.get(v as usize).copied()
+    }
+
+    /// Look up a rate by bits per second.
+    pub fn from_hz(hz: u32) -> Option<Self> {
+        Self::ALL.into_iter().find(|b| b.hz() == hz)
     }
 }
 
@@ -161,6 +251,23 @@ mod tests {
         assert!(Status::is_valid(Status::PayloadOverflow as u8));
         assert!(!Status::is_valid(0x07));
         assert!(!Status::is_valid(0xFF));
+    }
+
+    #[test]
+    fn baud_index_round_trip() {
+        for (i, b) in BaudRate::ALL.into_iter().enumerate() {
+            assert_eq!(b as u8, i as u8);
+            assert_eq!(BaudRate::from_u8(i as u8), Some(b));
+            assert_eq!(BaudRate::from_hz(b.hz()), Some(b));
+        }
+        assert_eq!(BaudRate::from_u8(BaudRate::ALL.len() as u8), None);
+        assert_eq!(BaudRate::from_u8(0xFF), None);
+        assert_eq!(BaudRate::from_hz(1234), None);
+    }
+
+    #[test]
+    fn baud_rates_ascend() {
+        assert!(BaudRate::ALL.windows(2).all(|w| w[0].hz() < w[1].hz()));
     }
 
     #[test]

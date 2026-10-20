@@ -180,7 +180,11 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
     }
 
     #[inline(always)]
-    fn cmd_reset(&mut self, flags: ResetFlags) {
+    fn cmd_reset(&mut self, addr: u32, flags: ResetFlags) {
+        if flags.contains(ResetFlags::BAUD) && self.platform.boot_meta.set_baud(addr as u8).is_err()
+        {
+            self.frame.status = Status::WriteError;
+        }
         let _ = self.frame.send(&mut self.platform.transport);
         let mode = if flags.contains(ResetFlags::BOOTLOADER) {
             RunMode::Service
@@ -217,7 +221,7 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
                 self.cmd_verify(addr, capacity, state);
             } else {
                 // SAFETY: cmd is Reset, so flags.reset is the active variant.
-                self.cmd_reset(unsafe { flags.reset });
+                self.cmd_reset(addr, unsafe { flags.reset });
             }
         } else {
             self.frame.len = 0;

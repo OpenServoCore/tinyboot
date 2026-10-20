@@ -89,6 +89,8 @@ This keeps the transceiver in RX the rest of the time, so host bytes can reach t
 
 `BaudRate` covers the standard ladder from 9600 up to 3 Mbps: `B9600`, `B19200`, `B38400`, `B57600`, `B115200`, `B230400`, `B460800`, `B500000`, `B921600`, `B1000000`, `B1500000`, `B2000000`, `B2500000`, `B3000000`.
 
+`UsartConfig::baud` is the build default. A rate stored in boot metadata (`tinyboot baud <rate>`, or the app's `set_baud()`, see the [app integration guide](app-integration.md)) overrides it from the next start, as long as `pclk` reaches it: the divisor for every rate is computed at build time from `pclk`, and a rate whose divisor would fall below 16 (for example anything above 500000 at 8 MHz) keeps the build default. `tinyboot baud default` clears the stored rate.
+
 The achievable accuracy depends on `pclk`: the USART divisor is `pclk / baud`, so non-integer ratios accumulate framing error. For high baud rates you usually need to bump the core clock — e.g. the V00x example calls `rcc::init_48mhz_hsi_pll()` so PCLK = 48 MHz, which divides exactly to 3 Mbps. The CH32V003's reset-default 8 MHz PCLK is fine up to ~115200 but not for the megabit rates.
 
 ## Single-wire buses (DXL daisy chains, RS-485 segments)

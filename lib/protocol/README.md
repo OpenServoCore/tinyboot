@@ -32,13 +32,13 @@ Total frame size = 12 bytes overhead + payload. Maximum payload is 64 bytes (`MA
 
 ## Commands
 
-| Code | Name   | Direction      | Description                                                                |
-| ---- | ------ | -------------- | -------------------------------------------------------------------------- |
-| 0x00 | Info   | Host to Device | Query device info (capacity, erase size, versions, mode)                   |
-| 0x01 | Erase  | Host to Device | Erase `byte_count` bytes at addr (first erase transitions Idle → Updating) |
-| 0x02 | Write  | Host to Device | Write data at address. `WriteFlags::FLUSH` commits trailing partial page   |
-| 0x03 | Verify | Host to Device | Compute CRC16 over `addr` bytes of app, store checksum + state in metadata |
-| 0x04 | Reset  | Host to Device | Reset the device. `ResetFlags::BOOTLOADER` enters bootloader (service)     |
+| Code | Name   | Direction      | Description                                                                                                    |
+| ---- | ------ | -------------- | -------------------------------------------------------------------------------------------------------------- |
+| 0x00 | Info   | Host to Device | Query device info (capacity, erase size, versions, mode)                                                       |
+| 0x01 | Erase  | Host to Device | Erase `byte_count` bytes at addr (first erase transitions Idle → Updating)                                     |
+| 0x02 | Write  | Host to Device | Write data at address. `WriteFlags::FLUSH` commits trailing partial page                                       |
+| 0x03 | Verify | Host to Device | Compute CRC16 over `addr` bytes of app, store checksum + state in metadata                                     |
+| 0x04 | Reset  | Host to Device | Reset the device. `ResetFlags::BOOTLOADER` enters bootloader (service), `ResetFlags::BAUD` stores a baud first |
 
 ## Per-command flags
 
@@ -52,11 +52,16 @@ Byte 3 of the address field carries per-command flags. Each command defines its 
 
 ### `ResetFlags` (Cmd::Reset)
 
-| Bit | Flag         | Description                                     |
-| --- | ------------ | ----------------------------------------------- |
-| 0   | `BOOTLOADER` | Enter the bootloader (service mode) after reset |
+| Bit | Flag         | Description                                                             |
+| --- | ------------ | ----------------------------------------------------------------------- |
+| 0   | `BOOTLOADER` | Enter the bootloader (service mode) after reset                         |
+| 1   | `BAUD`       | Store addr byte 0 as the bootloader's `BaudRate` index before resetting |
 
 With no flag set, `Cmd::Reset` boots the app (hand-off mode).
+
+### `BaudRate`
+
+The baud rate travels and is stored as its `u8` index: 0 = 9600, 1 = 19200, 2 = 38400, 3 = 57600, 4 = 115200, 5 = 230400, 6 = 460800, 7 = 500000, 8 = 921600, 9 = 1M, 10 = 1.5M, 11 = 2M, 12 = 2.5M, 13 = 3M. Indices are append-only. The bootloader runs at the stored rate from its next start; an index it does not know, or a rate its clock cannot reach, selects its build default, and so does `0xFF` (erased metadata), which is how `BAUD` with `addr = 0xFF` restores the default.
 
 ### Info response
 

@@ -17,6 +17,16 @@ pub struct BootMetaStore {
     trials: u8,
     checksum: u16,
     app_size: u32,
+    baud: u8,
+    // Pads the flash write to whole words; carried as read.
+    _reserved: [u8; 3],
+}
+
+/// Stored bootloader baud index, read straight from flash.
+#[inline(always)]
+pub fn stored_baud() -> u8 {
+    let addr = flash::meta_addr() as usize + core::mem::offset_of!(BootMetaStore, baud);
+    unsafe { core::ptr::read_volatile(addr as *const u8) }
 }
 
 impl Default for BootMetaStore {
@@ -70,6 +80,16 @@ impl TBBootMetaStore for BootMetaStore {
 
     fn app_size(&self) -> u32 {
         self.app_size
+    }
+
+    fn baud(&self) -> u8 {
+        self.baud
+    }
+
+    fn set_baud(&mut self, baud: u8) -> Result<(), Self::Error> {
+        self.baud = baud;
+        self.write();
+        Ok(())
     }
 
     fn advance(&mut self) -> Result<BootState, Self::Error> {

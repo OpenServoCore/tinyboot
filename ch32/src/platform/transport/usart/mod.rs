@@ -7,24 +7,47 @@ use crate::hal::gpio::PinMode;
 use crate::hal::gpio::Pull;
 use crate::hal::{Pin, UsartMapping};
 use crate::hal::{afio, gpio, rcc, usart};
+use crate::platform::boot_meta_store;
 
-#[derive(Copy, Clone)]
-#[repr(u32)]
-pub enum BaudRate {
-    B9600 = 9600,
-    B19200 = 19200,
-    B38400 = 38400,
-    B57600 = 57600,
-    B115200 = 115200,
-    B230400 = 230_400,
-    B460800 = 460_800,
-    B500000 = 500_000,
-    B921600 = 921_600,
-    B1000000 = 1_000_000,
-    B1500000 = 1_500_000,
-    B2000000 = 2_000_000,
-    B2500000 = 2_500_000,
-    B3000000 = 3_000_000,
+pub use tinyboot_core::BaudRate;
+
+/// Rounded BRR for `hz`; folds to a constant when both args are.
+#[inline(always)]
+const fn brr(pclk: u32, hz: u32) -> u32 {
+    (pclk + hz / 2) / hz
+}
+
+/// BRR for the stored baud index, or `default` when the index is unknown
+/// or the rate is out of reach (BRR < 16) from `pclk`. Every arm divides
+/// constants, so this compiles to a table lookup with no runtime divide.
+#[inline(always)]
+fn stored_brr(pclk: u32, default: u32) -> u32 {
+    macro_rules! arms {
+        ($idx:expr, $($b:ident),*) => {
+            match $idx {
+                $(i if i == BaudRate::$b as u8 => brr(pclk, BaudRate::$b.hz()),)*
+                _ => default,
+            }
+        };
+    }
+    let v = arms!(
+        boot_meta_store::stored_baud(),
+        B9600,
+        B19200,
+        B38400,
+        B57600,
+        B115200,
+        B230400,
+        B460800,
+        B500000,
+        B921600,
+        B1000000,
+        B1500000,
+        B2000000,
+        B2500000,
+        B3000000
+    );
+    if v < 16 { default } else { v }
 }
 
 /// RS-485 DE/RE pin configuration.
@@ -36,6 +59,9 @@ pub struct TxEnConfig {
 }
 
 pub struct UsartConfig {
+    /// Build default. A baud stored in boot metadata (`Reset` with the
+    /// `BAUD` flag, or the app's `set_baud`) overrides it when `pclk`
+    /// can reach it.
     pub baud: BaudRate,
     /// USART peripheral clock (Hz). Used for BRR = pclk / baud.
     ///
@@ -104,12 +130,8 @@ impl Usart {
             gpio::set_level(tx_en.pin, invert(tx_en.tx_level));
         }
 
-        usart::init(
-            regs,
-            config.pclk,
-            config.baud as u32,
-            cfg!(feature = "half-duplex"),
-        );
+        let brr = stored_brr(config.pclk, brr(config.pclk, config.baud.hz()));
+        usart::init(regs, brr, cfg!(feature = "half-duplex"));
 
         Usart {
             regs,

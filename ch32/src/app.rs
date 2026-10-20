@@ -6,6 +6,7 @@ use crate::platform::BootMetaStore;
 pub use crate::hal::Pin;
 pub use crate::hal::gpio::Level;
 pub use crate::platform::BootCtl;
+pub use tinyboot_core::BaudRate;
 pub use tinyboot_core::app::{App, AppConfig};
 pub use tinyboot_core::traits;
 pub use tinyboot_core::{app_version, pkg_version};
