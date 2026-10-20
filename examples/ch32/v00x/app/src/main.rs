@@ -34,9 +34,10 @@ static LED: Shared<Output<'static>> = Mutex::new(RefCell::new(None));
 
 #[qingke_rt::entry]
 fn main() -> ! {
-    let mut config = ch32_hal::Config::default();
-    config.rcc = ch32_hal::rcc::Config::SYSCLK_FREQ_48MHZ_HSI;
-    let p = ch32_hal::init(config);
+    let p = ch32_hal::init(ch32_hal::Config {
+        rcc: ch32_hal::rcc::Config::SYSCLK_FREQ_48MHZ_HSI,
+        ..Default::default()
+    });
 
     // LED blink via TIM2 interrupt (2 Hz toggle = 1 Hz blink)
     critical_section::with(|cs| {
@@ -59,7 +60,7 @@ fn main() -> ! {
     uart_config.baudrate = 3_000_000;
     let uart = Uart::new_blocking::<3>(p.USART1, p.PC1, p.PC0, uart_config).unwrap();
     let (tx, rx) = uart.split();
-    let mut rx = transport::Rx(rx);
+    let mut rx = transport::Rx { _uart: rx };
 
     // RS-485 DE/RE on PC2, matching the bootloader. Active-high DE: pin goes
     // High during TX so the on-board transceiver drives the DXL-TTL data line,
