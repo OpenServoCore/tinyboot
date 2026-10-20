@@ -96,7 +96,7 @@ Request payload (2 bytes via `EraseData`):
 
 ### Flushing buffered writes
 
-Writes are accumulated in a ring buffer on the device and flushed a page at a time. The host sets `WriteFlags::FLUSH` on the Write that ends a contiguous region to commit the trailing partial page. Flush is required:
+Writes are accumulated in a one-page buffer on the device and written a page at a time. The host sets `WriteFlags::FLUSH` on the Write that ends a contiguous region to commit the trailing partial page. Flush is required:
 
 - **On the final Write** — otherwise the last partial page may not be written to flash, causing Verify to fail.
 - **Before skipping an address range** — if the host advances the write address (e.g. skipping a gap between segments), it must flush the previous region first.

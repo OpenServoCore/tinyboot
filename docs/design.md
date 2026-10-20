@@ -30,6 +30,7 @@ Beyond the usual Cargo profile tricks (`opt-level = "z"`, LTO, `codegen-units = 
 - **`repr(C)` frame with union data** — CRC is computed directly over the struct memory via pointer cast; no serialization step, no intermediate buffer.
 - **`MaybeUninit` frame buffer** — the 64-byte `Frame` struct (default 52-byte payload) is reused every iteration without zero-initialization.
 - **Bit-bang CRC16** — no lookup table, trades speed for ~512 bytes of flash savings.
+- **One-page write buffer** - Write data is copied into a single page buffer that goes to flash each time it fills, so a Write may span pages without a ring buffer's index arithmetic.
 - **Bit-clear state transitions** — forward state changes (Idle → Updating, trial consumption) flip 1→0 bits without erasing, avoiding a full erase + rewrite cycle.
 - **Avoid `memset` / `memcpy`** — these pull in expensive `core` routines; manual byte loops and volatile writes keep the linker from dragging in library code.
 - **`.write()` over `.modify()`** — register writes use direct writes instead of read-modify-write, saving the read and mask operations.
