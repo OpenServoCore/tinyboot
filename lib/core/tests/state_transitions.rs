@@ -350,6 +350,8 @@ fn reset_with_baud_flag_stores_baud_and_replies() {
     assert_eq!(d.platform.boot_meta.baud, BaudRate::B1000000 as u8);
     assert_eq!(d.frame.status, Status::Ok);
     assert_ne!(d.platform.transport.tx_pos, 0);
+    // Flushed before the reset, which would cut the reply off.
+    assert_eq!(d.platform.transport.flushes, 1);
 }
 
 #[test]

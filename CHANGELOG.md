@@ -28,6 +28,7 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 - **Breaking:** `BaudRate` is `tinyboot_protocol::BaudRate`, a `u8` index enum with `hz()`, instead of a `u32` enum whose discriminant was the rate.
 - **Breaking:** the USART wire and DE pin are chosen by type, and the `half-duplex` cargo feature is gone. `UsartConfig` takes `wire: FullDuplex { rx_pull, drive }` (`PushPull` / `OpenDrain`) or `HalfDuplex { drive }` (`PushPullWhileSending` / `OpenDrain`), and `tx_en: NoTxEn` or `TxEn { pin, tx_level }` (was `Option<TxEnConfig>`). A bootloader builds only the pin switching its setup needs, with each switch precomputed in `Usart::new` (one BSHR store for the DE pin, one CNF0 bit flip for push-pull while sending), and `HalfDuplex { drive: PushPull }` does not compile. Bootloaders shrink: CH32V003 example 40 bytes, CH32V00x 48, CH32V103 68, a half-duplex CH32V006 board 164.
+- The DE pin's GPIO clock is enabled in `Usart::new`'s single RCC write, and `set_boot_mode` is shared by the hand-off and Reset paths.
 - The DE pin is set to its RX level before it turns output, so it no longer passes through the reset-default low at init.
 - **Breaking:** boot metadata is 12 bytes: a `baud` index byte (`0xFF` = build default) and 3 reserved bytes follow `app_size`. Existing metadata reads as the build default.
 
@@ -45,6 +46,7 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 - **Breaking:** `Core`, `Dispatcher` and `App` take the frame's payload capacity as a const parameter (default `DEFAULT_PAYLOAD`), and `AppConfig` has `boot_compat`. Info reports the stored boot baud, the bootloader's compatibility key and the payload capacity, in both modes.
 - **Breaking:** the image tail is 6 bytes, `[compat u32, version u16]`, read through the `__tb_tail` symbol the macros define. `tb-app.x` starts it word-aligned and exports `__tb_boot_tail` (was `__tb_boot_version_addr`); `tb-boot.x` places it in the last 6 bytes of BOOT. The version stays in the last 2 bytes of each image.
 - **Breaking:** writes collect in a one-page buffer instead of a two-page ring buffer, and the `ringbuf` module is gone. `BUF` on `Core` and `Dispatcher` is the storage's write size (was twice it), halving the RAM. The CH32V003 example bootloader shrinks by about 100 bytes.
+- The bootloader flushes its `Reset` reply before it resets; the last bytes of the reply used to be cut off.
 - `Reset` to the app is refused with `Unsupported` while an update is in progress (`Updating`). Chips that hand off by run mode start the app without the bootloader checking META, so a half-written image used to run. `Reset` with `BOOTLOADER` and `Erase` still restart the update.
 
 ## [tinyboot-protocol 0.5.0] - 2026-10-20

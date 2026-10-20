@@ -152,7 +152,8 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
         }
     }
 
-    #[inline(always)]
+    // Out of line: smaller, as LLVM spills around it when inlined.
+    #[inline(never)]
     fn cmd_info(&mut self, capacity: u32) {
         let app_sz = self.platform.boot_meta.app_size();
         let app_ver = if app_sz != 0xFFFF_FFFF {
@@ -223,19 +224,21 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
     }
 
     #[inline(always)]
-    fn cmd_reset(&mut self, addr: u32, flags: ResetFlags) {
+    fn cmd_reset(&mut self, addr: u32, flags: ResetFlags) -> ! {
         if flags.contains(ResetFlags::BAUD) && self.platform.boot_meta.set_baud(addr as u8).is_err()
         {
             self.frame.status = Status::WriteError;
         }
         let _ = self.frame.send(&mut self.platform.transport);
+        // Flush: a reset cuts off the bytes still in the transmitter.
+        let _ = embedded_io::Write::flush(&mut self.platform.transport);
         let mode = if flags.contains(ResetFlags::BOOTLOADER) {
             RunMode::Service
         } else {
             RunMode::HandOff
         };
         self.platform.ctl.set_run_mode(mode);
-        self.platform.ctl.reset();
+        self.platform.ctl.reset()
     }
 
     /// Read a frame, dispatch, send the response. Err only on transport IO;

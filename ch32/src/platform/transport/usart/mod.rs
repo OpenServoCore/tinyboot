@@ -98,7 +98,8 @@ impl<W: Wire, E: TxEnable> Usart<W, E> {
             (1 << (2 + tx_pin.port_index()))
                 | (1 << (2 + rx_pin.port_index()))
                 | 1 // AFIO
-                | rcc::usart_apb2_bit(usart_n),
+                | rcc::usart_apb2_bit(usart_n)
+                | config.tx_en.apb2_bits(),
         );
         // USART2/3 live on APB1.
         if rcc::usart_apb2_bit(usart_n) == 0 {
