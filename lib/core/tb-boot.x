@@ -13,13 +13,13 @@ __tb_meta_base = ORIGIN(META);
  * never erases or writes past LENGTH(APP). */
 ASSERT(ORIGIN(APP) + LENGTH(APP) <= ORIGIN(META), "tinyboot: APP overlaps META");
 
-/* Boot version at last 2 bytes of boot flash.
- * VMA set explicitly so the CODE mirror matches the BOOT LMA. */
+/* Image tail [compat u32, version u16] in the last 6 bytes of boot flash,
+ * where the app reads it. VMA set explicitly so the CODE mirror matches
+ * the BOOT LMA. */
 SECTIONS
 {
-    .tb_version (ORIGIN(CODE) + LENGTH(CODE) - 2) : AT(ORIGIN(BOOT) + LENGTH(BOOT) - 2)
+    .tb_version (ORIGIN(CODE) + LENGTH(CODE) - 6) : AT(ORIGIN(BOOT) + LENGTH(BOOT) - 6)
     {
-        __tb_version = .;
         KEEP(*(.tb_version));
     } > CODE
 }

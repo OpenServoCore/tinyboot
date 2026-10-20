@@ -3,239 +3,18 @@
 //! Tests every row of the state transition table in tinyboot/README.md.
 //! Organized by operation, with each state tested per operation.
 
-// Provide the linker symbol that protocol.rs reads for boot version.
-#[unsafe(no_mangle)]
-static __tb_version: u16 = 0xFFFF;
+mod common;
 
-use embedded_storage::nor_flash;
-use tinyboot_core::Platform;
+use common::*;
 use tinyboot_core::app::{App, AppConfig};
 use tinyboot_core::protocol::Dispatcher;
-use tinyboot_core::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
+use tinyboot_core::traits::BootState;
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
-use tinyboot_protocol::frame::{Flags, Frame};
-use tinyboot_protocol::{BaudRate, Cmd, ResetFlags, Status, WriteFlags};
+use tinyboot_protocol::frame::Flags;
+use tinyboot_protocol::{BaudRate, Cmd, ResetFlags, Status};
 
-// -- Mocks --
-
-struct MockTransport {
-    rx_buf: [u8; 512],
-    rx_len: usize,
-    rx_pos: usize,
-    tx_buf: [u8; 512],
-    tx_pos: usize,
-}
-
-impl MockTransport {
-    fn new() -> Self {
-        Self {
-            rx_buf: [0; 512],
-            rx_len: 0,
-            rx_pos: 0,
-            tx_buf: [0; 512],
-            tx_pos: 0,
-        }
-    }
-
-    fn load_request(&mut self, cmd: Cmd, addr: u32, len: u16, data: &[u8]) {
-        self.load_request_flags(cmd, addr, Flags { raw: 0 }, len, data);
-    }
-
-    fn load_request_flags(&mut self, cmd: Cmd, addr: u32, flags: Flags, len: u16, data: &[u8]) {
-        let mut frame = Frame::default();
-        frame.cmd = cmd;
-        frame.set_addr(addr);
-        frame.flags = flags;
-        frame.len = len;
-        frame.status = Status::Request;
-        unsafe { frame.data.raw[..data.len()].copy_from_slice(data) };
-        let mut tmp = MockTransport::new();
-        frame.send(&mut tmp).unwrap();
-        self.rx_buf[..tmp.tx_pos].copy_from_slice(&tmp.tx_buf[..tmp.tx_pos]);
-        self.rx_len = tmp.tx_pos;
-        self.rx_pos = 0;
-    }
-}
-
-impl embedded_io::ErrorType for MockTransport {
-    type Error = core::convert::Infallible;
-}
-
-impl embedded_io::Read for MockTransport {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        let n = buf.len().min(self.rx_len - self.rx_pos);
-        buf[..n].copy_from_slice(&self.rx_buf[self.rx_pos..self.rx_pos + n]);
-        self.rx_pos += n;
-        Ok(n)
-    }
-}
-
-impl embedded_io::Write for MockTransport {
-    fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
-        let n = buf.len().min(self.tx_buf.len() - self.tx_pos);
-        self.tx_buf[self.tx_pos..self.tx_pos + n].copy_from_slice(&buf[..n]);
-        self.tx_pos += n;
-        Ok(n)
-    }
-    fn flush(&mut self) -> Result<(), Self::Error> {
-        Ok(())
-    }
-}
-
-impl Transport for MockTransport {}
-
-struct MockStorage {
-    data: [u8; 256],
-}
-
-impl MockStorage {
-    fn new() -> Self {
-        Self { data: [0xFF; 256] }
-    }
-}
-
-impl Storage for MockStorage {
-    fn as_slice(&self) -> &[u8] {
-        &self.data
-    }
-}
-
-impl nor_flash::ErrorType for MockStorage {
-    type Error = nor_flash::NorFlashErrorKind;
-}
-
-impl nor_flash::ReadNorFlash for MockStorage {
-    const READ_SIZE: usize = 1;
-    fn read(&mut self, offset: u32, bytes: &mut [u8]) -> Result<(), Self::Error> {
-        let start = offset as usize;
-        let end = start + bytes.len();
-        if end > self.data.len() {
-            return Err(nor_flash::NorFlashErrorKind::OutOfBounds);
-        }
-        bytes.copy_from_slice(&self.data[start..end]);
-        Ok(())
-    }
-    fn capacity(&self) -> usize {
-        self.data.len()
-    }
-}
-
-impl nor_flash::NorFlash for MockStorage {
-    const WRITE_SIZE: usize = 4;
-    const ERASE_SIZE: usize = 64;
-    fn erase(&mut self, from: u32, to: u32) -> Result<(), Self::Error> {
-        self.data[from as usize..to as usize].fill(0xFF);
-        Ok(())
-    }
-    fn write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
-        let start = offset as usize;
-        let end = start + bytes.len();
-        if end > self.data.len() {
-            return Err(nor_flash::NorFlashErrorKind::OutOfBounds);
-        }
-        self.data[start..end].copy_from_slice(bytes);
-        Ok(())
-    }
-}
-
-struct MockBootCtl;
-impl BootCtl for MockBootCtl {
-    fn run_mode(&self) -> RunMode {
-        RunMode::HandOff
-    }
-    fn set_run_mode(&mut self, _mode: RunMode) {}
-    fn reset(&mut self) -> ! {
-        panic!("mock reset")
-    }
-    fn hand_off(&mut self) -> ! {
-        panic!("mock hand_off")
-    }
-}
-
-struct MockBootMeta {
-    state: BootState,
-    checksum: u16,
-    trials: u8,
-    app_size: u32,
-    baud: u8,
-    baud_writes: u32,
-}
-
-impl MockBootMeta {
-    fn new(state: BootState) -> Self {
-        Self {
-            state,
-            checksum: 0xFFFF,
-            trials: 0xFF,
-            app_size: 0xFFFF_FFFF,
-            baud: 0xFF,
-            baud_writes: 0,
-        }
-    }
-}
-
-impl BootMetaStore for MockBootMeta {
-    type Error = ();
-    fn boot_state(&self) -> BootState {
-        self.state
-    }
-    fn has_trials(&self) -> bool {
-        self.trials != 0
-    }
-    fn app_checksum(&self) -> u16 {
-        self.checksum
-    }
-    fn app_size(&self) -> u32 {
-        self.app_size
-    }
-    fn baud(&self) -> u8 {
-        self.baud
-    }
-    fn set_baud(&mut self, baud: u8) -> Result<(), ()> {
-        self.baud = baud;
-        self.baud_writes += 1;
-        Ok(())
-    }
-    fn advance(&mut self) -> Result<BootState, ()> {
-        let next = self.state as u8;
-        let next = next & (next >> 1);
-        self.state = BootState::from_u8(next);
-        Ok(self.state)
-    }
-    fn consume_trial(&mut self) -> Result<(), ()> {
-        self.trials = self.trials & (self.trials >> 1);
-        Ok(())
-    }
-    fn refresh(&mut self, checksum: u16, state: BootState, app_size: u32) -> Result<(), ()> {
-        self.state = state;
-        self.checksum = checksum;
-        self.trials = 0xFF;
-        self.app_size = app_size;
-        Ok(())
-    }
-}
-
-type TestPlatform = Platform<MockTransport, MockStorage, MockBootMeta, MockBootCtl>;
-const TEST_BUF_SIZE: usize = 128;
-
-fn platform(state: BootState) -> TestPlatform {
-    Platform::new(
-        MockTransport::new(),
-        MockStorage::new(),
-        MockBootMeta::new(state),
-        MockBootCtl,
-    )
-}
-
-fn erase_data(byte_count: u16) -> [u8; 2] {
-    byte_count.to_le_bytes()
-}
-
-fn flush_flags() -> Flags {
-    Flags {
-        write: WriteFlags::FLUSH,
-    }
-}
+// This bootloader's image tail: no compatibility key.
+tinyboot_core::boot_version!();
 
 // =============================================================================
 // Erase
@@ -452,6 +231,14 @@ fn verify_from_updating_transitions_to_validating() {
     assert_eq!(unsafe { d.frame.data.verify }.crc, expected);
     assert_eq!(d.platform.boot_meta.checksum, expected);
     assert_eq!(d.platform.boot_meta.app_size, app_size);
+}
+
+#[test]
+fn unset_key_skips_the_check() {
+    let mut p = platform(BootState::Updating);
+    load_tagged_image(&mut p.storage, 10, tinyboot_core::compat_key("board-b"));
+    assert_eq!(verify(&mut p, 10), Status::Ok);
+    assert_eq!(p.boot_meta.state, BootState::Validating);
 }
 
 #[test]

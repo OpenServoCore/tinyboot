@@ -43,7 +43,7 @@ The crates use `unsafe` in targeted places, primarily to meet the extreme size c
 - **`read_volatile` / `write_volatile`** — direct flash reads / writes, version reads, and boot request flag access.
 - **`transmute`** — enum conversions (boot state) and function pointer cast for jump-to-address.
 - **`from_raw_parts`** — zero-copy flash slice access in the storage layer.
-- **Linker section attributes** — placing version data and boot metadata at fixed flash addresses.
+- **Linker section attributes** — placing the image tail (compatibility key and version) and boot metadata at fixed flash addresses.
 - **`export_name` / `extern "C"`** — runtime entry points and linker symbol access for chip runtime integration.
 
 These are deliberate trade-offs — safe alternatives would pull in extra code that doesn't fit. The `unsafe` is confined to data layout, memory access, and hardware boundaries; the bootloader state machine and protocol logic are safe Rust.

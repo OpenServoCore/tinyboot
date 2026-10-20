@@ -32,13 +32,13 @@ Total frame size = 12 bytes overhead + payload. Maximum payload is 64 bytes (`MA
 
 ## Commands
 
-| Code | Name   | Direction      | Description                                                                                                    |
-| ---- | ------ | -------------- | -------------------------------------------------------------------------------------------------------------- |
-| 0x00 | Info   | Host to Device | Query device info (capacity, erase size, versions, mode)                                                       |
-| 0x01 | Erase  | Host to Device | Erase `byte_count` bytes at addr (first erase transitions Idle → Updating)                                     |
-| 0x02 | Write  | Host to Device | Write data at address. `WriteFlags::FLUSH` commits trailing partial page                                       |
-| 0x03 | Verify | Host to Device | Compute CRC16 over `addr` bytes of app, store checksum + state in metadata                                     |
-| 0x04 | Reset  | Host to Device | Reset the device. `ResetFlags::BOOTLOADER` enters bootloader (service), `ResetFlags::BAUD` stores a baud first |
+| Code | Name   | Direction      | Description                                                                                                                                                                              |
+| ---- | ------ | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0x00 | Info   | Host to Device | Query device info (capacity, erase size, versions, mode)                                                                                                                                 |
+| 0x01 | Erase  | Host to Device | Erase `byte_count` bytes at addr (first erase transitions Idle → Updating)                                                                                                               |
+| 0x02 | Write  | Host to Device | Write data at address. `WriteFlags::FLUSH` commits trailing partial page                                                                                                                 |
+| 0x03 | Verify | Host to Device | Compute CRC16 over `addr` bytes of app, store checksum + state in metadata. Refused with `Incompatible` when the bootloader has a compatibility key and the image's tail carries another |
+| 0x04 | Reset  | Host to Device | Reset the device. `ResetFlags::BOOTLOADER` enters bootloader (service), `ResetFlags::BAUD` stores a baud first                                                                           |
 
 ## Per-command flags
 
@@ -76,6 +76,10 @@ Returns 12 bytes via the `InfoData` struct:
 | 10     | 2 bytes | mode         | 0 = bootloader, 1 = app                   |
 
 Versions are packed as `(major << 11) | (minor << 6) | patch` and read from the last 2 bytes of each binary (boot and app).
+
+### Image tail
+
+Each boot and app image ends with 6 bytes: the compatibility key (u32 LE), then the version (u16 LE). An app image's tail starts word-aligned, so its size is 2 past a multiple of 4. The key is opaque and compared only for equality; `0xFFFF_FFFF` means none. `compat_key(name)` derives one from a name (32-bit FNV-1a, never `0xFFFF_FFFF`).
 
 ### Erase
 
@@ -121,6 +125,7 @@ Response returns 2 bytes via the `VerifyData` struct:
 | 0x04 | AddrOutOfBounds | Address or length out of range      |
 | 0x05 | Unsupported     | Command not valid in current state  |
 | 0x06 | PayloadOverflow | Frame payload exceeds maximum size  |
+| 0x07 | Incompatible    | Image's compatibility key differs   |
 
 ## CRC
 

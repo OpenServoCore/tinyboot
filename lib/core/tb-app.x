@@ -6,18 +6,18 @@
 
 /* Symbols derived from memory regions. */
 __tb_meta_base = ORIGIN(META);
-__tb_boot_version_addr = ORIGIN(BOOT) + LENGTH(BOOT) - 2;
+__tb_boot_tail = ORIGIN(BOOT) + LENGTH(BOOT) - 6;
 __tb_app_capacity = LENGTH(APP);
 
-/* App version must be the very last loadable flash content: the bootloader
- * reads it at app_base + app_size - 2. qingke-rt places .data's load image
- * last, so anchor on it explicitly; the location counter after .data is a
- * RAM address. */
+/* The image tail [compat u32, version u16] must be the very last loadable
+ * flash content: the bootloader reads it back from app_base + app_size.
+ * It starts word-aligned so the key is a word load. qingke-rt places
+ * .data's load image last, so anchor on it explicitly; the location
+ * counter after .data is a RAM address. */
 SECTIONS
 {
-    .tb_version ALIGN(LOADADDR(.data) + SIZEOF(.data), 2) :
+    .tb_version ALIGN(LOADADDR(.data) + SIZEOF(.data), 4) :
     {
-        __tb_version = .;
         KEEP(*(.tb_version));
     } > CODE
 } INSERT AFTER .data;

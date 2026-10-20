@@ -3,7 +3,7 @@ use crate::ringbuf::RingBuf;
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
 use tinyboot_protocol::frame::{Frame, InfoData, VerifyData};
-use tinyboot_protocol::{Cmd, ReadError, ResetFlags, Status, WriteFlags};
+use tinyboot_protocol::{COMPAT_UNSET, Cmd, ReadError, ResetFlags, Status, WriteFlags};
 
 /// Protocol dispatcher with write buffering.
 ///
@@ -161,6 +161,23 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
         if sz == 0 || sz > capacity as usize {
             self.frame.status = Status::AddrOutOfBounds;
             return;
+        }
+
+        let key = crate::tinyboot_compat();
+        if key != COMPAT_UNSET {
+            // The image tail starts word-aligned, so a tagged image ends 2
+            // bytes past a word with its key just before the version.
+            let base = self.platform.storage.as_slice().as_ptr();
+            // Wraps above capacity when sz < 6.
+            let at = sz.wrapping_sub(6);
+            // SAFETY: at < capacity and word-aligned.
+            if at & 3 != 0
+                || at >= capacity as usize
+                || unsafe { base.add(at).cast::<u32>().read_volatile() } != key
+            {
+                self.frame.status = Status::Incompatible;
+                return;
+            }
         }
 
         // SAFETY: sz bounded against capacity above.

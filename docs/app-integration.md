@@ -81,6 +81,19 @@ uart_config.baudrate = app.baud().map_or(115200, |b| b.hz());
 
 `set_baud()` erases and rewrites the metadata page (skipped when the rate is already stored), in a critical section like `confirm()`.
 
+## Compatibility key - only the right image installs
+
+`app_version!()` and `boot_version!()` end each image with a 6-byte tail: a 32-bit compatibility key, then the version. Give the bootloader a key and it accepts only images that carry the same one:
+
+```rust
+// bootloader
+tinyboot_ch32::boot::boot_version!(compat = "acme-widget-rev-b");
+// app
+tinyboot_ch32::app::app_version!(compat = "acme-widget-rev-b");
+```
+
+`compat = "name"` hashes the name at compile time (32-bit FNV-1a); `compat_key = 0x1234_5678` takes a raw value. tinyboot only compares keys, so encode whatever has to match: product, board revision, pinout. `Verify` refuses an image with another key, or none, with `Status::Incompatible` and leaves the device in its bootloader waiting for the right image; a mistaken image never starts. A bootloader built without a key accepts any image and carries no check.
+
 ## UART sharing notes
 
 The bootloader and app normally share the same USART. A few gotchas:

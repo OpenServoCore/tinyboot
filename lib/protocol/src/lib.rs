@@ -215,13 +215,32 @@ pub enum Status {
     Unsupported = 0x05,
     /// Frame payload exceeds maximum size.
     PayloadOverflow = 0x06,
+    /// The image's compatibility key differs from the bootloader's.
+    Incompatible = 0x07,
 }
 
 impl Status {
     /// Returns true if `b` is a valid status code.
     pub fn is_valid(b: u8) -> bool {
-        b <= 0x06
+        b <= 0x07
     }
+}
+
+/// Compatibility key that matches every image: the bootloader skips the
+/// check (erased flash sentinel).
+pub const COMPAT_UNSET: u32 = 0xFFFF_FFFF;
+
+/// Compatibility key from a name, a 32-bit FNV-1a hash evaluated at
+/// compile time. Never returns [`COMPAT_UNSET`].
+pub const fn compat_key(name: &str) -> u32 {
+    let bytes = name.as_bytes();
+    let mut h: u32 = 0x811C_9DC5;
+    let mut i = 0;
+    while i < bytes.len() {
+        h = (h ^ bytes[i] as u32).wrapping_mul(0x0100_0193);
+        i += 1;
+    }
+    if h == COMPAT_UNSET { h - 1 } else { h }
 }
 
 /// Transport IO error.
@@ -248,8 +267,8 @@ mod tests {
     fn status_is_valid() {
         assert!(Status::is_valid(Status::Request as u8));
         assert!(Status::is_valid(Status::Unsupported as u8));
-        assert!(Status::is_valid(Status::PayloadOverflow as u8));
-        assert!(!Status::is_valid(0x07));
+        assert!(Status::is_valid(Status::Incompatible as u8));
+        assert!(!Status::is_valid(0x08));
         assert!(!Status::is_valid(0xFF));
     }
 
@@ -268,6 +287,13 @@ mod tests {
     #[test]
     fn baud_rates_ascend() {
         assert!(BaudRate::ALL.windows(2).all(|w| w[0].hz() < w[1].hz()));
+    }
+
+    #[test]
+    fn compat_key_is_fnv1a_and_never_unset() {
+        assert_eq!(compat_key(""), 0x811C_9DC5);
+        assert_eq!(compat_key("a"), 0xE40C_292C);
+        assert_ne!(compat_key("board-a"), compat_key("board-b"));
     }
 
     #[test]
