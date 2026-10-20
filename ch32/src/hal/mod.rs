@@ -6,6 +6,7 @@ mod generated {
 pub use generated::{Pin, UsartMapping};
 
 pub mod afio;
+pub mod esig;
 pub mod flash;
 pub mod gpio;
 pub mod iwdg;

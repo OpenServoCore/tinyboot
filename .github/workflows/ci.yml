@@ -65,6 +65,8 @@ jobs:
         run: cd examples/ch32/v003 && cargo +nightly clippy -p boot --no-default-features --features "${{ matrix.chip }},system-flash" -- -D warnings
       - name: Build boot (system-flash)
         run: cd examples/ch32/v003 && cargo +nightly build -p boot --no-default-features --features "${{ matrix.chip }},system-flash" --release
+      - name: Size gate (every option at once fits system flash)
+        run: cd examples/ch32/v003 && cargo +nightly build -p boot --bin heaviest --no-default-features --features "${{ matrix.chip }},system-flash" --release
       - name: Clippy boot (user-flash)
         run: cd examples/ch32/v003 && cargo +nightly clippy -p boot --no-default-features --features "${{ matrix.chip }},user-flash" -- -D warnings
       - name: Build boot (user-flash)
