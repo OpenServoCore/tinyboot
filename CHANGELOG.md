@@ -4,6 +4,42 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ## [Unreleased]
 
+## [tinyboot 0.5.0] - 2026-10-20
+
+### Added
+
+- `tinyboot baud <rate>` stores the bootloader's baud and resets the device back into its current mode; in bootloader mode it reconnects at the new rate to check the bootloader answers. `tinyboot baud default` restores the build default.
+
+## [tinyboot-ch32 0.7.0] - 2026-10-20
+
+### Added
+
+- The bootloader runs its USART at the baud stored in boot metadata, falling back to `UsartConfig::baud` when nothing is stored or `pclk` cannot reach the rate (divisor below 16). Divisors are computed at build time, so there is no runtime divide; the CH32V003 example bootloader grows by 64 bytes.
+- `app::BaudRate` re-export for `App::set_baud` / `App::baud`.
+
+### Changed
+
+- **Breaking:** `BaudRate` is `tinyboot_protocol::BaudRate`, a `u8` index enum with `hz()`, instead of a `u32` enum whose discriminant was the rate.
+- **Breaking:** boot metadata is 12 bytes: a `baud` index byte (`0xFF` = build default) and 3 reserved bytes follow `app_size`. Existing metadata reads as the build default.
+
+## [tinyboot-core 0.6.0] - 2026-10-20
+
+### Added
+
+- `Reset` with `ResetFlags::BAUD` stores addr byte 0 as the bootloader's baud before resetting, in the bootloader and in `App::poll`.
+- `App::baud` returns the stored bootloader baud; `App::set_baud` stores one, skipping the flash write when it is already stored.
+
+### Changed
+
+- **Breaking:** `BootMetaStore` has `baud` and `set_baud`, and `refresh` keeps the stored baud.
+
+## [tinyboot-protocol 0.5.0] - 2026-10-20
+
+### Added
+
+- `BaudRate`, the 14 rates from 9600 to 3M as append-only `u8` indices, with `hz`, `from_u8`, `from_hz` and `ALL`.
+- `ResetFlags::BAUD`: store addr byte 0 as the bootloader's baud before resetting.
+
 ## [tinyboot-protocol 0.4.1] - 2026-10-19
 
 ### Fixed

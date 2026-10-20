@@ -47,14 +47,18 @@ fn main() -> ! {
     tim.start();
     unsafe { ch32_hal::interrupt::TIM2.enable() };
 
+    let mut app = tinyboot_ch32::app::new_app(tinyboot_ch32::app::BootCtl::new());
+
     // USART1 blocking — must match the bootloader's pin mapping.
     // ch32-hal generic param picks the remap:
     //   0 (default): TX=PD5, RX=PD6
     //   1: TX=PD0, RX=PD1
     //   2: TX=PD6, RX=PD5
     //   3: TX=PC0, RX=PC1
+    // Follow the baud stored for the bootloader (`tinyboot baud`), so one
+    // rate reaches the device in either mode.
     let mut uart_config = usart::Config::default();
-    uart_config.baudrate = 115200;
+    uart_config.baudrate = app.baud().map_or(115200, |b| b.hz());
     let uart = Uart::new_blocking::<0>(p.USART1, p.PD6, p.PD5, uart_config).unwrap();
     let (tx, rx) = uart.split();
     let mut rx = transport::Rx(rx);
@@ -72,7 +76,6 @@ fn main() -> ! {
         }),
     };
 
-    let mut app = tinyboot_ch32::app::new_app(tinyboot_ch32::app::BootCtl::new());
     app.confirm();
 
     defmt::info!("Boot confirmed, app ready.");

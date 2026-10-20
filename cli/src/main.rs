@@ -10,6 +10,7 @@ use object::read::elf::{ElfFile32, ProgramHeader as _};
 use object::{LittleEndian, Object, ObjectSection, SectionFlags};
 
 use client::Client;
+use tinyboot_protocol::BaudRate;
 use transport::Serial;
 
 #[derive(Parser)]
@@ -61,6 +62,14 @@ enum Commands {
         /// Output .bin file
         #[arg(short, long)]
         output: String,
+    },
+    /// Set the baud the bootloader uses from its next start, then reset
+    /// the device back into its current mode
+    Baud {
+        /// New rate in bits per second, or `default` for the bootloader's build default
+        rate: String,
+        #[command(flatten)]
+        conn: ConnectionArgs,
     },
     /// Reset the device
     Reset {
@@ -192,6 +201,18 @@ fn load_firmware(data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     Ok(binary)
 }
 
+/// `None` = the bootloader's build default.
+fn parse_baud(rate: &str) -> Result<Option<BaudRate>, Box<dyn std::error::Error>> {
+    if rate == "default" {
+        return Ok(None);
+    }
+    let hz: u32 = rate.parse().map_err(|_| format!("bad baud rate: {rate}"))?;
+    BaudRate::from_hz(hz).map(Some).ok_or_else(|| {
+        let rates: Vec<String> = BaudRate::ALL.iter().map(|b| b.hz().to_string()).collect();
+        format!("unsupported baud rate {hz}; one of: {}", rates.join(", ")).into()
+    })
+}
+
 fn open_serial(port: &str, baud: u32) -> Result<Serial, Box<dyn std::error::Error>> {
     let port = serialport::new(port, baud)
         .timeout(std::time::Duration::from_secs(5))
@@ -320,6 +341,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if reset {
                 client.reset(false); // addr=0: boot app
                 println!("device reset");
+            }
+        }
+        Commands::Baud { rate, conn } => {
+            let baud = parse_baud(&rate)?;
+            let port = resolve_port(conn.port, conn.baud)?;
+            let serial = open_serial(&port, conn.baud)?;
+            let mut client = Client::new(serial);
+            let bootloader = client.info()?.mode == 0;
+            client.set_baud(baud.map_or(0xFF, |b| b as u8), bootloader);
+            drop(client);
+            println!("baud stored: {rate}");
+
+            if !bootloader {
+                println!("the bootloader uses it from its next start");
+                return Ok(());
+            }
+            let Some(baud) = baud else {
+                println!("bootloader restarted at its build default");
+                return Ok(());
+            };
+            // The device answers at the new rate once it has reset.
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            let serial = open_serial(&port, baud.hz())?;
+            let mut client = Client::new(serial);
+            match client.info() {
+                Ok(_) => println!("bootloader answers at {}", baud.hz()),
+                Err(_) => {
+                    return Err(format!(
+                        "no answer at {}: the bootloader falls back to its build default \
+                         when its clock cannot reach a rate",
+                        baud.hz()
+                    )
+                    .into());
+                }
             }
         }
         Commands::Reset { conn, bootloader } => {

@@ -9,11 +9,12 @@ static __tb_version: u16 = 0xFFFF;
 
 use embedded_storage::nor_flash;
 use tinyboot_core::Platform;
+use tinyboot_core::app::{App, AppConfig};
 use tinyboot_core::protocol::Dispatcher;
 use tinyboot_core::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
 use tinyboot_protocol::frame::{Flags, Frame};
-use tinyboot_protocol::{Cmd, Status, WriteFlags};
+use tinyboot_protocol::{BaudRate, Cmd, ResetFlags, Status, WriteFlags};
 
 // -- Mocks --
 
@@ -156,6 +157,8 @@ struct MockBootMeta {
     checksum: u16,
     trials: u8,
     app_size: u32,
+    baud: u8,
+    baud_writes: u32,
 }
 
 impl MockBootMeta {
@@ -165,6 +168,8 @@ impl MockBootMeta {
             checksum: 0xFFFF,
             trials: 0xFF,
             app_size: 0xFFFF_FFFF,
+            baud: 0xFF,
+            baud_writes: 0,
         }
     }
 }
@@ -182,6 +187,14 @@ impl BootMetaStore for MockBootMeta {
     }
     fn app_size(&self) -> u32 {
         self.app_size
+    }
+    fn baud(&self) -> u8 {
+        self.baud
+    }
+    fn set_baud(&mut self, baud: u8) -> Result<(), ()> {
+        self.baud = baud;
+        self.baud_writes += 1;
+        Ok(())
     }
     fn advance(&mut self) -> Result<BootState, ()> {
         let next = self.state as u8;
@@ -486,6 +499,104 @@ fn info_reports_geometry() {
     assert_eq!({ info.capacity }, 256);
     assert_eq!({ info.erase_size }, 64);
     assert_eq!({ info.mode }, 0);
+}
+
+// =============================================================================
+// Reset
+// =============================================================================
+
+fn reset_flags(flags: ResetFlags) -> Flags {
+    Flags { reset: flags }
+}
+
+/// Dispatch a request that ends in the mock's panicking reset.
+fn dispatch_reset(
+    d: &mut Dispatcher<'_, MockTransport, MockStorage, MockBootMeta, MockBootCtl, TEST_BUF_SIZE>,
+) {
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = d.dispatch();
+    }));
+    assert!(r.is_err(), "reset must not return");
+}
+
+#[test]
+fn reset_with_baud_flag_stores_baud_and_replies() {
+    let mut p = platform(BootState::Idle);
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    d.platform.transport.load_request_flags(
+        Cmd::Reset,
+        BaudRate::B1000000 as u32,
+        reset_flags(ResetFlags::BAUD | ResetFlags::BOOTLOADER),
+        0,
+        &[],
+    );
+    dispatch_reset(&mut d);
+    assert_eq!(d.platform.boot_meta.baud, BaudRate::B1000000 as u8);
+    assert_eq!(d.frame.status, Status::Ok);
+    assert_ne!(d.platform.transport.tx_pos, 0);
+}
+
+#[test]
+fn reset_without_baud_flag_keeps_baud() {
+    let mut p = platform(BootState::Idle);
+    p.boot_meta.baud = BaudRate::B500000 as u8;
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    d.platform.transport.load_request_flags(
+        Cmd::Reset,
+        BaudRate::B9600 as u32,
+        reset_flags(ResetFlags::BOOTLOADER),
+        0,
+        &[],
+    );
+    dispatch_reset(&mut d);
+    assert_eq!(d.platform.boot_meta.baud, BaudRate::B500000 as u8);
+    assert_eq!(d.platform.boot_meta.baud_writes, 0);
+}
+
+// =============================================================================
+// App
+// =============================================================================
+
+fn app() -> App<MockBootCtl, MockBootMeta> {
+    App::new(
+        AppConfig {
+            capacity: 256,
+            erase_size: 64,
+            boot_version: 0xFFFF,
+            app_version: 0xFFFF,
+        },
+        MockBootCtl,
+        MockBootMeta::new(BootState::Idle),
+    )
+}
+
+#[test]
+fn app_baud_defaults_to_none() {
+    assert_eq!(app().baud(), None);
+}
+
+#[test]
+fn app_set_baud_round_trips() {
+    let mut a = app();
+    a.set_baud(BaudRate::B1000000);
+    assert_eq!(a.baud(), Some(BaudRate::B1000000));
+}
+
+#[test]
+fn app_reset_with_baud_flag_stores_baud() {
+    let mut a = app();
+    let mut rx = MockTransport::new();
+    rx.load_request_flags(
+        Cmd::Reset,
+        BaudRate::B2000000 as u32,
+        reset_flags(ResetFlags::BAUD),
+        0,
+        &[],
+    );
+    let mut tx = MockTransport::new();
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| a.poll(&mut rx, &mut tx)));
+    assert!(r.is_err(), "reset must not return");
+    assert_eq!(a.baud(), Some(BaudRate::B2000000));
 }
 
 // =============================================================================

@@ -21,6 +21,7 @@ pub mod traits;
 
 pub use crate::core::Core;
 pub use crate::platform::Platform;
+pub use tinyboot_protocol::BaudRate;
 
 #[doc(hidden)]
 pub use tinyboot_protocol::pkg_version;

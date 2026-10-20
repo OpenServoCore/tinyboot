@@ -32,12 +32,12 @@ Picking a mode is controlled by a Cargo feature on your **boot** crate — the a
 
 Regardless of mode, every tinyboot layout reserves four regions, named in [`memory.x`](porting.md#linker-region-contract):
 
-| Region | Role                                  | Where it lives                                     |
-| ------ | ------------------------------------- | -------------------------------------------------- |
-| `BOOT` | Bootloader code                       | System flash (system-flash mode) or top/bottom of user flash (user-flash mode) |
-| `APP`  | Application code                      | User flash                                         |
-| `META` | Boot metadata (state, trials, CRC)    | Last page of user flash                            |
-| `CODE` | Execution mirror (VMA) of `BOOT`      | Usually `0x0000_0000` for boot, `0x0000_0000` + offset for app |
+| Region | Role                                     | Where it lives                                                                 |
+| ------ | ---------------------------------------- | ------------------------------------------------------------------------------ |
+| `BOOT` | Bootloader code                          | System flash (system-flash mode) or top/bottom of user flash (user-flash mode) |
+| `APP`  | Application code                         | User flash                                                                     |
+| `META` | Boot metadata (state, trials, CRC, baud) | Last page of user flash                                                        |
+| `CODE` | Execution mirror (VMA) of `BOOT`         | Usually `0x0000_0000` for boot, `0x0000_0000` + offset for app                 |
 
 The `META` page is always in user flash, even in system-flash mode — it needs to be on a page boundary that matches the chip's erase granularity, and user flash is always present.
 

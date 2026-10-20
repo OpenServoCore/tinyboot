@@ -1,7 +1,7 @@
 pub use ch32_metapac::usart::Usart as Regs;
 
 #[inline(always)]
-pub fn init(r: Regs, pclk: u32, baud: u32, half_duplex: bool) {
+pub fn init(r: Regs, brr: u32, half_duplex: bool) {
     // HDSEL before TE — the reverse order latches the TX output LOW until
     // the first own transmission, clamping the wire from init.
     if half_duplex {
@@ -14,7 +14,6 @@ pub fn init(r: Regs, pclk: u32, baud: u32, half_duplex: bool) {
         w.set_re(true);
     });
 
-    let brr = (pclk + baud / 2) / baud;
     r.brr().write_value(ch32_metapac::usart::regs::Brr(brr));
 
     r.ctlr1().modify(|w| w.set_ue(true));

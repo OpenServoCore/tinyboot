@@ -50,6 +50,15 @@ Reset the device. Use `--bootloader` to reboot into the bootloader instead of th
 tinyboot reset [--port /dev/ttyUSB0] [--baud 115200] [--bootloader]
 ```
 
+### `tinyboot baud`
+
+Store the baud the bootloader runs at from its next start, then reset the device back into its current mode. In bootloader mode the CLI reconnects at the new rate to check that the bootloader answers. `default` restores the bootloader's build default.
+
+```sh
+tinyboot baud 1000000 [--port /dev/ttyUSB0] [--baud 115200]
+tinyboot baud default [--port /dev/ttyUSB0] [--baud 1000000]
+```
+
 ### `tinyboot bin`
 
 Convert an ELF to a flat binary (same extraction logic as `flash`).
