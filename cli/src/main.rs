@@ -9,8 +9,8 @@ use object::elf::{PT_LOAD, SHF_ALLOC};
 use object::read::elf::{ElfFile32, ProgramHeader as _};
 use object::{LittleEndian, Object, ObjectSection, SectionFlags};
 
-use client::Client;
-use tinyboot_protocol::BaudRate;
+use client::{Client, FlashError};
+use tinyboot_protocol::{BaudRate, Status};
 use transport::Serial;
 
 #[derive(Parser)]
@@ -213,6 +213,16 @@ fn parse_baud(rate: &str) -> Result<Option<BaudRate>, Box<dyn std::error::Error>
     })
 }
 
+/// The bootloader refuses to start the app while an update is in progress.
+fn refused_app(e: FlashError) -> Box<dyn std::error::Error> {
+    match e {
+        FlashError::Device(Status::Unsupported) => "the bootloader refused to start the app: \
+             an update is in progress. Flash again, or `tinyboot reset --bootloader`."
+            .into(),
+        e => e.into(),
+    }
+}
+
 fn open_serial(port: &str, baud: u32) -> Result<Serial, Box<dyn std::error::Error>> {
     let port = serialport::new(port, baud)
         .timeout(std::time::Duration::from_secs(5))
@@ -339,7 +349,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
 
             if reset {
-                client.reset(false); // addr=0: boot app
+                client.reset(false, true).map_err(refused_app)?;
                 println!("device reset");
             }
         }
@@ -349,7 +359,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let serial = open_serial(&port, conn.baud)?;
             let mut client = Client::new(serial);
             let bootloader = client.info()?.mode == 0;
-            client.set_baud(baud.map_or(0xFF, |b| b as u8), bootloader);
+            client.set_baud(baud.map_or(0xFF, |b| b as u8), bootloader, bootloader)?;
             drop(client);
             println!("baud stored: {rate}");
 
@@ -381,7 +391,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let port = resolve_port(conn.port, conn.baud)?;
             let serial = open_serial(&port, conn.baud)?;
             let mut client = Client::new(serial);
-            client.reset(bootloader);
+            let in_boot = client.info()?.mode == 0;
+            client.reset(bootloader, in_boot).map_err(refused_app)?;
             println!(
                 "device reset ({})",
                 if bootloader { "bootloader" } else { "app" }

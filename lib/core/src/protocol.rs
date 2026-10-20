@@ -221,7 +221,15 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
                 self.cmd_verify(addr, capacity, state);
             } else {
                 // SAFETY: cmd is Reset, so flags.reset is the active variant.
-                self.cmd_reset(addr, unsafe { flags.reset });
+                let flags = unsafe { flags.reset };
+                // A reset to the app skips the bootloader's META check on
+                // chips that hand off by run mode, so a half-written image
+                // would run.
+                if state == BootState::Updating && !flags.contains(ResetFlags::BOOTLOADER) {
+                    self.frame.status = Status::Unsupported;
+                } else {
+                    self.cmd_reset(addr, flags);
+                }
             }
         } else {
             self.frame.len = 0;

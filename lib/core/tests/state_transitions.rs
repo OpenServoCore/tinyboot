@@ -553,6 +553,67 @@ fn reset_without_baud_flag_keeps_baud() {
     assert_eq!(d.platform.boot_meta.baud_writes, 0);
 }
 
+#[test]
+fn reset_to_app_refused_while_updating() {
+    let mut p = platform(BootState::Updating);
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    d.platform.transport.load_request_flags(
+        Cmd::Reset,
+        BaudRate::B9600 as u32,
+        reset_flags(ResetFlags::BAUD),
+        0,
+        &[],
+    );
+    d.dispatch().unwrap();
+    assert_eq!(d.frame.status, Status::Unsupported);
+    assert_eq!(d.platform.boot_meta.baud_writes, 0);
+    assert_eq!(d.platform.boot_meta.state, BootState::Updating);
+}
+
+#[test]
+fn reset_to_bootloader_allowed_while_updating() {
+    let mut p = platform(BootState::Updating);
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    d.platform.transport.load_request_flags(
+        Cmd::Reset,
+        0,
+        reset_flags(ResetFlags::BOOTLOADER),
+        0,
+        &[],
+    );
+    dispatch_reset(&mut d);
+    assert_eq!(d.frame.status, Status::Ok);
+}
+
+#[test]
+fn reset_to_app_allowed_while_validating() {
+    let mut p = platform(BootState::Validating);
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    d.platform.transport.load_request_flags(
+        Cmd::Reset,
+        0,
+        reset_flags(ResetFlags::empty()),
+        0,
+        &[],
+    );
+    dispatch_reset(&mut d);
+    assert_eq!(d.frame.status, Status::Ok);
+}
+
+#[test]
+fn erase_restarts_an_update() {
+    let mut p = platform(BootState::Updating);
+    p.storage.data[..4].copy_from_slice(&[1, 2, 3, 4]);
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    d.platform
+        .transport
+        .load_request(Cmd::Erase, 0, 2, &erase_data(256));
+    d.dispatch().unwrap();
+    assert_eq!(d.frame.status, Status::Ok);
+    assert_eq!(d.platform.boot_meta.state, BootState::Updating);
+    assert!(d.platform.storage.data.iter().all(|&b| b == 0xFF));
+}
+
 // =============================================================================
 // App
 // =============================================================================
