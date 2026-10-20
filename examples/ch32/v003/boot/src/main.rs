@@ -22,19 +22,23 @@ fn main() -> ! {
     //   Remap2:           TX=PD6, RX=PD5
     //   Remap3:           TX=PC0, RX=PC1
     //
-    // rx_pull: Pull::Up for floating lines; Pull::None if externally pulled up.
+    // Two-wire UART with an RS-485 DE pin. One wire instead:
+    // `wire: HalfDuplex { drive: PushPullWhileSending }` (the wire needs a
+    // pull-up); no DE pin: `tx_en: NoTxEn`. See docs/transports.md.
     //
-    // Single-wire half duplex: enable tinyboot-ch32's `half-duplex`
-    // feature (drops `rx_pull`; the wire needs a pull-up).
+    // rx_pull: Pull::Up for floating lines; Pull::None if externally pulled up.
     let transport = Usart::new(&UsartConfig {
         baud: BaudRate::B115200,
         pclk: 8_000_000,
         mapping: UsartMapping::Usart1Remap0,
-        rx_pull: Pull::None,
-        tx_en: Some(TxEnConfig {
+        wire: FullDuplex {
+            rx_pull: Pull::None,
+            drive: PushPull,
+        },
+        tx_en: TxEn {
             pin: Pin::PC2,
             tx_level: Level::Low,
-        }),
+        },
     });
     tinyboot_ch32::boot::run(transport, BootCtl::new());
 }

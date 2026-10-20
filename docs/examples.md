@@ -45,7 +45,7 @@ The example workspaces are built across a CI matrix: multiple chip variants × s
 1. Copy the example that matches your chip (e.g. `examples/ch32/v003/`) to a new directory.
 2. In the `boot/Cargo.toml`, remove the extra variant features you don't need. Leave one, set as the default.
 3. Pick a flash mode. Delete the `memory_x/` file you don't need, and simplify `build.rs` to just copy the remaining one.
-4. In `src/main.rs`, change the UART config (pins, baud, tx_en — and the `half-duplex` cargo feature for single-wire boards) to match your board.
+4. In `src/main.rs`, change the UART config (pins, baud, `wire`, `tx_en`) to match your board.
 5. Do the same for `app/` — match the UART config, adjust your pins.
 
 That gives you a minimal, single-purpose workspace with none of the CI scaffolding.

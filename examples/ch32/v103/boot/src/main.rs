@@ -20,15 +20,22 @@ fn main() -> ! {
     // USART1 transport. Remap options (CH32V103):
     //   Remap0 (default): TX=PA9, RX=PA10
     //   Remap1:           TX=PB6, RX=PB7
+    //
+    // Two-wire UART with an RS-485 DE pin. One wire instead:
+    // `wire: HalfDuplex { drive: PushPullWhileSending }` (the wire needs a
+    // pull-up); no DE pin: `tx_en: NoTxEn`. See docs/transports.md.
     let transport = Usart::new(&UsartConfig {
         baud: BaudRate::B115200,
         pclk: 8_000_000,
         mapping: UsartMapping::Usart1Remap0,
-        rx_pull: Pull::None,
-        tx_en: Some(TxEnConfig {
+        wire: FullDuplex {
+            rx_pull: Pull::None,
+            drive: PushPull,
+        },
+        tx_en: TxEn {
             pin: Pin::PC2,
             tx_level: Level::Low,
-        }),
+        },
     });
 
     // system-flash: GPIO drives the external BOOT0 circuit. The Level arg is

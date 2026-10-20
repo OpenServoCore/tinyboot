@@ -57,8 +57,6 @@ jobs:
         run: cd ch32 && cargo +nightly clippy --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v003/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec -- -D warnings
       - name: Build libraries
         run: cd ch32 && cargo +nightly build --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v003/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --release
-      - name: Clippy libraries (half-duplex)
-        run: cd ch32 && cargo +nightly clippy --no-default-features --features ${{ matrix.chip }},half-duplex --target ../examples/ch32/v003/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec -- -D warnings
       - name: Doc libraries
         run: cd ch32 && cargo +nightly doc --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v003/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --no-deps
       - name: Fmt examples
@@ -97,8 +95,6 @@ jobs:
         run: cd ch32 && cargo +nightly clippy --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v00x/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec -- -D warnings
       - name: Build libraries
         run: cd ch32 && cargo +nightly build --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v00x/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --release
-      - name: Clippy libraries (half-duplex)
-        run: cd ch32 && cargo +nightly clippy --no-default-features --features ${{ matrix.chip }},half-duplex --target ../examples/ch32/v00x/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec -- -D warnings
       - name: Doc libraries
         run: cd ch32 && cargo +nightly doc --no-default-features --features ${{ matrix.chip }} --target ../examples/ch32/v00x/riscv32ec-unknown-none-elf.json -Zbuild-std=core -Zjson-target-spec --no-deps
       - name: Fmt examples
@@ -140,8 +136,6 @@ jobs:
         run: cd ch32 && cargo +nightly clippy --no-default-features --features ${{ matrix.chip }} --target riscv32imc-unknown-none-elf -- -D warnings
       - name: Build libraries
         run: cd ch32 && cargo +nightly build --no-default-features --features ${{ matrix.chip }} --target riscv32imc-unknown-none-elf --release
-      - name: Clippy libraries (half-duplex)
-        run: cd ch32 && cargo +nightly clippy --no-default-features --features ${{ matrix.chip }},half-duplex --target riscv32imc-unknown-none-elf -- -D warnings
       - name: Fmt examples
         run: cd examples/ch32/v103 && cargo +nightly fmt --all -- --check
       - name: Clippy boot (system-flash)
