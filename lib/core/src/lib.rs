@@ -14,8 +14,6 @@ pub mod core;
 pub mod platform;
 /// Protocol frame dispatcher.
 pub mod protocol;
-/// Fixed-size ring buffer for buffered flash writes.
-pub mod ringbuf;
 /// Platform abstraction traits.
 pub mod traits;
 

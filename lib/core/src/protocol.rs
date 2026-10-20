@@ -1,5 +1,4 @@
 use crate::platform::Platform;
-use crate::ringbuf::RingBuf;
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
 use tinyboot_protocol::crc::{CRC_INIT, crc16};
 use tinyboot_protocol::frame::{DEFAULT_PAYLOAD, Frame, InfoData, VerifyData};
@@ -7,10 +6,10 @@ use tinyboot_protocol::{COMPAT_UNSET, Cmd, ReadError, ResetFlags, Status, WriteF
 
 /// Protocol dispatcher with write buffering.
 ///
-/// Writes are accumulated in a ring buffer and flushed a page at a time.
+/// Writes are accumulated in a page buffer and written a page at a time.
 /// The host sets [`WriteFlags::FLUSH`] on the last write of each contiguous
-/// region to commit the trailing partial page. `P` is the frame's data
-/// capacity, reported by Info; `BUF` must hold a page plus `P - 1` bytes.
+/// region to commit the trailing partial page. `BUF` is the page, the
+/// storage's write size; `P` is the frame's data capacity, reported by Info.
 pub struct Dispatcher<
     'a,
     T: Transport,
@@ -24,11 +23,18 @@ pub struct Dispatcher<
     pub platform: &'a mut Platform<T, S, B, C>,
     /// Reusable frame buffer.
     pub frame: Frame<P>,
-    /// 2 × page size.
-    buf: RingBuf<BUF>,
-    /// Expected address of the next sequential write; `None` accepts any.
-    next_addr: Option<u32>,
+    /// Page being filled; `fill` bytes, ending just before `next`.
+    page: Page<BUF>,
+    fill: usize,
+    /// Address of the next sequential write; [`ANY`] after a flush.
+    next: u32,
 }
+
+/// No write is pending: the next may start at any page-aligned address.
+const ANY: u32 = u32::MAX;
+
+#[repr(align(4))]
+struct Page<const N: usize>(core::mem::MaybeUninit<[u8; N]>);
 
 impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usize, const P: usize>
     Dispatcher<'a, T, S, B, C, BUF, P>
@@ -38,18 +44,18 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
         Self {
             platform,
             frame: Frame::default(),
-            buf: RingBuf::default(),
-            next_addr: None,
+            page: Page(core::mem::MaybeUninit::uninit()),
+            fill: 0,
+            next: ANY,
         }
     }
 
-    fn write_buf(&mut self, next: u32, n: usize) {
-        let addr = next - self.buf.len() as u32;
-        let data = self.buf.peek(n);
-        if self.platform.storage.write(addr, data).is_err() {
+    fn write_page(&mut self, end: u32, n: usize) {
+        // SAFETY: the first n <= BUF bytes were filled.
+        let data = unsafe { core::slice::from_raw_parts(self.page.0.as_ptr().cast::<u8>(), n) };
+        if self.platform.storage.write(end - n as u32, data).is_err() {
             self.frame.status = Status::WriteError;
         }
-        self.buf.consume(n);
     }
 
     #[inline(always)]
@@ -61,36 +67,45 @@ impl<'a, T: Transport, S: Storage, B: BootMetaStore, C: BootCtl, const BUF: usiz
         capacity: u32,
         state: BootState,
     ) {
+        const { assert!(BUF == S::WRITE_SIZE) };
         if state != BootState::Updating {
             self.frame.status = Status::Unsupported;
             return;
         }
 
-        let flush = flags.contains(WriteFlags::FLUSH);
-
+        let mut fill = self.fill;
         if addr + data_len as u32 > capacity
-            || (self.next_addr.is_none() && !addr.is_multiple_of(S::WRITE_SIZE as u32))
-            || self.next_addr.is_some_and(|n| n != addr)
+            || if self.next == ANY {
+                !addr.is_multiple_of(BUF as u32)
+            } else {
+                addr != self.next
+            }
         {
             self.frame.status = Status::AddrOutOfBounds;
             return;
         }
 
-        // SAFETY: data_len <= P validated by frame.read()
-        self.buf
-            .push(unsafe { self.frame.data.raw.get_unchecked(..data_len) });
-        let next = addr + data_len as u32;
-        self.next_addr = Some(next);
-        if self.buf.len() >= S::WRITE_SIZE {
-            self.write_buf(next, S::WRITE_SIZE);
-        }
-        if flush {
-            if !self.buf.is_empty() {
-                self.write_buf(next, self.buf.len());
+        let mut next = addr;
+        let dst = self.page.0.as_mut_ptr().cast::<u8>();
+        for i in 0..data_len {
+            // SAFETY: i < data_len <= P (frame.read() validated it), fill < BUF.
+            unsafe { *dst.add(fill) = *self.frame.data.raw.get_unchecked(i) };
+            fill += 1;
+            next += 1;
+            if fill == BUF {
+                self.write_page(next, BUF);
+                fill = 0;
             }
-            self.buf.reset();
-            self.next_addr = None;
         }
+        if flags.contains(WriteFlags::FLUSH) {
+            if fill != 0 {
+                self.write_page(next, fill);
+                fill = 0;
+            }
+            next = ANY;
+        }
+        self.fill = fill;
+        self.next = next;
     }
 
     #[inline(always)]

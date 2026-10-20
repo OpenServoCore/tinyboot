@@ -296,7 +296,7 @@ fn info_reports_geometry() {
 fn info_reports_stored_baud_and_payload_capacity() {
     let mut p = platform(BootState::Idle);
     p.boot_meta.baud = BaudRate::B1000000 as u8;
-    let mut d = Dispatcher::<_, _, _, _, 512, 240>::new(&mut p);
+    let mut d = Dispatcher::<_, _, _, _, 4, 240>::new(&mut p);
     d.platform.transport.load_request(Cmd::Info, 0, 0, &[]);
     d.dispatch().unwrap();
     let info = unsafe { d.frame.data.info };
@@ -307,7 +307,7 @@ fn info_reports_stored_baud_and_payload_capacity() {
 #[test]
 fn write_accepts_a_full_large_payload() {
     let mut p = platform(BootState::Updating);
-    let mut d = Dispatcher::<_, _, _, _, 512, 240>::new(&mut p);
+    let mut d = Dispatcher::<_, _, _, _, 4, 240>::new(&mut p);
     let data = [0xA5; 240];
     d.platform
         .transport
@@ -576,6 +576,32 @@ fn write_non_sequential_without_flush_rejected() {
         .load_request(Cmd::Write, 128, 4, &[0; 4]);
     d.dispatch().unwrap();
     assert_eq!(d.frame.status, Status::AddrOutOfBounds);
+}
+
+#[test]
+fn writes_straddling_pages_are_written_a_page_at_a_time() {
+    let mut p = platform(BootState::Updating);
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+
+    d.platform
+        .transport
+        .load_request(Cmd::Write, 0, 3, &[1, 2, 3]);
+    d.dispatch().unwrap();
+    assert_eq!(d.frame.status, Status::Ok);
+    d.platform
+        .transport
+        .load_request(Cmd::Write, 3, 3, &[4, 5, 6]);
+    d.dispatch().unwrap();
+    assert_eq!(d.frame.status, Status::Ok);
+    d.platform
+        .transport
+        .load_request_flags(Cmd::Write, 6, flush_flags(), 3, &[7, 8, 9]);
+    d.dispatch().unwrap();
+    assert_eq!(d.frame.status, Status::Ok);
+    assert_eq!(
+        &d.platform.storage.data[..10],
+        &[1, 2, 3, 4, 5, 6, 7, 8, 9, 0xFF]
+    );
 }
 
 #[test]

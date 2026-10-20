@@ -22,7 +22,7 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 - `boot_version!(compat = "name")` and `app_version!(compat = "name")` (re-exported from core): a bootloader with a compatibility key accepts only app images with the same key. The V00x and V103 examples set one.
 - The bootloader runs its USART at the baud stored in boot metadata, falling back to `UsartConfig::baud` when nothing is stored or `pclk` cannot reach the rate (divisor below 16). Divisors are computed at build time, so there is no runtime divide; the CH32V003 example bootloader grows by 64 bytes.
 - `app::BaudRate` re-export for `App::set_baud` / `App::baud`.
-- `boot::run_with_payload::<N>` runs the bootloader with an `N`-byte frame payload, up to a flash page; `boot::run` uses the 52-byte default.
+- `boot::run_with_payload::<N>` runs the bootloader with an `N`-byte frame payload (at least 18; a Write may span flash pages); `boot::run` uses the 52-byte default.
 
 ### Changed
 
@@ -44,6 +44,7 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 - **Breaking:** `BootMetaStore` has `baud` and `set_baud`, and `refresh` keeps the stored baud.
 - **Breaking:** `Core`, `Dispatcher` and `App` take the frame's payload capacity as a const parameter (default `DEFAULT_PAYLOAD`), and `AppConfig` has `boot_compat`. Info reports the stored boot baud, the bootloader's compatibility key and the payload capacity, in both modes.
 - **Breaking:** the image tail is 6 bytes, `[compat u32, version u16]`, read through the `__tb_tail` symbol the macros define. `tb-app.x` starts it word-aligned and exports `__tb_boot_tail` (was `__tb_boot_version_addr`); `tb-boot.x` places it in the last 6 bytes of BOOT. The version stays in the last 2 bytes of each image.
+- **Breaking:** writes collect in a one-page buffer instead of a two-page ring buffer, and the `ringbuf` module is gone. `BUF` on `Core` and `Dispatcher` is the storage's write size (was twice it), halving the RAM. The CH32V003 example bootloader shrinks by about 100 bytes.
 - `Reset` to the app is refused with `Unsupported` while an update is in progress (`Updating`). Chips that hand off by run mode start the app without the bootloader checking META, so a half-written image used to run. `Reset` with `BOOTLOADER` and `Erase` still restart the update.
 
 ## [tinyboot-protocol 0.5.0] - 2026-10-20

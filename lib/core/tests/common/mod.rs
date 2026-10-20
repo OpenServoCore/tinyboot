@@ -138,6 +138,11 @@ impl nor_flash::NorFlash for MockStorage {
     fn write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
         let start = offset as usize;
         let end = start + bytes.len();
+        assert!(
+            start.is_multiple_of(Self::WRITE_SIZE),
+            "write not page-aligned"
+        );
+        assert!(bytes.len() <= Self::WRITE_SIZE, "write crosses a page");
         if end > self.data.len() {
             return Err(nor_flash::NorFlashErrorKind::OutOfBounds);
         }
@@ -224,7 +229,7 @@ impl BootMetaStore for MockBootMeta {
 }
 
 pub type TestPlatform = Platform<MockTransport, MockStorage, MockBootMeta, MockBootCtl>;
-pub const TEST_BUF_SIZE: usize = 128;
+pub const TEST_BUF_SIZE: usize = 4;
 
 pub fn platform(state: BootState) -> TestPlatform {
     Platform::new(

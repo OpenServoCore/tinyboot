@@ -31,7 +31,7 @@ pub fn run(transport: impl tinyboot_core::traits::Transport, ctl: BootCtl) -> ! 
 }
 
 /// Run the bootloader with a `P`-byte frame payload, at least the 18-byte
-/// Info reply and at most a flash page. A larger payload takes fewer
+/// Info reply; a Write may span flash pages. A larger payload takes fewer
 /// Writes for an image and costs `P` bytes of RAM. Does not return.
 #[inline(always)]
 pub fn run_with_payload<const P: usize>(
@@ -39,8 +39,8 @@ pub fn run_with_payload<const P: usize>(
     ctl: BootCtl,
 ) -> ! {
     const {
-        assert!(P >= InfoData::SIZE as usize && P <= PAGE_SIZE);
+        assert!(P >= InfoData::SIZE as usize);
     }
     let platform = Platform::new(transport, Storage::default(), BootMetaStore::default(), ctl);
-    tinyboot_core::Core::<_, _, _, _, { 2 * PAGE_SIZE }, P>::new(platform).run()
+    tinyboot_core::Core::<_, _, _, _, PAGE_SIZE, P>::new(platform).run()
 }
