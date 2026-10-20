@@ -24,7 +24,7 @@ cargo install wlink
 cargo install tinyboot
 ```
 
-The CH32V003 examples use `riscv32ec-unknown-none-elf`, which is a Tier 3 target that `-Zbuild-std` builds on the fly — nightly is required. CH32V103 examples use the stable `riscv32imc-unknown-none-elf` target.
+The CH32V003 examples use `riscv32ec-unknown-none-elf`, which is a Tier 3 target that `-Zbuild-std` builds on the fly — nightly is required. CH32V103 examples use the built-in `riscv32imc-unknown-none-elf` target, also on nightly like every tinyboot build.
 
 ## 2. Clone the repo
 

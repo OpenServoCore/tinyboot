@@ -37,10 +37,9 @@ Each directory is its own Cargo workspace with an independent `Cargo.lock`. A "c
 
 ## Rust toolchain
 
-- **Library crates (`lib/`, `cli/`)** — stable Rust 1.85+, edition 2024.
-- **CH32 example binaries** — nightly, for `-Zbuild-std` on `riscv32ec-unknown-none-elf` (V003 / V00x) or the stable `riscv32imc-unknown-none-elf` target (V103).
+Everything builds and is tested on nightly, edition 2024: the library crates (`lib/`, `cli/`, `ch32/`) and the CH32 examples. The V003 / V00x examples need it for `-Zbuild-std` on `riscv32ec-unknown-none-elf`; the V103 examples use the built-in `riscv32imc-unknown-none-elf` target with linker relaxation (`+relax`), which stable rustc warns about as an unstable target feature.
 
-Each example workspace pins its toolchain via `rust-toolchain.toml`.
+The repository root and each example workspace pin nightly via `rust-toolchain.toml`.
 
 ## Running tests
 
