@@ -35,7 +35,16 @@ impl BootState {
 }
 
 /// Firmware transfer transport.
-pub trait Transport: embedded_io::Read + embedded_io::Write {}
+pub trait Transport: embedded_io::Read + embedded_io::Write {
+    /// Wait about `n` byte-times (10 bit-times each) at the current baud.
+    /// An addressable device waits a draw of 0 to 15 before its `Select`
+    /// reply, so devices running the same code do not answer in unison.
+    /// The default returns at once; give a shared bus a real wait (it may
+    /// overshoot).
+    fn wait_bytes(&mut self, n: u8) {
+        let _ = n;
+    }
+}
 
 /// App-region flash. [`as_slice`](Storage::as_slice) gives zero-copy reads
 /// (flash is memory-mapped on supported chips).

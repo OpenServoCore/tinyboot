@@ -1,6 +1,7 @@
 //! App-side tinyboot client. Handles boot confirmation and responds to
 //! Info/Reset commands so the CLI can drive updates without physical access.
 
+use crate::addressing::{self, Addressing, Unaddressed};
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode};
 use tinyboot_protocol::frame::{DEFAULT_PAYLOAD, Frame, InfoData};
 use tinyboot_protocol::{BaudRate, Cmd, ResetFlags, Status};
@@ -19,22 +20,47 @@ pub struct AppConfig {
     pub app_version: u16,
 }
 
-/// App-side tinyboot client. `P` is the frame's data capacity.
-pub struct App<C: BootCtl, M: BootMetaStore, const P: usize = DEFAULT_PAYLOAD> {
+/// App-side tinyboot client. `P` is the frame's data capacity, `A` its
+/// bus addressing.
+pub struct App<
+    C: BootCtl,
+    M: BootMetaStore,
+    const P: usize = DEFAULT_PAYLOAD,
+    A: Addressing = Unaddressed,
+> {
     frame: Frame<P>,
     config: AppConfig,
     ctl: C,
     meta: M,
+    addressing: A,
+    wait_bytes: fn(u8),
 }
 
-impl<C: BootCtl, M: BootMetaStore, const P: usize> App<C, M, P> {
-    /// Create a new app client.
+impl<C: BootCtl, M: BootMetaStore, const P: usize> App<C, M, P, Unaddressed> {
+    /// Create an unaddressed app client.
     pub fn new(config: AppConfig, ctl: C, meta: M) -> Self {
+        Self::with_addressing(config, ctl, meta, Unaddressed, |_| {})
+    }
+}
+
+impl<C: BootCtl, M: BootMetaStore, const P: usize, A: Addressing> App<C, M, P, A> {
+    /// Create an app client with the given bus addressing. `wait_bytes(n)`
+    /// waits about `n` byte-times at the bus baud before a `Select`
+    /// reply (see [`Transport::wait_bytes`](crate::traits::Transport::wait_bytes)).
+    pub fn with_addressing(
+        config: AppConfig,
+        ctl: C,
+        meta: M,
+        addressing: A,
+        wait_bytes: fn(u8),
+    ) -> Self {
         Self {
             frame: Frame::default(),
             config,
             ctl,
             meta,
+            addressing,
+            wait_bytes,
         }
     }
 
@@ -73,13 +99,7 @@ impl<C: BootCtl, M: BootMetaStore, const P: usize> App<C, M, P> {
             Ok(s) => s,
             Err(_) => return,
         };
-        if status == Status::Ok {
-            self.handle_cmd();
-        } else {
-            self.frame.len = 0;
-            self.frame.status = status;
-        }
-        if self.frame.cmd != Cmd::Reset {
+        if self.process(status) {
             let _ = self.frame.send(tx);
             let _ = tx.flush();
         }
@@ -95,16 +115,32 @@ impl<C: BootCtl, M: BootMetaStore, const P: usize> App<C, M, P> {
             Ok(s) => s,
             Err(_) => return,
         };
-        if status == Status::Ok {
-            self.handle_cmd();
-        } else {
-            self.frame.len = 0;
-            self.frame.status = status;
-        }
-        if self.frame.cmd != Cmd::Reset {
+        if self.process(status) {
             let _ = self.frame.send_async(tx).await;
             let _ = tx.flush().await;
         }
+    }
+
+    /// Act on a read frame; returns whether to reply. Same addressing
+    /// rules as the bootloader's dispatcher.
+    fn process(&mut self, status: Status) -> bool {
+        if A::ADDRESSABLE {
+            if status != Status::Ok || self.frame.status != Status::Request {
+                return false;
+            }
+            if self.frame.cmd == Cmd::Select {
+                return addressing::select(&mut self.addressing, &mut self.frame, self.wait_bytes);
+            }
+            if !self.addressing.selected() {
+                return false;
+            }
+        } else if status != Status::Ok {
+            self.frame.len = 0;
+            self.frame.status = status;
+            return true;
+        }
+        self.handle_cmd();
+        self.frame.cmd != Cmd::Reset
     }
 
     fn handle_cmd(&mut self) {

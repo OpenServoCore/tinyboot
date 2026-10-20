@@ -6,6 +6,8 @@
 //! Boot state machine, protocol dispatcher, app validation. Platform-specific
 //! behaviour is injected via the traits in [`traits`].
 
+/// Bus addressing: one device per bus, or many selected by unique id.
+pub mod addressing;
 /// App-side tinyboot client.
 pub mod app;
 /// Boot state machine and entry point.

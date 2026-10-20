@@ -1,3 +1,4 @@
+use crate::addressing::{Addressing, Unaddressed};
 use crate::platform::Platform;
 use crate::protocol;
 use crate::traits::{BootCtl, BootMetaStore, BootState, RunMode, Storage, Transport};
@@ -5,7 +6,7 @@ use tinyboot_protocol::frame::DEFAULT_PAYLOAD;
 
 /// Bootloader entry point. Validates the app and either hands off or enters
 /// the protocol loop.
-pub struct Core<T, S, B, C, const BUF: usize, const P: usize = DEFAULT_PAYLOAD>
+pub struct Core<T, S, B, C, const BUF: usize, const P: usize = DEFAULT_PAYLOAD, A = Unaddressed>
 where
     T: Transport,
     S: Storage,
@@ -13,27 +14,49 @@ where
     C: BootCtl,
 {
     platform: Platform<T, S, B, C>,
+    addressing: A,
 }
 
-impl<T, S, B, C, const BUF: usize, const P: usize> Core<T, S, B, C, BUF, P>
+impl<T, S, B, C, const BUF: usize, const P: usize> Core<T, S, B, C, BUF, P, Unaddressed>
 where
     T: Transport,
     S: Storage,
     B: BootMetaStore,
     C: BootCtl,
 {
-    /// Wrap a platform in a bootloader core.
+    /// Wrap a platform in an unaddressed bootloader core.
     #[inline(always)]
     pub fn new(platform: Platform<T, S, B, C>) -> Self {
-        Core { platform }
+        Self::with_addressing(platform, Unaddressed)
+    }
+}
+
+impl<T, S, B, C, const BUF: usize, const P: usize, A> Core<T, S, B, C, BUF, P, A>
+where
+    T: Transport,
+    S: Storage,
+    B: BootMetaStore,
+    C: BootCtl,
+    A: Addressing,
+{
+    /// Wrap a platform in a bootloader core with the given bus addressing.
+    #[inline(always)]
+    pub fn with_addressing(platform: Platform<T, S, B, C>, addressing: A) -> Self {
+        Core {
+            platform,
+            addressing,
+        }
     }
 
     /// Run the bootloader. Does not return.
     #[inline(always)]
     pub fn run(mut self) -> ! {
+        // Taken before any call: `self` then escapes, and a copy read
+        // later would be a load instead of a constant.
+        let addressing = self.addressing;
         match self.check_boot_state() {
             Ok(RunMode::HandOff) => self.platform.ctl.hand_off(),
-            Ok(RunMode::Service) | Err(_) => self.enter_bootloader(),
+            Ok(RunMode::Service) | Err(_) => self.enter_bootloader(addressing),
         }
     }
 
@@ -80,8 +103,11 @@ where
     }
 
     #[inline(always)]
-    fn enter_bootloader(&mut self) -> ! {
-        let mut d = protocol::Dispatcher::<_, _, _, _, BUF, P>::new(&mut self.platform);
+    fn enter_bootloader(&mut self, addressing: A) -> ! {
+        let mut d = protocol::Dispatcher::<_, _, _, _, BUF, P, A>::with_addressing(
+            &mut self.platform,
+            addressing,
+        );
 
         loop {
             let _ = d.dispatch();

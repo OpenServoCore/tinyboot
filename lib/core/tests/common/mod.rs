@@ -17,6 +17,8 @@ pub struct MockTransport {
     pub rx_pos: usize,
     pub tx_buf: [u8; 512],
     pub tx_pos: usize,
+    /// Last `wait_bytes` argument.
+    pub waited: Option<u8>,
     pub flushes: usize,
 }
 
@@ -28,6 +30,7 @@ impl MockTransport {
             rx_pos: 0,
             tx_buf: [0; 512],
             tx_pos: 0,
+            waited: None,
             flushes: 0,
         }
     }
@@ -91,7 +94,11 @@ impl embedded_io::Write for MockTransport {
     }
 }
 
-impl Transport for MockTransport {}
+impl Transport for MockTransport {
+    fn wait_bytes(&mut self, n: u8) {
+        self.waited = Some(n);
+    }
+}
 
 // Word-aligned like flash, for the bootloader's word load of an image key.
 #[repr(C, align(4))]
