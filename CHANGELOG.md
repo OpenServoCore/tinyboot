@@ -4,6 +4,12 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ## [Unreleased]
 
+## [tinyboot-protocol 0.4.1] - 2026-10-19
+
+### Fixed
+
+- `Frame::default` writes the header fields in place and leaves `data` uninitialized. It used to `assume_init` the whole frame and assign fields, which is undefined behavior for the enum fields and let LLVM build the frame with a 64-byte `memcpy` of the payload. Images that pulled in `memcpy` for it shrink (a CH32V006 bootloader by 472 bytes); the example images are byte-identical.
+
 ## [tinyboot-ch32 0.6.0] - 2026-10-19
 
 ### Changed
