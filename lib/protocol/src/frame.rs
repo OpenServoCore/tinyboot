@@ -103,18 +103,24 @@ pub struct Frame {
 impl Default for Frame {
     /// Create a default frame. Data buffer is uninitialized — `read()` or
     /// caller writes populate it before use.
+    ///
+    /// Header fields are written in place through a raw pointer, so `data`
+    /// stays uninit (valid for a union) and is never copied: a whole-value
+    /// `assume_init` lets LLVM move the payload with a 64-byte `memcpy`.
     fn default() -> Self {
-        let frame: MaybeUninit<Self> = MaybeUninit::uninit();
-        let mut frame = unsafe { frame.assume_init() };
-        frame.sync = Sync::default();
-        frame.cmd = Cmd::Info;
-        frame.status = Status::Request;
-        frame.addr_lo = 0;
-        frame.addr_hi = 0;
-        frame.flags = Flags { raw: 0 };
-        frame.len = 0;
-        frame.crc = [0; 2];
-        frame
+        let mut frame = MaybeUninit::<Self>::uninit();
+        let p = frame.as_mut_ptr();
+        unsafe {
+            (&raw mut (*p).sync).write(Sync::default());
+            (&raw mut (*p).cmd).write(Cmd::Info);
+            (&raw mut (*p).status).write(Status::Request);
+            (&raw mut (*p).addr_lo).write(0);
+            (&raw mut (*p).addr_hi).write(0);
+            (&raw mut (*p).flags).write(Flags { raw: 0 });
+            (&raw mut (*p).len).write(0);
+            (&raw mut (*p).crc).write([0; 2]);
+            frame.assume_init()
+        }
     }
 }
 
