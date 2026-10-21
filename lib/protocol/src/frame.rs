@@ -40,38 +40,6 @@ pub struct InfoData {
 impl InfoData {
     /// Encoded size in bytes.
     pub const SIZE: u16 = core::mem::size_of::<Self>() as u16;
-
-    /// Decode from the start of `bytes` (little-endian fields in declaration
-    /// order); `None` when `bytes` is shorter than [`SIZE`](Self::SIZE).
-    /// Bytes past `SIZE` are ignored, so a longer reply from a newer device
-    /// still decodes.
-    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
-        let b = bytes.get(..Self::SIZE as usize)?;
-        Some(Self {
-            capacity: u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
-            erase_size: u16::from_le_bytes([b[4], b[5]]),
-            boot_version: u16::from_le_bytes([b[6], b[7]]),
-            app_version: u16::from_le_bytes([b[8], b[9]]),
-            mode: b[10],
-            boot_baud: b[11],
-            compat: u32::from_le_bytes([b[12], b[13], b[14], b[15]]),
-            max_payload: u16::from_le_bytes([b[16], b[17]]),
-        })
-    }
-
-    /// Encode as little-endian fields in declaration order.
-    pub fn to_bytes(&self) -> [u8; Self::SIZE as usize] {
-        let mut b = [0; Self::SIZE as usize];
-        b[0..4].copy_from_slice(&{ self.capacity }.to_le_bytes());
-        b[4..6].copy_from_slice(&{ self.erase_size }.to_le_bytes());
-        b[6..8].copy_from_slice(&{ self.boot_version }.to_le_bytes());
-        b[8..10].copy_from_slice(&{ self.app_version }.to_le_bytes());
-        b[10] = self.mode;
-        b[11] = self.boot_baud;
-        b[12..16].copy_from_slice(&{ self.compat }.to_le_bytes());
-        b[16..18].copy_from_slice(&{ self.max_payload }.to_le_bytes());
-        b
-    }
 }
 
 /// Typed Erase request data.
@@ -82,54 +50,12 @@ pub struct EraseData {
     pub byte_count: u16,
 }
 
-impl EraseData {
-    /// Encoded size in bytes.
-    pub const SIZE: u16 = core::mem::size_of::<Self>() as u16;
-
-    /// Decode from the start of `bytes` (little-endian fields in declaration
-    /// order); `None` when `bytes` is shorter than [`SIZE`](Self::SIZE).
-    /// Bytes past `SIZE` are ignored, so a longer reply from a newer device
-    /// still decodes.
-    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
-        let b = bytes.get(..Self::SIZE as usize)?;
-        Some(Self {
-            byte_count: u16::from_le_bytes([b[0], b[1]]),
-        })
-    }
-
-    /// Encode as little-endian fields in declaration order.
-    pub fn to_bytes(&self) -> [u8; Self::SIZE as usize] {
-        self.byte_count.to_le_bytes()
-    }
-}
-
 /// Typed Verify response data.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct VerifyData {
     /// CRC16 of the app region.
     pub crc: u16,
-}
-
-impl VerifyData {
-    /// Encoded size in bytes.
-    pub const SIZE: u16 = core::mem::size_of::<Self>() as u16;
-
-    /// Decode from the start of `bytes` (little-endian fields in declaration
-    /// order); `None` when `bytes` is shorter than [`SIZE`](Self::SIZE).
-    /// Bytes past `SIZE` are ignored, so a longer reply from a newer device
-    /// still decodes.
-    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
-        let b = bytes.get(..Self::SIZE as usize)?;
-        Some(Self {
-            crc: u16::from_le_bytes([b[0], b[1]]),
-        })
-    }
-
-    /// Encode as little-endian fields in declaration order.
-    pub fn to_bytes(&self) -> [u8; Self::SIZE as usize] {
-        self.crc.to_le_bytes()
-    }
 }
 
 /// Per-command flags occupying addr byte 3.
@@ -520,89 +446,6 @@ mod tests {
     #[test]
     fn info_is_18_bytes() {
         assert_eq!(InfoData::SIZE, 18);
-    }
-
-    fn union_bytes<const L: usize>(d: &Data) -> [u8; L] {
-        let mut b = [0; L];
-        b.copy_from_slice(unsafe { &d.raw[..L] });
-        b
-    }
-
-    fn info() -> InfoData {
-        InfoData {
-            capacity: 0x0403_0201,
-            erase_size: 0x0605,
-            boot_version: 0x0807,
-            app_version: 0x0A09,
-            mode: 0x0B,
-            boot_baud: 0x0C,
-            compat: 0x100F_0E0D,
-            max_payload: 0x1211,
-        }
-    }
-
-    fn assert_info_eq(a: &InfoData, b: &InfoData) {
-        assert_eq!({ a.capacity }, { b.capacity });
-        assert_eq!({ a.erase_size }, { b.erase_size });
-        assert_eq!({ a.boot_version }, { b.boot_version });
-        assert_eq!({ a.app_version }, { b.app_version });
-        assert_eq!(a.mode, b.mode);
-        assert_eq!(a.boot_baud, b.boot_baud);
-        assert_eq!({ a.compat }, { b.compat });
-        assert_eq!({ a.max_payload }, { b.max_payload });
-    }
-
-    #[test]
-    fn info_bytes_match_union() {
-        let d = Data { info: info() };
-        let raw = union_bytes::<{ InfoData::SIZE as usize }>(&d);
-        assert_info_eq(&InfoData::from_bytes(&raw).unwrap(), &info());
-        assert_eq!(info().to_bytes(), raw);
-    }
-
-    #[test]
-    fn info_from_bytes_length() {
-        let raw = info().to_bytes();
-        assert!(InfoData::from_bytes(&raw[..raw.len() - 1]).is_none());
-        let mut long = [0xEE; InfoData::SIZE as usize + 3];
-        long[..raw.len()].copy_from_slice(&raw);
-        assert_info_eq(&InfoData::from_bytes(&long).unwrap(), &info());
-    }
-
-    #[test]
-    fn erase_bytes_match_union() {
-        let d = Data {
-            erase: EraseData { byte_count: 0x0201 },
-        };
-        let raw = union_bytes::<{ EraseData::SIZE as usize }>(&d);
-        assert_eq!(EraseData::from_bytes(&raw).unwrap().byte_count, 0x0201);
-        assert_eq!(EraseData { byte_count: 0x0201 }.to_bytes(), raw);
-    }
-
-    #[test]
-    fn erase_from_bytes_length() {
-        assert_eq!(EraseData::SIZE, 2);
-        assert!(EraseData::from_bytes(&[0x01]).is_none());
-        let long = [0x01, 0x02, 0xEE, 0xEE, 0xEE];
-        assert_eq!(EraseData::from_bytes(&long).unwrap().byte_count, 0x0201);
-    }
-
-    #[test]
-    fn verify_bytes_match_union() {
-        let d = Data {
-            verify: VerifyData { crc: 0x0201 },
-        };
-        let raw = union_bytes::<{ VerifyData::SIZE as usize }>(&d);
-        assert_eq!(VerifyData::from_bytes(&raw).unwrap().crc, 0x0201);
-        assert_eq!(VerifyData { crc: 0x0201 }.to_bytes(), raw);
-    }
-
-    #[test]
-    fn verify_from_bytes_length() {
-        assert_eq!(VerifyData::SIZE, 2);
-        assert!(VerifyData::from_bytes(&[0x01]).is_none());
-        let long = [0x01, 0x02, 0xEE, 0xEE, 0xEE];
-        assert_eq!(VerifyData::from_bytes(&long).unwrap().crc, 0x0201);
     }
 
     #[test]
