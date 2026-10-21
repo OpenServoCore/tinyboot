@@ -4,6 +4,12 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ## [Unreleased]
 
+## [tinyboot-protocol 0.5.1] - 2026-10-20
+
+### Added
+
+- `InfoData`, `EraseData` and `VerifyData` gain `from_bytes` and `to_bytes`, so a host reads and writes them from plain byte slices without going through the `Data` union. `EraseData` and `VerifyData` gain `SIZE` like `InfoData`.
+
 ## [tinyboot-core 0.6.1] - 2026-10-20
 
 ### Added
