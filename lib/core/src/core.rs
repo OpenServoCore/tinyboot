@@ -96,7 +96,7 @@ where
             }) == stored;
         }
         // No CRC stored (virgin / debugger-flashed).
-        self.platform.app_present()
+        self.platform.storage.app_present()
     }
 
     #[inline(always)]

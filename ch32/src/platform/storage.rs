@@ -87,6 +87,13 @@ impl StorageTrait for Storage {
     fn as_slice(&self) -> &[u8] {
         unsafe { core::slice::from_raw_parts(self.app_ptr(), self.app_size) }
     }
+
+    #[inline(always)]
+    fn app_present(&self) -> bool {
+        // SAFETY: the app base is a word-aligned flash address on every
+        // chip, readable whatever the region's length.
+        unsafe { core::ptr::read_volatile(self.app_ptr() as *const u32) != 0xFFFF_FFFF }
+    }
 }
 
 impl ReadNorFlash for Storage {

@@ -332,7 +332,7 @@ impl<
             // chips that hand off by run mode, so a half-written image
             // would run and an erased app region would hang the chip.
             if !flags.contains(ResetFlags::BOOTLOADER)
-                && (state == BootState::Updating || !self.platform.app_present())
+                && (state == BootState::Updating || !self.platform.storage.app_present())
             {
                 self.frame.status = Status::Unsupported;
             } else {
