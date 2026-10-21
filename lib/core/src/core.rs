@@ -95,11 +95,8 @@ where
                 self.platform.storage.as_slice().get_unchecked(..sz)
             }) == stored;
         }
-        // No CRC stored (virgin / debugger-flashed) — require at least one
-        // non-0xFF word to treat the app as present.
-        let data = self.platform.storage.as_slice();
-        data.len() >= 4
-            && unsafe { core::ptr::read_volatile(data.as_ptr() as *const u32) } != 0xFFFF_FFFF
+        // No CRC stored (virgin / debugger-flashed).
+        self.platform.app_present()
     }
 
     #[inline(always)]

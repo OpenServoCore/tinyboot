@@ -38,4 +38,14 @@ where
             ctl,
         }
     }
+
+    /// The app region's first word is programmed. Without a stored CRC
+    /// this is the only sign of an app: an erased chip reads all 0xFF.
+    #[inline(always)]
+    pub(crate) fn app_present(&self) -> bool {
+        let data = self.storage.as_slice();
+        // SAFETY: flash is word-aligned and the length is checked first.
+        data.len() >= 4
+            && unsafe { core::ptr::read_volatile(data.as_ptr() as *const u32) } != 0xFFFF_FFFF
+    }
 }

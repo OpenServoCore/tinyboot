@@ -4,6 +4,12 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ## [Unreleased]
 
+## [tinyboot-core 0.6.2] - 2026-10-20
+
+### Fixed
+
+- The bootloader refuses `Reset` to the app with `Unsupported` when the app region's first word is erased, as it does mid-update, and stays in the bootloader. A system-flash bootloader hands off by boot mode without checking the app, so a chip with no app flashed jumped into blank flash and hung until a power cycle.
+
 ## [tinyboot-protocol 0.5.1] - 2026-10-20
 
 ### Changed

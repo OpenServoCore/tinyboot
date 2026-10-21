@@ -58,7 +58,7 @@ Byte 3 of the address field carries per-command flags. Each command defines its 
 | 0   | `BOOTLOADER` | Enter the bootloader (service mode) after reset                         |
 | 1   | `BAUD`       | Store addr byte 0 as the bootloader's `BaudRate` index before resetting |
 
-With no flag set, `Cmd::Reset` boots the app (hand-off mode). The bootloader refuses that with `Unsupported` while an update is in progress (META `Updating`), so a half-written image never runs; `BOOTLOADER` is always accepted.
+With no flag set, `Cmd::Reset` boots the app (hand-off mode). The bootloader refuses that with `Unsupported` while an update is in progress (META `Updating`), so a half-written image never runs, and when the app region's first word is erased, so a chip with no app does not jump into blank flash; `BOOTLOADER` is always accepted.
 
 ### `BaudRate`
 

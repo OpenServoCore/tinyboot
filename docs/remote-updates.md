@@ -97,6 +97,7 @@ When all four hold, the bootloader hands off to the app. As soon as you run a re
 | App's `confirm()` never reaches due to bug | Same as above — trials run out, bootloader wins.                                         |
 | Host crashes mid-flash                     | Same as "power lost during erase or write" — safe, just re-flash.                        |
 | `Reset` to the app mid-flash               | Refused with `Unsupported`; the device stays in the bootloader. Re-flash.                |
+| `Reset` to the app with no app flashed     | Refused with `Unsupported`; the device stays in the bootloader. Flash an app.            |
 | Image built for another board              | Verify returns `Incompatible` (bootloader has a compatibility key); flash the right one. |
 
 ## Several devices on one bus

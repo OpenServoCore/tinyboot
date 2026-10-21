@@ -330,8 +330,10 @@ impl<
             let flags = unsafe { flags.reset };
             // A reset to the app skips the bootloader's META check on
             // chips that hand off by run mode, so a half-written image
-            // would run.
-            if state == BootState::Updating && !flags.contains(ResetFlags::BOOTLOADER) {
+            // would run and an erased app region would hang the chip.
+            if !flags.contains(ResetFlags::BOOTLOADER)
+                && (state == BootState::Updating || !self.platform.app_present())
+            {
                 self.frame.status = Status::Unsupported;
             } else {
                 self.cmd_reset(addr, flags);
