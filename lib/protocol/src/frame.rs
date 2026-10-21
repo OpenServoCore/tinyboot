@@ -196,6 +196,24 @@ impl<const N: usize> Frame<N> {
     /// Returns `Ok(Status::Ok)` on success, `Ok(Status::*)` for protocol
     /// errors (CRC, invalid frame, overflow), `Err` only for transport IO.
     pub fn read<R: embedded_io::Read>(&mut self, r: &mut R) -> Result<Status, ReadError> {
+        self.read_frame::<R, false>(r)
+    }
+
+    /// Read one frame as a device: as [`read`](Self::read), but a frame
+    /// whose status is not [`Status::Request`] is another device's reply.
+    /// Its payload and CRC are consumed unchecked and it returns
+    /// `Ok(Status::Request)`, which draws no reply, so the device listens
+    /// again at once. A reply whose payload exceeds `N` is left to the sync
+    /// scan.
+    pub fn read_request<R: embedded_io::Read>(&mut self, r: &mut R) -> Result<Status, ReadError> {
+        self.read_frame::<R, true>(r)
+    }
+
+    #[inline(always)]
+    fn read_frame<R: embedded_io::Read, const DEVICE: bool>(
+        &mut self,
+        r: &mut R,
+    ) -> Result<Status, ReadError> {
         self.sync.read(r)?;
 
         // Read header fields: cmd(1) + status(1) + addr(4) + len(2) = 8 bytes at offset 2
@@ -210,12 +228,17 @@ impl<const N: usize> Frame<N> {
             return Ok(Status::Unsupported);
         }
 
+        let heard = DEVICE && self.status != Status::Request;
         let data_len = self.len as usize;
 
         if data_len > N {
             // Same as above — we cannot drain a payload larger than our buffer.
             // The sync scanner recovers on the next frame.
-            return Ok(Status::PayloadOverflow);
+            return Ok(if heard {
+                Status::Request
+            } else {
+                Status::PayloadOverflow
+            });
         }
 
         // Read data directly into buffer
@@ -226,6 +249,10 @@ impl<const N: usize> Frame<N> {
 
         // Read CRC directly — [u8; 2] has no alignment constraint
         r.read_exact(&mut self.crc).map_err(|_| ReadError)?;
+
+        if heard {
+            return Ok(Status::Request);
+        }
 
         // Validate CRC over body
         if self.crc != crc16(CRC_INIT, self.as_bytes(0, 10 + data_len)).to_le_bytes() {
@@ -252,6 +279,21 @@ impl<const N: usize> Frame<N> {
         &mut self,
         r: &mut R,
     ) -> Result<Status, ReadError> {
+        self.read_frame_async::<R, false>(r).await
+    }
+
+    /// Async version of [`read_request`](Self::read_request).
+    pub async fn read_request_async<R: embedded_io_async::Read>(
+        &mut self,
+        r: &mut R,
+    ) -> Result<Status, ReadError> {
+        self.read_frame_async::<R, true>(r).await
+    }
+
+    async fn read_frame_async<R: embedded_io_async::Read, const DEVICE: bool>(
+        &mut self,
+        r: &mut R,
+    ) -> Result<Status, ReadError> {
         self.sync.read_async(r).await?;
 
         r.read_exact(self.as_bytes_mut(2, 8))
@@ -263,11 +305,16 @@ impl<const N: usize> Frame<N> {
             return Ok(Status::Unsupported);
         }
 
+        let heard = DEVICE && self.status != Status::Request;
         let data_len = self.len as usize;
 
         if data_len > N {
             // See sync read() for rationale on not draining here.
-            return Ok(Status::PayloadOverflow);
+            return Ok(if heard {
+                Status::Request
+            } else {
+                Status::PayloadOverflow
+            });
         }
 
         if data_len > 0 {
@@ -277,6 +324,10 @@ impl<const N: usize> Frame<N> {
         }
 
         r.read_exact(&mut self.crc).await.map_err(|_| ReadError)?;
+
+        if heard {
+            return Ok(Status::Request);
+        }
 
         if self.crc != crc16(CRC_INIT, self.as_bytes(0, 10 + data_len)).to_le_bytes() {
             return Ok(Status::CrcMismatch);
@@ -529,5 +580,90 @@ mod tests {
             frame2.read(&mut MockReader::new(sink.written())),
             Ok(Status::PayloadOverflow)
         );
+    }
+
+    #[test]
+    fn read_rejects_a_bad_crc() {
+        let mut f = frame(Cmd::Write, Status::Request, 0, &[0xDE, 0xAD]);
+        let mut sink = Sink::new();
+        f.send(&mut sink).unwrap();
+        sink.buf[10] ^= 0x01;
+        let mut f2 = Frame::<DEFAULT_PAYLOAD>::default();
+        assert_eq!(
+            f2.read(&mut MockReader::new(sink.written())),
+            Ok(Status::CrcMismatch)
+        );
+        let mut f3 = Frame::<DEFAULT_PAYLOAD>::default();
+        assert_eq!(
+            f3.read_request(&mut MockReader::new(sink.written())),
+            Ok(Status::CrcMismatch)
+        );
+    }
+
+    /// Wire bytes of `f`; `damage` flips a payload bit.
+    fn wire(f: &mut Frame, damage: bool) -> ([u8; 512], usize) {
+        let mut sink = Sink::new();
+        f.send(&mut sink).unwrap();
+        if damage {
+            sink.buf[10] ^= 0x01;
+        }
+        (sink.buf, sink.pos)
+    }
+
+    fn heard_reply_then_request(damage: bool) {
+        let (r, rn) = wire(&mut frame(Cmd::Info, Status::Ok, 0, &[7; 18]), damage);
+        let (q, qn) = wire(
+            &mut frame(Cmd::Erase, Status::Request, 0x40, &[0x40, 0]),
+            false,
+        );
+        let mut input = [0u8; 1024];
+        input[..rn].copy_from_slice(&r[..rn]);
+        input[rn..rn + qn].copy_from_slice(&q[..qn]);
+        let mut rd = MockReader::new(&input[..rn + qn]);
+
+        let mut dev = Frame::<DEFAULT_PAYLOAD>::default();
+        assert_eq!(dev.read_request(&mut rd), Ok(Status::Request));
+        assert_eq!(rd.pos, rn, "consumes exactly len + 2 after the header");
+
+        assert_eq!(dev.read_request(&mut rd), Ok(Status::Ok));
+        assert_eq!(dev.cmd, Cmd::Erase);
+        assert_eq!(dev.addr(), 0x40);
+        assert_eq!(rd.pos, rn + qn);
+    }
+
+    #[test]
+    fn device_read_consumes_a_heard_reply_and_parses_the_next_request() {
+        heard_reply_then_request(false);
+    }
+
+    #[test]
+    fn device_read_never_validates_a_heard_reply() {
+        heard_reply_then_request(true);
+    }
+
+    #[test]
+    fn host_read_still_validates_replies() {
+        let (r, rn) = wire(&mut frame(Cmd::Info, Status::Ok, 0, &[7; 18]), true);
+        let mut f = Frame::<DEFAULT_PAYLOAD>::default();
+        assert_eq!(
+            f.read(&mut MockReader::new(&r[..rn])),
+            Ok(Status::CrcMismatch)
+        );
+    }
+
+    #[test]
+    fn device_read_leaves_an_oversized_reply_to_the_sync_scan() {
+        let mut f = Frame::<240> {
+            cmd: Cmd::Info,
+            status: Status::Ok,
+            ..Default::default()
+        };
+        f.len = 100;
+        let mut sink = Sink::new();
+        f.send(&mut sink).unwrap();
+        let mut rd = MockReader::new(sink.written());
+        let mut dev = Frame::<DEFAULT_PAYLOAD>::default();
+        assert_eq!(dev.read_request(&mut rd), Ok(Status::Request));
+        assert_eq!(rd.pos, 10);
     }
 }
