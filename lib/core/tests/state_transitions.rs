@@ -371,9 +371,15 @@ fn reset_without_baud_flag_keeps_baud() {
     assert_eq!(d.platform.boot_meta.baud_writes, 0);
 }
 
+/// Program the app region's first word, as any image or a debugger does.
+fn seed_app(p: &mut TestPlatform) {
+    p.storage.data[..4].copy_from_slice(&[1, 2, 3, 4]);
+}
+
 #[test]
 fn reset_to_app_refused_while_updating() {
     let mut p = platform(BootState::Updating);
+    seed_app(&mut p);
     let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
     d.platform.transport.load_request_flags(
         Cmd::Reset,
@@ -406,6 +412,7 @@ fn reset_to_bootloader_allowed_while_updating() {
 #[test]
 fn reset_to_app_allowed_while_validating() {
     let mut p = platform(BootState::Validating);
+    seed_app(&mut p);
     let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
     d.platform.transport.load_request_flags(
         Cmd::Reset,
@@ -416,6 +423,59 @@ fn reset_to_app_allowed_while_validating() {
     );
     dispatch_reset(&mut d);
     assert_eq!(d.frame.status, Status::Ok);
+}
+
+#[test]
+fn reset_to_app_refused_without_an_app() {
+    let mut p = platform(BootState::Idle);
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    d.platform.transport.load_request_flags(
+        Cmd::Reset,
+        BaudRate::B9600 as u32,
+        reset_flags(ResetFlags::BAUD),
+        0,
+        &[],
+    );
+    take_events();
+    d.dispatch().unwrap();
+    assert_eq!(d.frame.status, Status::Unsupported);
+    assert_ne!(d.platform.transport.tx_pos, 0);
+    assert!(take_events().is_empty());
+}
+
+#[test]
+fn reset_to_app_allowed_with_an_app() {
+    let mut p = platform(BootState::Idle);
+    seed_app(&mut p);
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    d.platform.transport.load_request_flags(
+        Cmd::Reset,
+        0,
+        reset_flags(ResetFlags::empty()),
+        0,
+        &[],
+    );
+    take_events();
+    dispatch_reset(&mut d);
+    assert_eq!(d.frame.status, Status::Ok);
+    assert_eq!(take_events(), ["HandOff", "reset"]);
+}
+
+#[test]
+fn reset_to_bootloader_allowed_without_an_app() {
+    let mut p = platform(BootState::Idle);
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    d.platform.transport.load_request_flags(
+        Cmd::Reset,
+        0,
+        reset_flags(ResetFlags::BOOTLOADER),
+        0,
+        &[],
+    );
+    take_events();
+    dispatch_reset(&mut d);
+    assert_eq!(d.frame.status, Status::Ok);
+    assert_eq!(take_events(), ["Service", "reset"]);
 }
 
 #[test]

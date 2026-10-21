@@ -4,6 +4,28 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ## [Unreleased]
 
+## [tinyboot 0.5.2] - 2026-10-20
+
+### Fixed
+
+- A refused reset to the app reports that an update is in progress or no app is flashed, instead of only the former.
+
+## [tinyboot-ch32 0.7.1] - 2026-10-20
+
+### Changed
+
+- `Storage` overrides `app_present()` without the length check, since its app base is always readable flash. The bootloader's reset guard from tinyboot-core 0.6.2 costs 4 bytes instead of 18.
+
+## [tinyboot-core 0.6.2] - 2026-10-20
+
+### Added
+
+- `Storage::app_present()`, provided: the app region's first word is programmed. A platform that knows its region holds a word overrides it without the length check.
+
+### Fixed
+
+- The bootloader refuses `Reset` to the app with `Unsupported` when the app region's first word is erased, as it does mid-update, and stays in the bootloader. A system-flash bootloader hands off by boot mode without checking the app, so a chip with no app flashed jumped into blank flash and hung until a power cycle.
+
 ## [tinyboot-protocol 0.5.1] - 2026-10-20
 
 ### Changed

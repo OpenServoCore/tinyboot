@@ -285,11 +285,11 @@ fn parse_baud(rate: &str) -> Result<Option<BaudRate>, Box<dyn std::error::Error>
     })
 }
 
-/// The bootloader refuses to start the app while an update is in progress.
+/// The bootloader refuses to start the app mid-update or with no app flashed.
 fn refused_app(e: FlashError) -> Box<dyn std::error::Error> {
     match e {
         FlashError::Device(Status::Unsupported) => "the bootloader refused to start the app: \
-             an update is in progress. Flash again, or `tinyboot reset --bootloader`."
+             an update is in progress or no app is flashed. Flash an app."
             .into(),
         e => e.into(),
     }
