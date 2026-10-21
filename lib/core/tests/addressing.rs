@@ -368,6 +368,68 @@ fn unaddressed_bootloader_refuses_select() {
     );
 }
 
+/// Bytes of a frame as another device or the host sends it.
+fn frame_bytes(cmd: Cmd, status: Status, data: &[u8]) -> Vec<u8> {
+    let mut t = MockTransport::new();
+    load(&mut t, cmd, status, 0, 0, data);
+    t.rx_buf[..t.rx_len].to_vec()
+}
+
+/// Queue `frames` back to back on `t`'s receive side.
+fn queue(t: &mut MockTransport, frames: &[Vec<u8>]) {
+    let all = frames.concat();
+    t.rx_buf[..all.len()].copy_from_slice(&all);
+    t.rx_len = all.len();
+    t.rx_pos = 0;
+    t.tx_pos = 0;
+    t.waited = None;
+}
+
+#[test]
+fn a_heard_reply_then_a_select_for_this_device_is_answered() {
+    let mut ps = platforms(1);
+    let mut devs = devices(&mut ps, &UID_FNS[..1]);
+    let d = &mut devs[0];
+    let heard = frame_bytes(Cmd::Info, Status::Ok, &[0x5A; 18]);
+    let seed = 5;
+    let sel = frame_bytes(
+        Cmd::Select,
+        Status::Request,
+        &select_data(seed, &bits_of(&UIDS[0])),
+    );
+    queue(&mut d.platform.transport, &[heard.clone(), sel]);
+
+    d.dispatch().unwrap();
+    assert_eq!(d.platform.transport.rx_pos, heard.len());
+    assert!(reply(&d.platform.transport).is_none());
+
+    d.dispatch().unwrap();
+    let f = reply(&d.platform.transport).expect("no Select reply");
+    assert_eq!(uid_of(&f), UIDS[0]);
+    let slot = (crc16(CRC_INIT, &UIDS[0]) >> seed) as u8 & 15;
+    assert_eq!(d.platform.transport.waited, Some(slot));
+}
+
+#[test]
+fn an_unaddressed_bootloader_never_answers_a_heard_reply() {
+    let mut p = platform(BootState::Idle);
+    let mut d = Dispatcher::<_, _, _, _, TEST_BUF_SIZE>::new(&mut p);
+    let mut bad = frame_bytes(Cmd::Info, Status::Ok, &[0; 18]);
+    let n = bad.len();
+    bad[n - 1] ^= 1;
+    let info = frame_bytes(Cmd::Info, Status::Request, &[]);
+    queue(
+        &mut d.platform.transport,
+        &[frame_bytes(Cmd::Write, Status::Ok, &[]), bad, info],
+    );
+    d.dispatch().unwrap();
+    assert!(reply(&d.platform.transport).is_none());
+    d.dispatch().unwrap();
+    assert!(reply(&d.platform.transport).is_none());
+    d.dispatch().unwrap();
+    assert_eq!(reply(&d.platform.transport).unwrap().status, Status::Ok);
+}
+
 static APP_WAITED: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0xFF);
 
 fn app_wait(n: u8) {
@@ -415,4 +477,19 @@ fn addressable_app_answers_only_once_selected() {
     app.poll(&mut rx, &mut tx);
     let f = reply(&tx).expect("no Info reply");
     assert_eq!(unsafe { f.data.info }.mode, 1);
+
+    // Another device's reply, then a request: the app reads past the one
+    // and answers the other.
+    tx.tx_pos = 0;
+    queue(
+        &mut rx,
+        &[
+            frame_bytes(Cmd::Info, Status::Ok, &[0; 18]),
+            frame_bytes(Cmd::Info, Status::Request, &[]),
+        ],
+    );
+    app.poll(&mut rx, &mut tx);
+    assert!(reply(&tx).is_none());
+    app.poll(&mut rx, &mut tx);
+    assert!(reply(&tx).is_some());
 }

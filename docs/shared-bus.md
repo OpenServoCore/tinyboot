@@ -48,6 +48,8 @@ It never answers a frame it can't read (bad CRC, unknown command, payload too bi
 
 This means a device sitting in its bootloader never disturbs the bus. Several devices waiting for firmware at once is fine too. Each one stays quiet until the host picks it.
 
+A device hears every frame on the bus, not just its own. A reply from another device is read and dropped without a CRC check, so the device is listening again right after the last byte. A request is different. Its CRC is checked after the last byte arrives, about 3 us per frame byte on a 48 MHz CH32, and the device cannot hear during that time. The host only sends its next request after the reply or after its listen window, so this never overlaps in normal use. If you write your own host and send a request that draws no reply, leave that much time before the next frame.
+
 ## How `Select` works
 
 `Select` carries a seed and a prefix of id bits. Every device whose id starts with the prefix becomes selected and replies with its id. Every other device becomes deselected.

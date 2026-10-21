@@ -269,7 +269,7 @@ impl<
     /// to other requests; it never answers a frame it cannot read or
     /// another device's reply.
     pub fn dispatch(&mut self) -> Result<(), ReadError> {
-        let status = self.frame.read(&mut self.platform.transport)?;
+        let status = self.frame.read_request(&mut self.platform.transport)?;
 
         let reply = if A::ADDRESSABLE {
             if status != Status::Ok || self.frame.status != Status::Request {
@@ -285,6 +285,9 @@ impl<
             } else {
                 false
             }
+        } else if status == Status::Request {
+            // Another device's reply.
+            false
         } else if status != Status::Ok {
             self.frame.len = 0;
             self.frame.status = status;

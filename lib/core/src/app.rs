@@ -116,7 +116,7 @@ impl<C: BootCtl, M: BootMetaStore, const P: usize, A: Addressing> App<C, M, P, A
 
     /// Poll for one command (blocking).
     pub fn poll<R: embedded_io::Read, W: embedded_io::Write>(&mut self, rx: &mut R, tx: &mut W) {
-        let status = match self.frame.read(rx) {
+        let status = match self.frame.read_request(rx) {
             Ok(s) => s,
             Err(_) => return,
         };
@@ -132,7 +132,7 @@ impl<C: BootCtl, M: BootMetaStore, const P: usize, A: Addressing> App<C, M, P, A
         rx: &mut R,
         tx: &mut W,
     ) {
-        let status = match self.frame.read_async(rx).await {
+        let status = match self.frame.read_request_async(rx).await {
             Ok(s) => s,
             Err(_) => return,
         };
@@ -155,6 +155,9 @@ impl<C: BootCtl, M: BootMetaStore, const P: usize, A: Addressing> App<C, M, P, A
             if !self.addressing.selected() {
                 return false;
             }
+        } else if status == Status::Request {
+            // Another device's reply.
+            return false;
         } else if status != Status::Ok {
             self.frame.len = 0;
             self.frame.status = status;
