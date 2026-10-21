@@ -4,6 +4,12 @@ Releases up through `v0.4.0` were workspace-wide and tagged `vX.Y.Z`. From `0.4.
 
 ## [Unreleased]
 
+## [tinyboot-protocol 0.5.1] - 2026-10-20
+
+### Changed
+
+- The crate builds for little-endian targets only. The typed payloads (`InfoData`, `EraseData`, `VerifyData`) are padding-free `repr(C)` structs whose in-memory bytes are their wire bytes, so a host may read them straight from a received buffer. Every tinyboot device and host so far is little-endian.
+
 ## [tinyboot-core 0.6.1] - 2026-10-20
 
 ### Added

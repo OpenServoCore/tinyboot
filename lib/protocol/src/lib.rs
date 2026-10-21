@@ -6,6 +6,11 @@
 //! Defines the frame format, commands, status codes, and CRC used for
 //! host-device communication over UART / RS-485.
 
+// Typed payloads are padding-free structs whose in-memory bytes are the wire
+// bytes; a host may read them straight from a received buffer.
+#[cfg(target_endian = "big")]
+compile_error!("tinyboot-protocol supports little-endian targets only");
+
 /// CRC16-CCITT implementation.
 pub mod crc;
 /// Frame encoding, decoding, and typed payload access.
