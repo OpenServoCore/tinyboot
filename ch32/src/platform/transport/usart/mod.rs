@@ -113,11 +113,14 @@ impl<W: Wire, E: TxEnable> Usart<W, E> {
 
         afio::set_usart_remap(usart_n, config.mapping.remap_value());
 
-        let wire = config.wire.init(tx_pin, rx_pin);
         let tx_en = config.tx_en.init();
 
         let brr = stored_brr(config.pclk, brr(config.pclk, config.baud.hz()));
         usart::init(regs, brr, W::HALF_DUPLEX);
+
+        // After TE: a TX pin switched to its USART function before then
+        // follows an output that idles low.
+        let wire = config.wire.init(tx_pin, rx_pin);
 
         Usart { regs, wire, tx_en }
     }
